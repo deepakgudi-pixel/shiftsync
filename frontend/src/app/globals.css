@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,700&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-bricolage: 'Bricolage Grotesque', sans-serif;
+  --font-dm: 'DM Sans', sans-serif;
+}
+
+* { box-sizing: border-box; }
+html { -webkit-font-smoothing: antialiased; }
+body { background: #f8f8fc; color: #0d0d1a; }
+
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #d0d0e4; border-radius: 99px; }
+
+.rbc-calendar { font-family: var(--font-dm) !important; background: white; border-radius: 16px; overflow: hidden; border: 1px solid #e4e4f0 !important; }
+.rbc-header { padding: 10px 8px !important; font-weight: 500 !important; font-size: 12px !important; color: #8888aa !important; border-bottom: 1px solid #f0f0f8 !important; text-transform: uppercase; letter-spacing: 0.06em; }
+.rbc-today { background-color: #f0f4ff !important; }
+.rbc-event { border-radius: 6px !important; border: none !important; font-size: 12px !important; font-weight: 500 !important; padding: 3px 8px !important; }
+.rbc-toolbar { padding: 14px 16px !important; border-bottom: 1px solid #f0f0f8 !important; }
+.rbc-toolbar button { color: #4a4a6a !important; border: 1px solid #e4e4f0 !important; border-radius: 8px !important; padding: 5px 12px !important; font-family: var(--font-dm) !important; font-size: 13px !important; font-weight: 500 !important; }
+.rbc-toolbar button:hover { background: #f0f4ff !important; border-color: #9db3ff !important; color: #4f6eff !important; }
+.rbc-toolbar button.rbc-active { background: #4f6eff !important; border-color: #4f6eff !important; color: white !important; }
+.rbc-toolbar-label { font-family: var(--font-bricolage) !important; font-size: 17px !important; font-weight: 600 !important; color: #0d0d1a !important; }
+.rbc-time-slot, .rbc-timeslot-group, .rbc-time-content, .rbc-time-header { border-color: #f0f0f8 !important; }
+.rbc-off-range-bg { background: #fafafa !important; }
+
+@layer components {
+  .card { @apply bg-white rounded-2xl border border-surface-200 shadow-card; }
+  .btn-primary { @apply bg-brand-500 text-white px-4 py-2.5 rounded-xl font-medium text-sm hover:bg-brand-600 active:scale-95 transition-all duration-150 shadow-brand disabled:opacity-50 disabled:cursor-not-allowed; }
+  .btn-secondary { @apply bg-surface-100 text-ink px-4 py-2.5 rounded-xl font-medium text-sm border border-surface-200 hover:bg-surface-200 active:scale-95 transition-all duration-150; }
+  .btn-ghost { @apply text-ink-secondary px-3 py-2 rounded-lg font-medium text-sm hover:bg-surface-100 hover:text-ink active:scale-95 transition-all duration-150; }
+  .input { @apply w-full px-3.5 py-2.5 bg-surface-50 border border-surface-200 rounded-xl text-sm text-ink placeholder:text-ink-disabled focus:outline-none focus:ring-2 focus:ring-brand-500/20 focus:border-brand-400 transition-all; }
+  .badge { @apply inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium; }
+}
