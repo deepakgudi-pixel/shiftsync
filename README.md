@@ -151,7 +151,7 @@ shiftsync/
 
 ---
 
-## 💡 Interview Talking Points
+## 💡 FAQ
 
 - **Why Clerk?** Auth is solved — I focused engineering effort on the actual business logic (scheduling, real-time, payroll)
 - **Why raw SQL over Prisma?** More control, better performance visibility, shows I understand the database layer directly
