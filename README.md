@@ -1,121 +1,90 @@
-# ShiftSync — Frontline Workforce Management Platform
+# ShiftSync
 
-A full-stack workforce management platform inspired by Sona. Built with Next.js, Node.js/Express, PostgreSQL (Neon), Clerk auth, and Socket.io for real-time features.
-
----
-
-## 🏗 Architecture
-
-Epic → Feature → User Story methodology applied:
-
-**Epic 1 — Auth & Organisation**
-- Multi-role auth via Clerk (Admin / Manager / Employee)
-- Organisation onboarding and member invitation
-
-**Epic 2 — Smart Scheduling**
-- Drag-and-drop calendar (react-big-calendar)
-- Shift conflict detection
-- Open shift management
-
-**Epic 3 — Real-time Communications**
-- Socket.io for live shift updates
-- Shift swap requests
-- Team announcements and messaging
-
-**Epic 4 — Attendance & Payroll**
-- Clock in/out per shift
-- Automated timesheet generation
-- Overtime detection
-- Payroll dashboard
-
-**Epic 5 — Analytics**
-- Workforce utilization dashboard
-- Shift coverage by day
-- Labor cost tracking
+ShiftSync is a full-stack workforce management platform designed for frontline teams, inspired by tools like Sona. It handles everything from smart scheduling and real-time team messaging to automated payroll and labor analytics.
 
 ---
 
-## 🚀 Quick Start
+## 🛠 The Tech Stack
 
-### Prerequisites
-- Node.js 18+
-- A Neon account (free at neon.tech)
-- A Clerk account (free at clerk.com)
+I built this with a modern, scalable stack:
+*   **Frontend:** Next.js 14 (App Router) + Tailwind CSS
+*   **Backend:** Node.js & Express
+*   **Auth:** Clerk (handles multi-role permissions: Admin, Manager, and Employee)
+*   **Database:** PostgreSQL hosted on **Neon** (Serverless)
+*   **Real-time:** Socket.io for instant shift updates and team messaging
+*   **Visuals:** Recharts for analytics and `react-big-calendar` for the scheduling grid
 
-### 1. Clone and install
+---
 
+## ✨ Key Features
+
+*   **Smart Scheduling:** A drag-and-drop interface that prevents double-booking. If a manager tries to assign overlapping shifts, the system catches it at the database level using SQL interval checks.
+*   **Real-time Team Sync:** Using WebSockets, the schedule updates instantly for everyone. If a shift is created or a swap is requested, you see it without refreshing.
+*   **Member Management:** Admins can invite team members, assign roles, and track skills/hourly rates.
+*   **Live Analytics:** Dashboards showing workforce utilization, labor costs, and shift coverage gaps.
+*   **Messaging:** A built-in chat system for team members to coordinate and an announcement board for urgent updates.
+
+---
+
+## 🚀 Getting Started
+
+### 1. Installation
+You'll need to install dependencies in both folders:
 ```bash
-# Backend
-cd backend
-cp .env.example .env
-npm install
+# Install backend
+cd backend && npm install
 
-# Frontend
-cd ../frontend
-cp .env.example .env.local
-npm install
+# Install frontend
+cd ../frontend && npm install
 ```
 
-### 2. Set up environment variables
+### 2. Environment Variables
+Create a `.env` in the `backend` and a `.env.local` in the `frontend` using the provided credentials for Neon and Clerk.
 
-**backend/.env**
-```
-DATABASE_URL=your_neon_connection_string
-CLERK_SECRET_KEY=sk_test_xxx
+**Backend (`backend/.env`):**
+```env
+DATABASE_URL=postgresql://...
+CLERK_SECRET_KEY=sk_test_...
 PORT=4000
-FRONTEND_URL=http://localhost:3000
 ```
 
-**frontend/.env.local**
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_xxx
-CLERK_SECRET_KEY=sk_test_xxx
-NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
-NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
-NEXT_PUBLIC_CLERK_AFTER_SIGN_IN_URL=/dashboard
-NEXT_PUBLIC_CLERK_AFTER_SIGN_UP_URL=/onboarding
+**Frontend (`frontend/.env.local`):**
+```env
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_test_...
 NEXT_PUBLIC_API_URL=http://localhost:4000
 NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 ```
 
-### 3. Set up database
-
+### 3. Database Setup
+I've included a setup script to create the schema in your Neon instance:
 ```bash
 cd backend
-node src/db/setup.js   # Creates all tables
-node src/db/seed.js    # Optional: adds demo data
+node src/db/setup.js
+node src/db/seed.js # Optional: Adds test data
 ```
 
-### 4. Start development
-
+### 4. Running the App
+Run the backend first, then the frontend:
 ```bash
-# Terminal 1 — Backend
+# Terminal 1
 cd backend && npm run dev
 
-# Terminal 2 — Frontend
+# Terminal 2
 cd frontend && npm run dev
 ```
-
-Visit http://localhost:3000
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology |
-|-------|-----------|
-| Frontend | Next.js 14, Tailwind CSS |
-| Auth | Clerk |
-| Backend | Node.js + Express |
-| Database | PostgreSQL (Neon serverless) |
-| Real-time | Socket.io |
-| Calendar | react-big-calendar |
-| Charts | Recharts |
-| Deploy | Vercel + Railway |
+Head over to `http://localhost:3000` to see it in action.
 
 ---
 
-## 📁 Project Structure
+## 🧠 Dev Notes
+
+*   **Why Raw SQL?** I chose raw SQL over an ORM like Prisma for this project to maintain total control over performance and to implement complex overlap checks using Postgres-specific interval logic.
+*   **Real-time logic:** Socket.io rooms are scoped by organisation (`org:${id}`). This ensures that announcements and shift updates are only broadcast to the correct team.
+*   **Auth Flow:** Clerk handles the session, but I use a custom Express middleware on the backend to sync Clerk users with my local `members` table on their first sign-in.
+
+---
+
+## 📁 Folder Structure
 
 ```
 shiftsync/
