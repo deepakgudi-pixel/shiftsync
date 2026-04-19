@@ -70,11 +70,13 @@ const setup = async () => {
         type TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL,
         read BOOLEAN DEFAULT FALSE, data JSONB, created_at TIMESTAMPTZ DEFAULT NOW()
       );
-      CREATE INDEX IF NOT EXISTS idx_shifts_org ON shifts(organisation_id);
+      CREATE INDEX IF NOT EXISTS idx_shifts_org_start ON shifts(organisation_id, start_time);
       CREATE INDEX IF NOT EXISTS idx_shifts_assignee ON shifts(assignee_id);
-      CREATE INDEX IF NOT EXISTS idx_shifts_start ON shifts(start_time);
-      CREATE INDEX IF NOT EXISTS idx_members_org ON members(organisation_id);
+      CREATE INDEX IF NOT EXISTS idx_clock_events_shift_type ON clock_events(shift_id, type);
+      CREATE INDEX IF NOT EXISTS idx_members_org_role ON members(organisation_id, role);
       CREATE INDEX IF NOT EXISTS idx_members_clerk ON members(clerk_user_id);
+      CREATE INDEX IF NOT EXISTS idx_announcements_org_date ON announcements(organisation_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_id, receiver_id);
       CREATE INDEX IF NOT EXISTS idx_notifications_member ON notifications(member_id);
     `);
     await client.query("COMMIT");

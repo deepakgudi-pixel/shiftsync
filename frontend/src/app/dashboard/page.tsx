@@ -32,21 +32,28 @@ interface Announcement {
 }
 
 const StatCard = ({ icon: Icon, label, value, sub, color }: any) => (
-  <div className="group relative overflow-hidden rounded-[2rem] bg-white/80 p-6 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.12)] transition-all duration-500 animate-slide-up">
-    <div className="flex items-start gap-4 relative z-10">
-      <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3', color)}>
-        <Icon size={22} strokeWidth={2} />
+  <div className="group relative overflow-hidden rounded-[2.5rem] bg-gradient-to-b from-white to-surface-50 p-7 backdrop-blur-2xl border border-white/60 shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] hover:shadow-[0_20px_50px_-12px_rgba(79,110,255,0.15)] hover:-translate-y-1.5 transition-all duration-700 ease-out animate-slide-up">
+    <div className="absolute inset-0 bg-gradient-to-tr from-brand-500/0 via-brand-500/0 to-brand-500/[0.03] opacity-0 group-hover:opacity-100 transition-opacity duration-700" />
+    <div className="flex items-center gap-5 relative z-10">
+      <div className={cn('w-14 h-14 rounded-3xl flex items-center justify-center flex-shrink-0 shadow-[0_8px_16px_-4px_rgba(0,0,0,0.1)] transition-all duration-700 group-hover:scale-110 group-hover:rotate-6', color)}>
+        <Icon size={26} strokeWidth={2.5} />
       </div>
-      <div>
-        <p className="text-3xl font-bold tracking-tight text-ink" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
-        <p className="text-xs font-semibold uppercase tracking-wider text-ink-tertiary mt-1 opacity-80">{label}</p>
-        {sub && <p className="text-[10px] font-medium text-ink-disabled mt-1 italic">{sub}</p>}
+      <div className="flex-1">
+        <p className="text-xs font-bold uppercase tracking-widest text-ink-tertiary mb-0.5 opacity-60">{label}</p>
+        <div className="flex items-baseline gap-2">
+          <p className="text-4xl font-black tracking-tighter text-ink leading-none" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
+          {sub && <p className="text-[11px] font-bold text-ink-disabled lowercase">{sub}</p>}
+        </div>
       </div>
     </div>
-    <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500">
-      <Icon size={100} />
+    <div className="absolute -right-6 -bottom-6 opacity-[0.04] group-hover:opacity-[0.1] group-hover:scale-110 transition-all duration-1000">
+      <Icon size={120} />
     </div>
   </div>
+)
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("bg-surface-100 animate-pulse rounded-2xl", className)} />
 )
 
 export default function DashboardPage() {
@@ -57,6 +64,7 @@ export default function DashboardPage() {
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [member, setMember] = useState<any>(null)
   const [team, setTeam] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
   const socket = useSocket(member?.organisation_id, member?.id)
   const [showAnnModal, setShowAnnModal] = useState(false)
   const [annForm, setAnnForm] = useState({ title: '', content: '', priority: 'NORMAL', targetMemberId: '' })
@@ -98,7 +106,7 @@ export default function DashboardPage() {
           const sh = await api.get('/api/shifts', { params: { ...weekParams, assigneeId: me.id } })
           setShifts(sh.data)
         }
-      } catch (err) { console.error(err) }
+      } catch (err) { console.error(err) } finally { setLoading(false) }
     }
     load()
   }, [isLoaded, isSignedIn, api])
@@ -143,47 +151,63 @@ export default function DashboardPage() {
   return (
     <div className="p-5 md:p-8 max-w-[1400px] mx-auto min-h-screen selection:bg-brand-100">
       {/* Header */}
-      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+      <div className="mb-12 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div className="animate-in fade-in slide-in-from-left duration-700">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-2" style={{fontFamily:'var(--font-bricolage)'}}>
-          {greeting}, {user?.firstName || 'there'} 👋
-        </h1>
-          <p className="text-ink-tertiary font-medium flex items-center gap-2">
-            <Calendar size={16} className="text-brand-500" />
-          {new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
-        </p>
+          <div className="flex items-center gap-3 mb-3">
+            <span className="px-3 py-1 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-bold tracking-widest uppercase flex items-center gap-1.5 border border-emerald-100/50">
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live System
+            </span>
+          </div>
+          <h1 className="text-4xl md:text-5xl font-black text-ink tracking-tight mb-3" style={{fontFamily:'var(--font-bricolage)'}}>
+            {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-violet-600">{user?.firstName || 'there'}</span> 👋
+          </h1>
+          <p className="text-ink-tertiary font-semibold flex items-center gap-2.5 opacity-80">
+            <Calendar size={18} className="text-brand-500" />
+            {new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
+          </p>
         </div>
       </div>
 
       {/* Stats — admin/manager only */}
-      {analytics && (
+      {(analytics || loading) && (member?.role === 'ADMIN') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
-          <StatCard icon={Users} label="Total Members" value={analytics.totalMembers} color="bg-indigo-50 text-indigo-600" />
-          <StatCard icon={Calendar} label="Active Shifts" value={analytics.shiftsThisWeek} color="bg-violet-50 text-violet-600" />
-          <StatCard icon={AlertCircle} label="Open Slots" value={analytics.openShifts} sub="Critical status" color="bg-rose-50 text-rose-600" />
-          <StatCard icon={Activity} label="Live Now" value={analytics.activeNow} sub="Current visibility" color="bg-emerald-50 text-emerald-600" />
+          {loading ? [1,2,3,4].map(i => <Skeleton key={i} className="h-32" />) : (
+            <>
+              <StatCard icon={Users} label="Total Members" value={analytics?.totalMembers} color="bg-indigo-50 text-indigo-600" />
+              <StatCard icon={Calendar} label="Active Shifts" value={analytics?.shiftsThisWeek} color="bg-violet-50 text-violet-600" />
+              <StatCard icon={AlertCircle} label="Open Slots" value={analytics?.openShifts} sub="Critical status" color="bg-rose-50 text-rose-600" />
+              <StatCard icon={Activity} label="Live Now" value={analytics?.activeNow} sub="Current visibility" color="bg-emerald-50 text-emerald-600" />
+            </>
+          )}
         </div>
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart */}
-        {analytics && (
-          <div className="bg-white/60 backdrop-blur-xl border border-white/40 p-5 md:p-8 rounded-[2.5rem] lg:col-span-2 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
-              <h2 className="text-xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Workforce Velocity</h2>
-              <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-brand-200" /><div className="w-3 h-3 rounded-full bg-brand-500" /></div>
-            </div>
-            <div className="h-[200px] md:h-[260px]">
-              <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={analytics.shiftsByDay} barSize={32}>
-                <XAxis dataKey="day" tick={{ fontSize:10, fill:'#8888aa' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize:12, fill:'#8888aa' }} axisLine={false} tickLine={false} />
-                <Tooltip cursor={{fill: 'rgba(79, 110, 255, 0.05)'}} contentStyle={{ borderRadius:'20px', border:'none', boxShadow:'0 10px 40px rgba(0,0,0,0.1)', fontSize:'13px' }} />
-                <Bar dataKey="total" fill="#f0f0f7" radius={[10,10,0,0]} name="Total" />
-                <Bar dataKey="completed" fill="#4f6eff" radius={[10,10,0,0]} name="Completed" />
-              </BarChart>
-            </ResponsiveContainer>
-            </div>
+        {(analytics || loading) && (member?.role === 'ADMIN') && (
+          <div className="bg-white/70 backdrop-blur-3xl border border-white/60 p-6 md:p-10 rounded-[3rem] lg:col-span-2 shadow-[0_20px_60px_-15px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_70px_-15px_rgba(79,110,255,0.08)] transition-all duration-700 group">
+            {loading ? <Skeleton className="h-[300px] w-full" /> : (
+              <>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+                  <div>
+                    <h2 className="text-2xl font-black text-ink tracking-tight" style={{fontFamily:'var(--font-bricolage)'}}>Workforce Velocity</h2>
+                    <p className="text-xs font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Shift completion efficiency</p>
+                  </div>
+                  <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-brand-200" /><div className="w-3 h-3 rounded-full bg-brand-500" /></div>
+                </div>
+                <div className="h-[240px] md:h-[300px]">
+                  <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={analytics?.shiftsByDay} barSize={36}>
+                    <XAxis dataKey="day" tick={{ fontSize:11, fontWeight:700, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fontSize:11, fontWeight:700, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                    <Tooltip cursor={{fill: 'rgba(79, 110, 255, 0.05)'}} contentStyle={{ borderRadius:'20px', border:'none', boxShadow:'0 10px 40px rgba(0,0,0,0.1)', fontSize:'13px' }} />
+                    <Bar dataKey="total" fill="#f1f5f9" radius={[12,12,0,0]} name="Total" />
+                    <Bar dataKey="completed" fill="#4f6eff" radius={[12,12,0,0]} name="Completed" />
+                  </BarChart>
+                </ResponsiveContainer>
+                </div>
+              </>
+            )}
           </div>
         )}
 

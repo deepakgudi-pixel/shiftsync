@@ -95,7 +95,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res)
     const result = await query(
       `UPDATE shifts SET title=COALESCE($1,title), start_time=COALESCE($2,start_time), end_time=COALESCE($3,end_time),
        location=$4, notes=$5, color=COALESCE($6,color), assignee_id=COALESCE($7,assignee_id),
-       status=COALESCE($8, CASE WHEN $7 IS NOT NULL THEN 'ASSIGNED' ELSE status END), updated_at=NOW()
+       status=COALESCE($8, CASE WHEN $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' WHEN $7 IS NULL THEN 'OPEN' ELSE status END), updated_at=NOW()
        WHERE id=$9 RETURNING *`,
       [
         title !== undefined ? title : null,
@@ -104,7 +104,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res)
         location !== undefined ? location : null,
         notes !== undefined ? notes : null,
         color !== undefined ? color : null,
-        assigneeId !== undefined ? assigneeId : null,
+        assigneeId ? assigneeId : null,
         status !== undefined ? status : null,
         req.params.id
       ]

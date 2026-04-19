@@ -2,9 +2,25 @@
 import { useEffect, useState } from 'react'
 import { useApi } from '@/hooks/useApi'
 import { useSocket } from '@/hooks/useSocket'
-import { fmtDateTime, cn, getInitials } from '@/lib/utils'
-import { Clock, CheckCircle, LogIn, LogOut, AlertTriangle } from 'lucide-react'
+import { fmtDateTime, cn, getInitials, fmtTime } from '@/lib/utils'
+import { Clock, CheckCircle, LogIn, LogOut, MapPin, Activity, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
+
+const Skeleton = ({ className }: { className?: string }) => (
+  <div className={cn("bg-surface-100 animate-pulse rounded-[2rem]", className)} />
+)
+
+const StatCard = ({ icon: Icon, label, value, color }: any) => (
+  <div className="bg-white/80 border border-white/60 p-6 rounded-[2.5rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] flex items-center gap-5">
+    <div className={cn('w-14 h-14 rounded-3xl flex items-center justify-center shadow-sm', color)}>
+      <Icon size={24} strokeWidth={2.5} />
+    </div>
+    <div>
+      <p className="text-[10px] font-black uppercase tracking-widest text-ink-tertiary opacity-60 mb-1">{label}</p>
+      <p className="text-3xl font-black text-ink tracking-tighter leading-none" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
+    </div>
+  </div>
+)
 
 export default function AttendancePage() {
   const api = useApi()
@@ -13,6 +29,7 @@ export default function AttendancePage() {
   const [liveAttendance, setLiveAttendance] = useState<any[]>([])
   const [timesheet, setTimesheet] = useState<any>(null)
   const [member, setMember] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
   const socket = useSocket(member?.organisation_id, member?.id)
 
   const loadShifts = async (memberId: string) => {
@@ -23,25 +40,30 @@ export default function AttendancePage() {
         end: new Date(Date.now() + 7*24*60*60*1000).toISOString()
       }
     })
-    setAssignedShifts(sh.data.filter((s: any) => s.status === 'ASSIGNED'))
+    // FIX: Include shifts that are OPEN but assigned to this user
+    setAssignedShifts(sh.data.filter((s: any) => s.status === 'ASSIGNED' || s.status === 'OPEN'))
     setInProgressShifts(sh.data.filter((s: any) => s.status === 'IN_PROGRESS'))
   }
 
   useEffect(() => {
     const load = async () => {
       try {
-        const me = await api.get('/api/members/me')
-        setMember(me.data)
-        const [ts] = await Promise.all([
+        const [meRes, tsRes] = await Promise.all([
+          api.get('/api/members/me'),
           api.get('/api/attendance/timesheet/me'),
-          loadShifts(me.data.id),
-        ])
-        setTimesheet(ts.data)
-        if (me.data.role !== 'EMPLOYEE') {
+        ]);
+        
+        const me = meRes.data;
+        setMember(me);
+        setTimesheet(tsRes.data);
+        
+        await loadShifts(me.id);
+
+        if (me.role !== 'EMPLOYEE') {
           const live = await api.get('/api/attendance/live')
           setLiveAttendance(live.data)
         }
-      } catch (err) { console.error(err) }
+      } catch (err) { console.error(err) } finally { setLoading(false) }
     }
     load()
   }, [])

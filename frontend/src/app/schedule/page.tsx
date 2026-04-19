@@ -40,8 +40,8 @@ export default function SchedulePage() {
 
   const loadShifts = useCallback(async (start?: Date, end?: Date) => {
     try {
-      const s = start || new Date(Date.now() - 30*24*60*60*1000)
-      const e = end || new Date(Date.now() + 60*24*60*60*1000)
+      const s = start || new Date(Date.now() - 7*24*60*60*1000)
+      const e = end || new Date(Date.now() + 30*24*60*60*1000)
       const r = await api.get('/api/shifts', { params: { start: s.toISOString(), end: e.toISOString() } })
       setShifts(r.data)
     } catch (err) { console.error(err) }
@@ -52,17 +52,15 @@ export default function SchedulePage() {
 
     const init = async () => {
       try {
-        const [me, mem, shiftsRes] = await Promise.all([
+        const [me, mem] = await Promise.all([
           api.get('/api/members/me'),
-          api.get('/api/members'),
-          api.get('/api/shifts', { params: { 
-            start: new Date(Date.now() - 30*24*60*60*1000).toISOString(), 
-            end: new Date(Date.now() + 60*24*60*60*1000).toISOString() 
-          } })
+          api.get('/api/members')
         ])
-        setMember(me.data)
-        setMembers(mem.data)
-        setShifts(shiftsRes.data)
+        setMember(me.data);
+        setMembers(mem.data);
+        
+        // Load initial shifts with optimized range
+        await loadShifts();
       } catch (err) {
         console.error('Error initializing schedule:', err)
       }
@@ -127,14 +125,14 @@ export default function SchedulePage() {
   return (
     <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-[calc(100vh-56px)] md:h-auto flex flex-col overflow-hidden">
       {/* Header - Compact & Responsive */}
-      <div className="flex items-center justify-between gap-3 mb-4 md:mb-6 flex-shrink-0">
+      <div className="flex items-center justify-between gap-4 mb-8 flex-shrink-0">
         <div className="animate-in fade-in slide-in-from-left duration-500 min-w-0">
-          <h1 className="text-xl md:text-2xl font-bold text-ink truncate" style={{fontFamily:'var(--font-bricolage)'}}>Schedule</h1>
-          <p className="text-[10px] md:text-sm text-ink-tertiary mt-0.5 truncate font-medium">Manage and view all shifts</p>
+          <h1 className="text-3xl font-black text-ink tracking-tight truncate" style={{fontFamily:'var(--font-bricolage)'}}>Roster</h1>
+          <p className="text-[11px] font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Live coordination center</p>
         </div>
         {(member?.role === 'ADMIN' || member?.role === 'MANAGER') && (
           <button 
-            className="btn-primary flex items-center justify-center gap-2 py-2 px-3 md:px-4 text-xs md:text-sm font-bold flex-shrink-0" 
+            className="btn-primary flex items-center justify-center gap-2 py-3 px-5 text-sm font-black tracking-tight rounded-2xl shadow-[0_8px_20px_-6px_rgba(79,110,255,0.4)] hover:shadow-[0_12px_25px_-6px_rgba(79,110,255,0.5)] active:scale-95 transition-all flex-shrink-0" 
             onClick={() => { setSelected(null); setForm({title:'',startTime:'',endTime:'',location:'',notes:'',color:'#4f6eff',assigneeId:''}); setShowModal(true) }}
           >
             <Plus size={16} /> <span className="hidden sm:inline">New Shift</span><span className="sm:hidden">New</span>
@@ -161,42 +159,44 @@ export default function SchedulePage() {
       <div className="flex-1 flex gap-4 md:gap-6 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar scroll-smooth min-h-0">
         {COLUMNS.map(col => (
           <div key={col.id} className={cn(
-            "w-full md:w-80 flex-shrink-0 flex flex-col bg-surface-50/50 rounded-2xl border border-surface-200 shadow-sm",
+            "w-full md:w-80 flex-shrink-0 flex flex-col bg-surface-100/40 rounded-[2.5rem] border border-surface-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.02)]",
             activeTab !== col.id ? "hidden md:flex" : "flex"
           )}>
-            <div className="p-3 md:p-4 flex items-center justify-between border-b border-surface-200/60 flex-shrink-0 bg-white/50 rounded-t-2xl">
+            <div className="p-5 flex items-center justify-between flex-shrink-0">
               <div className="flex items-center gap-2">
-                <div className={cn('w-2 h-2 rounded-full', col.color)} />
-                <h2 className="font-bold text-ink text-[11px] md:text-sm uppercase tracking-wider">{col.label}</h2>
-                <span className="text-[10px] text-ink-tertiary font-bold bg-surface-200/50 px-2 py-0.5 rounded-full">
+                <div className={cn('w-1.5 h-1.5 rounded-full ring-4 ring-offset-2', col.color.replace('bg-', 'ring-'), 'ring-opacity-20')} />
+                <h2 className="font-black text-ink text-[12px] uppercase tracking-widest opacity-80">{col.label}</h2>
+                <span className="text-[10px] text-ink-tertiary font-black bg-white px-2.5 py-1 rounded-full border border-surface-200/60 shadow-sm">
                   {shifts.filter(s => s.status === col.id).length}
                 </span>
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-3 space-y-3 scroll-smooth">
+            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 scroll-smooth">
               {shifts.filter(s => s.status === col.id).map(s => (
                 <button key={s.id} onClick={() => handleEventClick(s)}
-                  className="w-full text-left bg-white p-3.5 md:p-4 rounded-xl border border-surface-200 shadow-sm hover:shadow-md hover:border-brand-200 active:scale-[0.98] transition-all group">
-                  <div className="flex items-start justify-between gap-2 mb-2 md:mb-3">
-                    <h3 className="font-bold text-ink text-[0.85rem] md:text-[0.9rem] leading-tight group-hover:text-brand-600 transition-colors">{s.title}</h3>
-                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: s.color}} />
+                  className="w-full text-left bg-white p-5 rounded-3xl border border-surface-200/80 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.06)] hover:border-brand-300 hover:-translate-y-1 active:scale-[0.98] transition-all duration-500 group">
+                  <div className="flex items-start justify-between gap-2 mb-4">
+                    <h3 className="font-black text-ink text-[0.95rem] leading-snug group-hover:text-brand-600 transition-colors">{s.title}</h3>
+                    <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" style={{background: s.color}} />
                   </div>
                   
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2 text-ink-tertiary">
-                      <Clock size={14} />
-                      <span className="text-xs font-medium">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</span>
+                  <div className="space-y-3">
+                    <div className="flex items-center gap-2.5 text-ink-tertiary">
+                      <Clock size={15} className="opacity-50" />
+                      <span className="text-[11px] font-black uppercase tracking-widest">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</span>
                     </div>
                     {s.location && (
-                      <div className="flex items-center gap-2 text-ink-tertiary">
-                        <MapPin size={14} />
-                        <span className="text-xs truncate">{s.location}</span>
+                      <div className="flex items-center gap-2.5 text-ink-tertiary">
+                        <MapPin size={15} className="opacity-50" />
+                        <span className="text-xs font-semibold truncate">{s.location}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2 text-ink-secondary pt-1 border-t border-surface-100">
-                      <User size={14} className="text-ink-tertiary" />
-                      <span className="text-xs font-semibold">{s.assignee_name || 'Unassigned'}</span>
+                    <div className="flex items-center gap-2.5 pt-3 border-t border-surface-100">
+                      <div className="w-6 h-6 rounded-lg bg-surface-100 flex items-center justify-center flex-shrink-0">
+                        <User size={12} className="text-ink-tertiary" />
+                      </div>
+                      <span className="text-[11px] font-black text-ink-secondary uppercase tracking-widest">{s.assignee_name || 'Open Slot'}</span>
                     </div>
                   </div>
                 </button>

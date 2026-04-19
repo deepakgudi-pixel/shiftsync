@@ -5,7 +5,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 router.post("/clock-in", requireAuth, async (req, res) => {
   try {
     const { shiftId, latitude, longitude } = req.body;
-    const shift = await query("SELECT * FROM shifts WHERE id=$1 AND assignee_id=$2 AND status='ASSIGNED'", [shiftId, req.member.id]);
+    const shift = await query("SELECT * FROM shifts WHERE id=$1 AND assignee_id=$2 AND (status='ASSIGNED' OR status='OPEN')", [shiftId, req.member.id]);
     if (!shift.rows.length) return res.status(404).json({ error: "Shift not found" });
     const already = await query("SELECT id FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN'", [shiftId, req.member.id]);
     if (already.rows.length) return res.status(409).json({ error: "Already clocked in" });
@@ -52,7 +52,7 @@ router.get("/timesheet/me", requireAuth, async (req, res) => {
   try {
     const { start, end } = req.query;
     const startDate = start ? new Date(start) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const endDate = end ? new Date(end) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+    const endDate = end ? new Date(end) : new Date();
 
     const result = await query(`
       SELECT s.id, s.title, s.start_time, s.color,
@@ -63,10 +63,11 @@ router.get("/timesheet/me", requireAuth, async (req, res) => {
       LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
       LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
       WHERE s.assignee_id = $1 
-        AND s.status = 'COMPLETED'
-        AND ci.timestamp >= $2
+      AND s.status = 'COMPLETED'
+      AND ci.timestamp >= $2
+      AND ci.timestamp <= $3
       ORDER BY s.start_time ASC
-    `, [req.member.id, startDate]);
+    `, [req.member.id, startDate, endDate]);
 
     const timesheet = result.rows.map(row => ({
       ...row,
