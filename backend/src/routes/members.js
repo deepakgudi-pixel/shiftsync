@@ -5,11 +5,11 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 router.get("/", requireAuth, async (req, res) => {
   try {
     const result = await query(
-      `SELECT m.id, m.name, m.email, m.role, m.phone, m.skills, m.avatar_url, m.organisation_id, m.created_at, m.updated_at,
+      `SELECT m.id, m.name, m.email, m.role, m.phone, m.skills, m.avatar_url, m.organisation_id, m.can_manage_rates, m.created_at, m.updated_at,
        CASE WHEN $2 = 'ADMIN' OR m.id = $3 OR ($2 = 'MANAGER' AND m.role = 'EMPLOYEE') THEN m.hourly_rate ELSE NULL END as hourly_rate,
-       COUNT(s.id) FILTER (WHERE s.status IN ('ASSIGNED','IN_PROGRESS')) as active_shifts
-       FROM members m LEFT JOIN shifts s ON m.id = s.assignee_id
-       WHERE m.organisation_id = $1 GROUP BY m.id ORDER BY m.name`,
+       (SELECT COUNT(*) FROM shifts s WHERE s.assignee_id = m.id AND s.status IN ('ASSIGNED','IN_PROGRESS')) as active_shifts
+       FROM members m
+       WHERE m.organisation_id = $1 ORDER BY m.name`,
       [req.member.organisation_id, req.member.role, req.member.id]
     );
     res.json(result.rows);
@@ -83,14 +83,15 @@ router.put("/me/availability", requireAuth, async (req, res) => {
 
 router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, res) => {
   try {
-    const { role, hourly_rate } = req.body;
+    const { role, hourly_rate, can_manage_rates } = req.body;
 
     if (req.member.role === 'MANAGER') {
-      // Managers cannot change roles
+      // Managers cannot change roles or permissions
       if (role !== undefined) return res.status(403).json({ error: "Managers cannot change member roles" });
+      if (can_manage_rates !== undefined) return res.status(403).json({ error: "Managers cannot change permissions" });
       
-      const org = await query("SELECT allow_manager_rates FROM organisations WHERE id=$1", [req.member.organisation_id]);
-      if (!org.rows[0].allow_manager_rates) {
+      // Check if this specific manager has permission
+      if (!req.member.can_manage_rates) {
         return res.status(403).json({ error: "Manager rate editing is disabled for this organisation" });
       }
 
@@ -100,10 +101,11 @@ router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, r
     }
 
     const result = await query(
-      `UPDATE members SET role=COALESCE($1,role), hourly_rate=COALESCE($2,hourly_rate), updated_at=NOW()
-       WHERE id=$3 AND organisation_id=$4 RETURNING *`,
+      `UPDATE members SET role=COALESCE($1,role), hourly_rate=COALESCE($2,hourly_rate), 
+       can_manage_rates=COALESCE($3,can_manage_rates), updated_at=NOW()
+       WHERE id=$4 AND organisation_id=$5 RETURNING *`,
       [role !== undefined ? role : null, hourly_rate !== undefined ? hourly_rate : null, 
-       req.params.id, req.member.organisation_id]
+       can_manage_rates !== undefined ? can_manage_rates : null, req.params.id, req.member.organisation_id]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed" }); }

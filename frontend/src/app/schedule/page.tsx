@@ -52,10 +52,17 @@ export default function SchedulePage() {
 
     const init = async () => {
       try {
-        const [me, mem] = await Promise.all([api.get('/api/members/me'), api.get('/api/members')])
+        const [me, mem, shiftsRes] = await Promise.all([
+          api.get('/api/members/me'),
+          api.get('/api/members'),
+          api.get('/api/shifts', { params: { 
+            start: new Date(Date.now() - 30*24*60*60*1000).toISOString(), 
+            end: new Date(Date.now() + 60*24*60*60*1000).toISOString() 
+          } })
+        ])
         setMember(me.data)
         setMembers(mem.data)
-        await loadShifts()
+        setShifts(shiftsRes.data)
       } catch (err) {
         console.error('Error initializing schedule:', err)
       }

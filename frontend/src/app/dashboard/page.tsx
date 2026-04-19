@@ -4,7 +4,7 @@ import { useUser } from '@clerk/nextjs'
 
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
-import { Users, Calendar, AlertCircle, TrendingUp, Clock, DollarSign, Activity, Bell } from 'lucide-react'
+import { Users, Calendar, AlertCircle, TrendingUp, Clock, DollarSign, Activity, Bell, Plus, X, Trash2, User } from 'lucide-react'
 
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
@@ -28,18 +28,23 @@ interface Shift {
 }
 
 interface Announcement {
-  id: string; title: string; content: string; priority: string; created_at: string
+  id: string; title: string; content: string; priority: string; created_at: string; target_name?: string; target_member_id?: string
 }
 
 const StatCard = ({ icon: Icon, label, value, sub, color }: any) => (
-  <div className="card p-5 flex items-start gap-4 animate-slide-up">
-    <div className={cn('w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0', color)}>
-      <Icon size={18} strokeWidth={2} />
+  <div className="group relative overflow-hidden rounded-[2rem] bg-white/80 p-6 backdrop-blur-xl border border-white/40 shadow-[0_8px_32px_0_rgba(31,38,135,0.07)] hover:shadow-[0_8px_32px_0_rgba(31,38,135,0.12)] transition-all duration-500 animate-slide-up">
+    <div className="flex items-start gap-4 relative z-10">
+      <div className={cn('w-12 h-12 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm transition-transform duration-500 group-hover:scale-110 group-hover:rotate-3', color)}>
+        <Icon size={22} strokeWidth={2} />
+      </div>
+      <div>
+        <p className="text-3xl font-bold tracking-tight text-ink" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-ink-tertiary mt-1 opacity-80">{label}</p>
+        {sub && <p className="text-[10px] font-medium text-ink-disabled mt-1 italic">{sub}</p>}
+      </div>
     </div>
-    <div>
-      <p className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
-      <p className="text-sm text-ink-tertiary mt-0.5">{label}</p>
-      {sub && <p className="text-xs text-ink-disabled mt-0.5">{sub}</p>}
+    <div className="absolute -right-4 -bottom-4 opacity-[0.03] group-hover:opacity-[0.08] transition-opacity duration-500">
+      <Icon size={100} />
     </div>
   </div>
 )
@@ -51,33 +56,46 @@ export default function DashboardPage() {
   const [shifts, setShifts] = useState<Shift[]>([])
   const [announcements, setAnnouncements] = useState<Announcement[]>([])
   const [member, setMember] = useState<any>(null)
+  const [team, setTeam] = useState<any[]>([])
   const socket = useSocket(member?.organisation_id, member?.id)
+  const [showAnnModal, setShowAnnModal] = useState(false)
+  const [annForm, setAnnForm] = useState({ title: '', content: '', priority: 'NORMAL', targetMemberId: '' })
+  const [annLoading, setAnnLoading] = useState(false)
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
 
     const load = async () => {
       try {
-        const [me, ann] = await Promise.all([
+        const [meRes, annRes] = await Promise.all([
           api.get('/api/members/me'),
           api.get('/api/organisations/announcements'),
         ])
-        setMember(me.data)
-        setAnnouncements(ann.data)
+        
+        const me = meRes.data;
+        setMember(me);
+        setAnnouncements(annRes.data);
 
-        if (me.data.role === 'ADMIN') {
-          const [ana, sh] = await Promise.all([
+        const weekParams = { 
+          start: new Date().toISOString(), 
+          end: new Date(Date.now() + 7*24*60*60*1000).toISOString() 
+        };
+
+        if (me.role === 'ADMIN') {
+          const [ana, sh, teamRes] = await Promise.all([
             api.get('/api/analytics/overview'),
-            api.get('/api/shifts', { params: { start: new Date().toISOString(), end: new Date(Date.now() + 7*24*60*60*1000).toISOString() } }),
+            api.get('/api/shifts', { params: weekParams }),
+            api.get('/api/members')
           ])
           setAnalytics(ana.data)
           setShifts(sh.data.slice(0, 5))
-        } else if (me.data.role === 'MANAGER') {
-          const sh = await api.get('/api/shifts', { params: { start: new Date().toISOString(), end: new Date(Date.now() + 7*24*60*60*1000).toISOString() } })
+          setTeam(teamRes.data)
+        } else if (me.role === 'MANAGER') {
+          const sh = await api.get('/api/shifts', { params: weekParams })
           setShifts(sh.data.slice(0, 5))
           setAnalytics(null)
         } else {
-          const sh = await api.get('/api/shifts', { params: { assigneeId: me.data.id, start: new Date().toISOString(), end: new Date(Date.now() + 7*24*60*60*1000).toISOString() } })
+          const sh = await api.get('/api/shifts', { params: { ...weekParams, assigneeId: me.id } })
           setShifts(sh.data)
         }
       } catch (err) { console.error(err) }
@@ -89,53 +107,79 @@ export default function DashboardPage() {
     if (!socket) return
     socket.on('shift:created', () => toast.success('New shift created'))
     socket.on('announcement:new', (ann: Announcement) => {
+      if (ann.target_member_id && ann.target_member_id !== member?.id && member?.role !== 'ADMIN') return
       setAnnouncements(prev => [ann, ...prev])
       toast('📢 ' + ann.title)
     })
-    return () => { socket.off('shift:created'); socket.off('announcement:new') }
-  }, [socket])
+    socket.on('announcement:deleted', ({ id }: { id: string }) => {
+      setAnnouncements(prev => prev.filter(a => a.id !== id))
+    })
+    return () => { socket.off('shift:created'); socket.off('announcement:new'); socket.off('announcement:deleted') }
+  }, [socket, member])
+
+  const handlePostAnnouncement = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setAnnLoading(true)
+    try {
+      await api.post('/api/organisations/announcements', annForm)
+      setShowAnnModal(false)
+      setAnnForm({ title: '', content: '', priority: 'NORMAL', targetMemberId: '' })
+      toast.success('Announcement posted')
+    } catch {
+      toast.error('Failed to post announcement')
+    } finally { setAnnLoading(false) }
+  }
+
+  const handleDeleteAnnouncement = async (id: string) => {
+    try {
+      await api.delete(`/api/organisations/announcements/${id}`)
+      toast.success('Announcement removed')
+    } catch { toast.error('Failed to remove') }
+  }
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="p-6 max-w-[1200px]">
+    <div className="p-8 max-w-[1400px] mx-auto min-h-screen selection:bg-brand-100">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>
+      <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
+        <div className="animate-in fade-in slide-in-from-left duration-700">
+          <h1 className="text-4xl font-extrabold text-ink tracking-tight mb-2" style={{fontFamily:'var(--font-bricolage)'}}>
           {greeting}, {user?.firstName || 'there'} 👋
         </h1>
-        <p className="text-ink-tertiary mt-1 text-sm">
+          <p className="text-ink-tertiary font-medium flex items-center gap-2">
+            <Calendar size={16} className="text-brand-500" />
           {new Date().toLocaleDateString('en-US', { weekday:'long', year:'numeric', month:'long', day:'numeric' })}
         </p>
+        </div>
       </div>
 
       {/* Stats — admin/manager only */}
       {analytics && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-          <StatCard icon={Users} label="Total Members" value={analytics.totalMembers} color="bg-brand-50 text-brand-500" />
-          <StatCard icon={Calendar} label="Shifts This Week" value={analytics.shiftsThisWeek} color="bg-purple-50 text-purple-500" />
-          <StatCard icon={AlertCircle} label="Open Shifts" value={analytics.openShifts} sub="Need assignment" color="bg-amber-50 text-amber-500" />
-          <StatCard icon={Activity} label="Active Now" value={analytics.activeNow} sub="Clocked in" color="bg-green-50 text-green-500" />
-          <StatCard icon={TrendingUp} label="Completed (Month)" value={analytics.completedThisMonth} color="bg-teal-50 text-teal-500" />
-          <StatCard icon={Clock} label="Hours (Month)" value={`${analytics.totalHours}h`} color="bg-rose-50 text-rose-500" />
-          <StatCard icon={DollarSign} label="Labor Cost" value={`$${analytics.totalLaborCost.toLocaleString()}`} sub="This month" color="bg-emerald-50 text-emerald-500" />
-          <StatCard icon={Bell} label="Open Swaps" value="—" sub="Review pending" color="bg-orange-50 text-orange-500" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+          <StatCard icon={Users} label="Total Members" value={analytics.totalMembers} color="bg-indigo-50 text-indigo-600" />
+          <StatCard icon={Calendar} label="Active Shifts" value={analytics.shiftsThisWeek} color="bg-violet-50 text-violet-600" />
+          <StatCard icon={AlertCircle} label="Open Slots" value={analytics.openShifts} sub="Critical status" color="bg-rose-50 text-rose-600" />
+          <StatCard icon={Activity} label="Live Now" value={analytics.activeNow} sub="Current visibility" color="bg-emerald-50 text-emerald-600" />
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart */}
         {analytics && (
-          <div className="card p-5 lg:col-span-2">
-            <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Shift Coverage This Month</h2>
-            <ResponsiveContainer width="100%" height={220}>
-              <BarChart data={analytics.shiftsByDay} barSize={24}>
+          <div className="bg-white/60 backdrop-blur-xl border border-white/40 p-8 rounded-[2.5rem] lg:col-span-2 shadow-sm">
+            <div className="flex items-center justify-between mb-8">
+              <h2 className="text-xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Workforce Velocity</h2>
+              <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-brand-200" /><div className="w-3 h-3 rounded-full bg-brand-500" /></div>
+            </div>
+            <ResponsiveContainer width="100%" height={260}>
+              <BarChart data={analytics.shiftsByDay} barSize={32}>
                 <XAxis dataKey="day" tick={{ fontSize:12, fill:'#8888aa' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize:12, fill:'#8888aa' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius:'12px', border:'1px solid #e4e4f0', fontSize:'13px' }} />
-                <Bar dataKey="total" fill="#e4e4f0" radius={[6,6,0,0]} name="Total" />
-                <Bar dataKey="completed" fill="#4f6eff" radius={[6,6,0,0]} name="Completed" />
+                <Tooltip cursor={{fill: 'rgba(79, 110, 255, 0.05)'}} contentStyle={{ borderRadius:'20px', border:'none', boxShadow:'0 10px 40px rgba(0,0,0,0.1)', fontSize:'13px' }} />
+                <Bar dataKey="total" fill="#f0f0f7" radius={[10,10,0,0]} name="Total" />
+                <Bar dataKey="completed" fill="#4f6eff" radius={[10,10,0,0]} name="Completed" />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -168,17 +212,35 @@ export default function DashboardPage() {
 
         {/* Announcements */}
         <div className="card p-5 lg:col-span-3">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Announcements</h2>
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-semibold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Announcements</h2>
+            {member?.role === 'ADMIN' && (
+              <button onClick={() => setShowAnnModal(true)} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-2">
+                <Plus size={14} /> Post Announcement
+              </button>
+            )}
+          </div>
+          
           {announcements.length === 0 && <p className="text-sm text-ink-tertiary">No announcements yet</p>}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {announcements.slice(0,6).map(a => (
-              <div key={a.id} className="p-4 rounded-xl border border-surface-200 hover:border-brand-200 transition-colors">
+              <div key={a.id} className="p-4 rounded-xl border border-surface-200 hover:border-brand-200 transition-colors relative group">
+                {member?.role === 'ADMIN' && (
+                  <button onClick={() => handleDeleteAnnouncement(a.id)} className="absolute top-2 right-2 p-1.5 text-ink-disabled hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <Trash2 size={14} />
+                  </button>
+                )}
                 <div className="flex items-start justify-between gap-2 mb-2">
                   <p className="text-sm font-medium text-ink">{a.title}</p>
                   <span className={cn('badge flex-shrink-0', a.priority === 'URGENT' ? 'bg-red-100 text-red-700' : a.priority === 'HIGH' ? 'bg-amber-100 text-amber-700' : 'bg-surface-100 text-ink-tertiary')}>
                     {a.priority}
                   </span>
                 </div>
+                {a.target_name && (
+                  <div className="flex items-center gap-1 text-[10px] text-brand-600 font-bold uppercase mb-2">
+                    <User size={10} /> To: {a.target_name}
+                  </div>
+                )}
                 <p className="text-xs text-ink-secondary line-clamp-2">{a.content}</p>
                 <p className="text-xs text-ink-disabled mt-2">{fmtRelative(a.created_at)}</p>
               </div>
@@ -186,6 +248,60 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+
+      {/* Announcement Modal */}
+      {showAnnModal && (
+        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowAnnModal(false)}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
+            <div className="flex items-center justify-between p-5 border-b border-surface-100">
+              <h2 className="font-semibold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Post Announcement</h2>
+              <button onClick={() => setShowAnnModal(false)} className="btn-ghost p-1.5"><X size={18} /></button>
+            </div>
+            <form onSubmit={handlePostAnnouncement} className="p-5 space-y-4">
+              <div>
+                <label className="text-sm font-medium text-ink-secondary block mb-1.5">Title</label>
+                <input className="input" placeholder="Organization-wide update..." value={annForm.title} onChange={e => setAnnForm(f => ({...f, title: e.target.value}))} required />
+              </div>
+              <div>
+                <label className="text-sm font-medium text-ink-secondary block mb-1.5">Priority</label>
+                <div className="flex gap-2">
+                  {['NORMAL', 'HIGH', 'URGENT'].map(p => (
+                    <button key={p} type="button" onClick={() => setAnnForm(f => ({...f, priority: p}))}
+                      className={cn('flex-1 py-2 text-xs font-medium rounded-lg border transition-all', 
+                        annForm.priority === p ? 'bg-brand-50 border-brand-200 text-brand-700' : 'bg-white border-surface-200 text-ink-tertiary hover:border-brand-100')}>
+                      {p}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-ink-secondary block mb-1.5">Visibility</label>
+                <select 
+                  className="input" 
+                  value={annForm.targetMemberId} 
+                  onChange={e => setAnnForm(f => ({...f, targetMemberId: e.target.value}))}
+                >
+                  <option value="">Global (Everyone)</option>
+                  <optgroup label="Direct Message">
+                    {team.filter(t => t.id !== member.id).map(t => (
+                      <option key={t.id} value={t.id}>{t.name} ({t.role})</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+              <div>
+                <label className="text-sm font-medium text-ink-secondary block mb-1.5">Content</label>
+                <textarea className="input min-h-[120px] py-2" placeholder="Write your message here..." value={annForm.content} onChange={e => setAnnForm(f => ({...f, content: e.target.value}))} required />
+              </div>
+              <div className="pt-2">
+                <button type="submit" className="btn-primary w-full" disabled={annLoading}>
+                  {annLoading ? 'Posting...' : 'Post Announcement'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
