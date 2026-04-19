@@ -1,20 +1,12 @@
 'use client'
 import { useEffect, useState, useCallback } from 'react'
-import { Calendar, dateFnsLocalizer } from 'react-big-calendar'
-import { format, parse, startOfWeek, getDay } from 'date-fns'
 import { useUser } from '@clerk/nextjs'
-import { enUS } from 'date-fns/locale'
-import 'react-big-calendar/lib/css/react-big-calendar.css'
-
-
-import { Plus, X, ChevronDown } from 'lucide-react'
+import { Plus, X, Clock, MapPin, User } from 'lucide-react'
 
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { useSocket } from '@/hooks/useSocket'
 import { cn, fmtTime, fmtDateTime, STATUS_COLORS } from '@/lib/utils'
-
-const localizer = dateFnsLocalizer({ format, parse, startOfWeek, getDay, locales: { 'en-US': enUS } })
 
 interface Shift {
   id: string; title: string; start_time: string; end_time: string
@@ -25,6 +17,13 @@ interface Shift {
 interface Member { id: string; name: string; role: string }
 
 const COLORS = ['#4f6eff','#7c3aed','#059669','#dc2626','#d97706','#0891b2','#be185d']
+
+const COLUMNS = [
+  { id: 'OPEN', label: 'Open Shifts', color: 'bg-amber-500' },
+  { id: 'ASSIGNED', label: 'Assigned', color: 'bg-brand-500' },
+  { id: 'IN_PROGRESS', label: 'In Progress', color: 'bg-emerald-500' },
+  { id: 'COMPLETED', label: 'Completed', color: 'bg-surface-400' },
+]
 
 export default function SchedulePage() {
   const { isLoaded, isSignedIn } = useUser()
@@ -78,22 +77,7 @@ export default function SchedulePage() {
     return () => { socket.off('shift:created'); socket.off('shift:updated'); socket.off('shift:deleted') }
   }, [socket])
 
-  const events = shifts.map(s => ({
-    id: s.id, title: s.assignee_name ? `${s.title} — ${s.assignee_name}` : s.title,
-    start: new Date(s.start_time), end: new Date(s.end_time),
-    resource: s,
-  }))
-
-  const handleSlotSelect = ({ start, end }: any) => {
-    if (member?.role === 'EMPLOYEE') return
-    const fmt = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16)
-    setForm({ title: '', startTime: fmt(start), endTime: fmt(end), location: '', notes: '', color: '#4f6eff', assigneeId: '' })
-    setSelected(null)
-    setShowModal(true)
-  }
-
-  const handleEventClick = (e: any) => {
-    const s = e.resource as Shift
+  const handleEventClick = (s: Shift) => {
     const fmt = (d: string) => {
       const date = new Date(d)
       return new Date(date.getTime() - date.getTimezoneOffset()*60000).toISOString().slice(0,16)
@@ -157,17 +141,49 @@ export default function SchedulePage() {
         )}
       </div>
 
-      <div style={{ height: 'calc(100vh - 180px)' }}>
-        <Calendar
-          localizer={localizer} events={events}
-          defaultView="week" selectable={member?.role !== 'EMPLOYEE'}
-          onSelectSlot={handleSlotSelect} onSelectEvent={handleEventClick}
-          eventPropGetter={(e) => ({ style: { backgroundColor: e.resource?.color || '#4f6eff', color: 'white' } })}
-          onRangeChange={(range: any) => {
-            if (Array.isArray(range)) loadShifts(range[0], range[range.length-1])
-            else loadShifts(range.start, range.end)
-          }}
-        />
+      <div className="flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-200px)] min-w-max">
+        {COLUMNS.map(col => (
+          <div key={col.id} className="w-80 flex flex-col bg-surface-50 rounded-2xl border border-surface-200">
+            <div className="p-4 flex items-center justify-between border-b border-surface-200/60">
+              <div className="flex items-center gap-2">
+                <div className={cn('w-2 h-2 rounded-full', col.color)} />
+                <h2 className="font-bold text-ink text-sm uppercase tracking-wider">{col.label}</h2>
+                <span className="text-xs text-ink-tertiary font-medium bg-surface-200/50 px-2 py-0.5 rounded-full">
+                  {shifts.filter(s => s.status === col.id).length}
+                </span>
+              </div>
+            </div>
+            
+            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+              {shifts.filter(s => s.status === col.id).map(s => (
+                <button key={s.id} onClick={() => handleEventClick(s)}
+                  className="w-full text-left bg-white p-4 rounded-xl border border-surface-200 shadow-sm hover:shadow-md hover:border-brand-200 transition-all group">
+                  <div className="flex items-start justify-between gap-2 mb-3">
+                    <h3 className="font-bold text-ink text-[0.9rem] leading-tight group-hover:text-brand-600 transition-colors">{s.title}</h3>
+                    <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: s.color}} />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-ink-tertiary">
+                      <Clock size={14} />
+                      <span className="text-xs font-medium">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</span>
+                    </div>
+                    {s.location && (
+                      <div className="flex items-center gap-2 text-ink-tertiary">
+                        <MapPin size={14} />
+                        <span className="text-xs truncate">{s.location}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-2 text-ink-secondary pt-1 border-t border-surface-100">
+                      <User size={14} className="text-ink-tertiary" />
+                      <span className="text-xs font-semibold">{s.assignee_name || 'Unassigned'}</span>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
 
       {/* Modal */}
