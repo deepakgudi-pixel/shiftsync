@@ -50,6 +50,15 @@ export default function TeamPage() {
     } catch { toast.error('Failed to update member') }
   }
 
+  const toggleManagerRates = async () => {
+    try {
+      const newValue = !me.allow_manager_rates
+      await api.patch('/api/members/organisation/settings', { allow_manager_rates: newValue })
+      setMe({ ...me, allow_manager_rates: newValue })
+      toast.success(newValue ? 'Managers can now edit rates' : 'Managers restricted from editing rates')
+    } catch { toast.error('Failed to update settings') }
+  }
+
   return (
     <div className="p-6">
       <div className="flex items-center justify-between mb-6">
@@ -58,6 +67,18 @@ export default function TeamPage() {
           <p className="text-sm text-ink-tertiary mt-0.5">{members.length} members in your organisation</p>
         </div>
       </div>
+
+      {me?.role === 'ADMIN' && (
+        <div className="mb-6 p-4 rounded-2xl bg-brand-50 border border-brand-100 flex items-center justify-between">
+          <div className="flex items-center gap-3 text-brand-900">
+            <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center text-brand-500 shadow-sm"><UserPlus size={16} /></div>
+            <p className="text-sm font-medium">Allow managers to set employee hourly rates</p>
+          </div>
+          <button onClick={toggleManagerRates} className={cn('relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none', me.allow_manager_rates ? 'bg-brand-500' : 'bg-surface-300')}>
+            <span className={cn('inline-block h-4 w-4 transform rounded-full bg-white transition-transform', me.allow_manager_rates ? 'translate-x-6' : 'translate-x-1')} />
+          </button>
+        </div>
+      )}
 
       {/* Filters */}
       <div className="flex gap-3 mb-6">
@@ -100,7 +121,7 @@ export default function TeamPage() {
                   {m.active_shifts} active shift{m.active_shifts > 1 ? 's' : ''}
                 </div>
               )}
-              {(me?.role === 'ADMIN' || m.id === me?.id) && m.hourly_rate && <div>${m.hourly_rate}/hr</div>}
+              {(me?.role === 'ADMIN' || m.id === me?.id || (me?.role === 'MANAGER' && m.role === 'EMPLOYEE')) && m.hourly_rate && <div>${m.hourly_rate}/hr</div>}
             </div>
 
             {m.skills?.length > 0 && (
@@ -112,13 +133,19 @@ export default function TeamPage() {
               </div>
             )}
 
-            {me?.role === 'ADMIN' && m.id !== me.id && (
+            {(me?.role === 'ADMIN' || (me?.role === 'MANAGER' && m.role === 'EMPLOYEE' && me?.allow_manager_rates)) && m.id !== me.id && (
               <div className="flex gap-2">
-                <select className="input text-xs py-1.5 flex-1" value={m.role} onChange={e => updateMember(m.id, { role: e.target.value })}>
-                  <option value="EMPLOYEE">Employee</option>
-                  <option value="MANAGER">Manager</option>
-                  <option value="ADMIN">Admin</option>
-                </select>
+                {me?.role === 'ADMIN' ? (
+                  <select className="input text-xs py-1.5 flex-1" value={m.role} onChange={e => updateMember(m.id, { role: e.target.value })}>
+                    <option value="EMPLOYEE">Employee</option>
+                    <option value="MANAGER">Manager</option>
+                    <option value="ADMIN">Admin</option>
+                  </select>
+                ) : (
+                  <div className="flex-1 px-3 py-1.5 text-xs font-medium bg-surface-50 rounded-lg text-ink-secondary border border-surface-200 flex items-center">
+                    {m.role}
+                  </div>
+                )}
                 <div className="relative flex-1">
                   <span className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-tertiary text-[10px]">$</span>
                   <input 

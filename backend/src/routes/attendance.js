@@ -89,7 +89,7 @@ router.get("/timesheet", requireAuth, requireRole("ADMIN", "MANAGER"), async (re
 
     const result = await query(`
       SELECT m.id as member_id, m.name, m.avatar_url, 
-        CASE WHEN $3 = 'ADMIN' OR m.id = $4 THEN m.hourly_rate ELSE NULL END as hourly_rate,
+        CASE WHEN $3 = 'ADMIN' OR m.id = $4 OR ($3 = 'MANAGER' AND m.role = 'EMPLOYEE') THEN m.hourly_rate ELSE NULL END as hourly_rate,
         s.id as shift_id, s.title, s.start_time,
         ci.timestamp as clock_in, 
         co.timestamp as clock_out,

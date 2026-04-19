@@ -6,7 +6,7 @@ router.get("/", requireAuth, async (req, res) => {
   try {
     const result = await query(
       `SELECT m.id, m.name, m.email, m.role, m.phone, m.skills, m.avatar_url, m.organisation_id, m.created_at, m.updated_at,
-       CASE WHEN $2 = 'ADMIN' OR m.id = $3 THEN m.hourly_rate ELSE NULL END as hourly_rate,
+       CASE WHEN $2 = 'ADMIN' OR m.id = $3 OR ($2 = 'MANAGER' AND m.role = 'EMPLOYEE') THEN m.hourly_rate ELSE NULL END as hourly_rate,
        COUNT(s.id) FILTER (WHERE s.status IN ('ASSIGNED','IN_PROGRESS')) as active_shifts
        FROM members m LEFT JOIN shifts s ON m.id = s.assignee_id
        WHERE m.organisation_id = $1 GROUP BY m.id ORDER BY m.name`,
@@ -19,7 +19,8 @@ router.get("/", requireAuth, async (req, res) => {
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const [member, avail, notifs] = await Promise.all([
-      query(`SELECT m.*, o.name as org_name FROM members m JOIN organisations o ON m.organisation_id = o.id WHERE m.id = $1`, [req.member.id]),
+      query(`SELECT m.*, o.name as org_name, o.allow_manager_rates 
+             FROM members m JOIN organisations o ON m.organisation_id = o.id WHERE m.id = $1`, [req.member.id]),
       query("SELECT * FROM availability WHERE member_id = $1 ORDER BY day_of_week", [req.member.id]),
       query("SELECT * FROM notifications WHERE member_id = $1 AND read = FALSE ORDER BY created_at DESC LIMIT 10", [req.member.id]),
     ]);
@@ -56,7 +57,13 @@ router.put("/me", requireAuth, async (req, res) => {
       `UPDATE members SET name=COALESCE($1,name), phone=COALESCE($2,phone),
        skills=COALESCE($3,skills), hourly_rate=COALESCE($4,hourly_rate), updated_at=NOW()
        WHERE id=$5 RETURNING *`,
-      [name, phone, skills, hourlyRate, req.member.id]
+      [
+        name !== undefined ? name : null,
+        phone !== undefined ? phone : null,
+        skills !== undefined ? skills : null,
+        hourlyRate !== undefined ? hourlyRate : null,
+        req.member.id
+      ]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed to update" }); }
@@ -74,9 +81,24 @@ router.put("/me/availability", requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
 
-router.patch("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, res) => {
   try {
     const { role, hourly_rate } = req.body;
+
+    if (req.member.role === 'MANAGER') {
+      // Managers cannot change roles
+      if (role !== undefined) return res.status(403).json({ error: "Managers cannot change member roles" });
+      
+      const org = await query("SELECT allow_manager_rates FROM organisations WHERE id=$1", [req.member.organisation_id]);
+      if (!org.rows[0].allow_manager_rates) {
+        return res.status(403).json({ error: "Manager rate editing is disabled for this organisation" });
+      }
+
+      // Managers can only edit employees
+      const target = await query("SELECT role FROM members WHERE id=$1", [req.params.id]);
+      if (target.rows[0]?.role !== 'EMPLOYEE') return res.status(403).json({ error: "Managers can only set rates for employees" });
+    }
+
     const result = await query(
       `UPDATE members SET role=COALESCE($1,role), hourly_rate=COALESCE($2,hourly_rate), updated_at=NOW()
        WHERE id=$3 AND organisation_id=$4 RETURNING *`,
@@ -85,6 +107,14 @@ router.patch("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed" }); }
+});
+
+router.patch("/organisation/settings", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { allow_manager_rates } = req.body;
+    await query("UPDATE organisations SET allow_manager_rates=$1 WHERE id=$2", [allow_manager_rates ?? false, req.member.organisation_id]);
+    res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: "Failed to update settings" }); }
 });
 
 router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {

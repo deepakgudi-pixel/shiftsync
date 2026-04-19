@@ -96,7 +96,17 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res)
        location=$4, notes=$5, color=COALESCE($6,color), assignee_id=COALESCE($7,assignee_id),
        status=COALESCE($8, CASE WHEN $7 IS NOT NULL THEN 'ASSIGNED' ELSE status END), updated_at=NOW()
        WHERE id=$9 RETURNING *`,
-      [title, startTime?new Date(startTime):null, endTime?new Date(endTime):null, location, notes, color, assigneeId, status, req.params.id]
+      [
+        title !== undefined ? title : null,
+        startTime ? new Date(startTime) : null,
+        endTime ? new Date(endTime) : null,
+        location !== undefined ? location : null,
+        notes !== undefined ? notes : null,
+        color !== undefined ? color : null,
+        assigneeId !== undefined ? assigneeId : null,
+        status !== undefined ? status : null,
+        req.params.id
+      ]
     );
     const shift = result.rows[0];
     if (assigneeId && assigneeId !== existing.rows[0].assignee_id) {
