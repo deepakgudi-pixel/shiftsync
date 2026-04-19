@@ -61,7 +61,7 @@ export default function AnalyticsPage() {
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         {[
           { icon: Users, label: 'Total Members', value: analytics.totalMembers, color: 'bg-brand-50 text-brand-500' },
           { icon: Clock, label: 'Hours This Month', value: `${analytics.totalHours}h`, color: 'bg-purple-50 text-purple-500' },
@@ -84,7 +84,8 @@ export default function AnalyticsPage() {
         {/* Shifts by day */}
         <div className="card p-5">
           <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Shifts by Day of Week</h2>
-          <ResponsiveContainer width="100%" height={240}>
+          <div className="h-[200px] md:h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
             <BarChart data={analytics.shiftsByDay} barSize={28}>
               <XAxis dataKey="day" tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
               <YAxis tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
@@ -93,12 +94,14 @@ export default function AnalyticsPage() {
               <Bar dataKey="completed" fill="#4f6eff" radius={[6,6,0,0]} name="Completed" />
             </BarChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Coverage rate */}
         <div className="card p-5">
           <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Coverage Rate by Day (%)</h2>
-          <ResponsiveContainer width="100%" height={240}>
+          <div className="h-[200px] md:h-[240px]">
+          <ResponsiveContainer width="100%" height="100%">
             <LineChart data={coverageData}>
               <XAxis dataKey="day" tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
               <YAxis domain={[0,100]} tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
@@ -106,12 +109,13 @@ export default function AnalyticsPage() {
               <Line type="monotone" dataKey="coverage" stroke="#4f6eff" strokeWidth={2.5} dot={{fill:'#4f6eff',r:5}} activeDot={{r:7}} />
             </LineChart>
           </ResponsiveContainer>
+          </div>
         </div>
 
         {/* Summary stats */}
         <div className="card p-5 lg:col-span-2">
           <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Quick Summary</h2>
-          <div className="grid grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Open Shifts', value: analytics.openShifts, note: 'Need assignment', color: 'text-amber-500' },
               { label: 'Active Right Now', value: analytics.activeNow, note: 'Clocked in', color: 'text-green-500' },

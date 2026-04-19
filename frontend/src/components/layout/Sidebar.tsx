@@ -1,10 +1,16 @@
 'use client'
+import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useUser, UserButton } from '@clerk/nextjs'
 import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, Settings } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
+
+interface SidebarProps {
+  isOpen?: boolean
+  onClose?: () => void
+}
 
 const nav = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
@@ -17,12 +23,24 @@ const nav = [
   { href: '/settings', icon: Settings, label: 'Settings' },  // 👈 add this
 ]
 
-export default function Sidebar() {
+export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
   const { user } = useUser()
 
   return (
-    <aside className="fixed left-0 top-0 h-full w-[240px] bg-white border-r border-surface-200 flex flex-col z-40">
+    <>
+      {/* Overlay for mobile */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 bg-black/20 backdrop-blur-sm z-40 md:hidden" 
+          onClick={onClose} 
+        />
+      )}
+
+      <aside className={cn(
+        "fixed inset-y-0 left-0 h-full w-[240px] bg-white border-r border-surface-200 flex flex-col z-50 transition-transform duration-300 md:translate-x-0",
+        isOpen ? "translate-x-0" : "-translate-x-full"
+      )}>
       {/* Logo */}
       <div className="p-5 border-b border-surface-100">
         <div className="flex items-center gap-2.5">
@@ -42,7 +60,10 @@ export default function Sidebar() {
         {nav.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || pathname.startsWith(href + '/')
           return (
-            <Link key={href} href={href}
+            <Link 
+              key={href} 
+              href={href}
+              onClick={onClose}
               className={cn('flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
                 active ? 'bg-brand-50 text-brand-600' : 'text-ink-secondary hover:bg-surface-100 hover:text-ink'
               )}>
@@ -65,5 +86,6 @@ export default function Sidebar() {
         </div>
       </div>
     </aside>
+    </>
   )
 }

@@ -141,11 +141,11 @@ export default function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto min-h-screen selection:bg-brand-100">
+    <div className="p-5 md:p-8 max-w-[1400px] mx-auto min-h-screen selection:bg-brand-100">
       {/* Header */}
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div className="animate-in fade-in slide-in-from-left duration-700">
-          <h1 className="text-4xl font-extrabold text-ink tracking-tight mb-2" style={{fontFamily:'var(--font-bricolage)'}}>
+          <h1 className="text-3xl md:text-4xl font-extrabold text-ink tracking-tight mb-2" style={{fontFamily:'var(--font-bricolage)'}}>
           {greeting}, {user?.firstName || 'there'} 👋
         </h1>
           <p className="text-ink-tertiary font-medium flex items-center gap-2">
@@ -157,7 +157,7 @@ export default function DashboardPage() {
 
       {/* Stats — admin/manager only */}
       {analytics && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
           <StatCard icon={Users} label="Total Members" value={analytics.totalMembers} color="bg-indigo-50 text-indigo-600" />
           <StatCard icon={Calendar} label="Active Shifts" value={analytics.shiftsThisWeek} color="bg-violet-50 text-violet-600" />
           <StatCard icon={AlertCircle} label="Open Slots" value={analytics.openShifts} sub="Critical status" color="bg-rose-50 text-rose-600" />
@@ -168,20 +168,22 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Chart */}
         {analytics && (
-          <div className="bg-white/60 backdrop-blur-xl border border-white/40 p-8 rounded-[2.5rem] lg:col-span-2 shadow-sm">
-            <div className="flex items-center justify-between mb-8">
+          <div className="bg-white/60 backdrop-blur-xl border border-white/40 p-5 md:p-8 rounded-[2.5rem] lg:col-span-2 shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
               <h2 className="text-xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Workforce Velocity</h2>
               <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-brand-200" /><div className="w-3 h-3 rounded-full bg-brand-500" /></div>
             </div>
-            <ResponsiveContainer width="100%" height={260}>
+            <div className="h-[200px] md:h-[260px]">
+              <ResponsiveContainer width="100%" height="100%">
               <BarChart data={analytics.shiftsByDay} barSize={32}>
-                <XAxis dataKey="day" tick={{ fontSize:12, fill:'#8888aa' }} axisLine={false} tickLine={false} />
+                <XAxis dataKey="day" tick={{ fontSize:10, fill:'#8888aa' }} axisLine={false} tickLine={false} />
                 <YAxis tick={{ fontSize:12, fill:'#8888aa' }} axisLine={false} tickLine={false} />
                 <Tooltip cursor={{fill: 'rgba(79, 110, 255, 0.05)'}} contentStyle={{ borderRadius:'20px', border:'none', boxShadow:'0 10px 40px rgba(0,0,0,0.1)', fontSize:'13px' }} />
                 <Bar dataKey="total" fill="#f0f0f7" radius={[10,10,0,0]} name="Total" />
                 <Bar dataKey="completed" fill="#4f6eff" radius={[10,10,0,0]} name="Completed" />
               </BarChart>
             </ResponsiveContainer>
+            </div>
           </div>
         )}
 

@@ -81,12 +81,12 @@ export default function TeamPage() {
       )}
 
       {/* Filters */}
-      <div className="flex gap-3 mb-6">
-        <div className="relative flex-1 max-w-xs">
+      <div className="flex flex-col md:flex-row gap-3 mb-6">
+        <div className="relative flex-1 md:max-w-xs">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-disabled" />
           <input className="input pl-9" placeholder="Search members..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="flex rounded-xl bg-surface-100 p-1 gap-0.5">
+        <div className="flex rounded-xl bg-surface-100 p-1 gap-0.5 overflow-x-auto no-scrollbar">
           {['ALL','ADMIN','MANAGER','EMPLOYEE'].map(r => (
             <button key={r} onClick={() => setFilter(r)}
               className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all', filter === r ? 'bg-white shadow-sm text-ink' : 'text-ink-secondary hover:text-ink')}>

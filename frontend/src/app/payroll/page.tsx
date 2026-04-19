@@ -27,14 +27,14 @@ export default function PayrollPage() {
   const totalCost = timesheets.reduce((s, t) => s + (t.totalEarnings || 0), 0)
 
   return (
-    <div className="p-6 max-w-[900px]">
-      <div className="flex items-center justify-between mb-6">
+    <div className="p-4 md:p-8 max-w-[900px] mx-auto">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Payroll</h1>
-          <p className="text-sm text-ink-tertiary mt-0.5">Monthly hours and earnings summary</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Payroll</h1>
+          <p className="text-sm text-ink-tertiary mt-1 font-medium">Monthly hours and earnings summary</p>
         </div>
         {member?.role !== 'EMPLOYEE' && (
-          <div className="card px-5 py-3 flex items-center gap-3">
+          <div className="card px-5 py-3 flex items-center gap-3 bg-white/50 border-brand-100/50 shadow-sm">
             <DollarSign size={18} className="text-brand-500" />
             <div>
               <p className="text-xs text-ink-tertiary">Total This Month</p>
@@ -46,24 +46,24 @@ export default function PayrollPage() {
 
       <div className="space-y-3">
         {timesheets.map(ts => (
-          <div key={ts.id} className="card p-5">
-            <div className="flex items-center gap-4 mb-4">
+          <div key={ts.id} className="card p-4 md:p-6 hover:border-brand-200 transition-colors group">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-4 mb-4">
               <div className="w-11 h-11 rounded-xl bg-brand-100 flex items-center justify-center text-brand-600 font-semibold text-sm flex-shrink-0">
                 {getInitials(ts.name || 'Me')}
               </div>
               <div className="flex-1">
-                <p className="font-semibold text-ink">{ts.name}</p>
-                <p className="text-xs text-ink-tertiary">{ts.shifts?.length || ts.timesheet?.length || 0} shifts completed</p>
+                <p className="font-bold text-ink">{ts.name}</p>
+                <p className="text-xs text-ink-tertiary font-medium">{ts.shifts?.length || ts.timesheet?.length || 0} shifts completed</p>
               </div>
-              <div className="text-right">
-                <div className="flex items-center gap-4">
-                  <div>
-                    <p className="text-xs text-ink-tertiary">Hours</p>
+              <div className="sm:text-right border-t sm:border-t-0 pt-3 sm:pt-0 border-surface-100">
+                <div className="flex items-center sm:justify-end gap-6">
+                  <div className="flex flex-col">
+                    <p className="text-xs text-ink-tertiary font-medium mb-0.5">Hours</p>
                     <p className="font-bold text-ink flex items-center gap-1"><Clock size={13} className="text-brand-400" />{ts.totalHours}h</p>
                   </div>
                   {ts.totalEarnings != null && (
-                    <div>
-                      <p className="text-xs text-ink-tertiary">Earnings</p>
+                    <div className="flex flex-col">
+                      <p className="text-xs text-ink-tertiary font-medium mb-0.5">Earnings</p>
                       <p className="font-bold text-green-600 flex items-center gap-1"><DollarSign size={13} />{Math.round(ts.totalEarnings).toLocaleString()}</p>
                     </div>
                   )}

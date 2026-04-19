@@ -2,8 +2,8 @@
 import { useEffect, useState, useRef } from 'react'
 import { useApi } from '@/hooks/useApi'
 import { useSocket } from '@/hooks/useSocket'
-import { getInitials, fmtTime } from '@/lib/utils'
-import { Send } from 'lucide-react'
+import { getInitials, fmtTime, cn } from '@/lib/utils'
+import { Send, ArrowLeft } from 'lucide-react'
 
 export default function MessagesPage() {
   const api = useApi()
@@ -53,9 +53,9 @@ export default function MessagesPage() {
   }
 
   return (
-    <div className="flex h-screen">
+    <div className="flex h-[calc(100vh-56px)] md:h-screen">
       {/* Members list */}
-      <div className="w-64 border-r border-surface-200 bg-white flex flex-col">
+      <div className={cn("w-full md:w-64 border-r border-surface-200 bg-white flex flex-col", active ? "hidden md:flex" : "flex")}>
         <div className="p-4 border-b border-surface-100">
           <h2 className="font-semibold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Messages</h2>
         </div>
@@ -76,10 +76,13 @@ export default function MessagesPage() {
       </div>
 
       {/* Chat area */}
-      <div className="flex-1 flex flex-col">
+      <div className={cn("flex-1 flex flex-col bg-surface-50", !active ? "hidden md:flex" : "flex")}>
         {active ? (
           <>
             <div className="p-4 border-b border-surface-200 bg-white flex items-center gap-3">
+              <button onClick={() => setActive(null)} className="md:hidden p-2 -ml-2 text-ink-secondary">
+                <ArrowLeft size={20} />
+              </button>
               <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 font-semibold text-xs">
                 {getInitials(active.name)}
               </div>

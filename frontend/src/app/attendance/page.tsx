@@ -86,7 +86,7 @@ export default function AttendancePage() {
 
       {/* Timesheet summary */}
       {timesheet && (
-        <div className="grid grid-cols-2 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
           <div className="card p-5">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
@@ -170,7 +170,7 @@ export default function AttendancePage() {
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             Currently On Shift ({liveAttendance.length})
           </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {liveAttendance.map(s => (
               <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border border-green-100 bg-green-50">
                 <div className="w-9 h-9 rounded-lg bg-green-200 flex items-center justify-center text-green-700 font-semibold text-xs flex-shrink-0">

@@ -34,6 +34,7 @@ export default function SchedulePage() {
   const [showModal, setShowModal] = useState(false)
   const [selected, setSelected] = useState<Shift | null>(null)
   const [form, setForm] = useState({ title:'', startTime:'', endTime:'', location:'', notes:'', color:'#4f6eff', assigneeId:'' })
+  const [activeTab, setActiveTab] = useState('OPEN')
   const [loading, setLoading] = useState(false)
   const socket = useSocket(member?.organisation_id, member?.id)
 
@@ -123,43 +124,62 @@ export default function SchedulePage() {
     } catch { toast.error('Failed to delete') }
   }
 
-  if (member?.role === 'EMPLOYEE') {
-    return <div className="p-6 text-center text-ink-tertiary">You do not have permission to access the schedule.</div>
-  }
-
   return (
-    <div className="p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Schedule</h1>
-          <p className="text-sm text-ink-tertiary mt-0.5">Manage and view all shifts</p>
+    <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-[calc(100vh-56px)] md:h-auto flex flex-col overflow-hidden">
+      {/* Header - Compact & Responsive */}
+      <div className="flex items-center justify-between gap-3 mb-4 md:mb-6 flex-shrink-0">
+        <div className="animate-in fade-in slide-in-from-left duration-500 min-w-0">
+          <h1 className="text-xl md:text-2xl font-bold text-ink truncate" style={{fontFamily:'var(--font-bricolage)'}}>Schedule</h1>
+          <p className="text-[10px] md:text-sm text-ink-tertiary mt-0.5 truncate font-medium">Manage and view all shifts</p>
         </div>
-        {member?.role !== 'EMPLOYEE' && (
-          <button className="btn-primary flex items-center gap-2" onClick={() => { setSelected(null); setForm({title:'',startTime:'',endTime:'',location:'',notes:'',color:'#4f6eff',assigneeId:''}); setShowModal(true) }}>
-            <Plus size={16} /> New Shift
+        {(member?.role === 'ADMIN' || member?.role === 'MANAGER') && (
+          <button 
+            className="btn-primary flex items-center justify-center gap-2 py-2 px-3 md:px-4 text-xs md:text-sm font-bold flex-shrink-0" 
+            onClick={() => { setSelected(null); setForm({title:'',startTime:'',endTime:'',location:'',notes:'',color:'#4f6eff',assigneeId:''}); setShowModal(true) }}
+          >
+            <Plus size={16} /> <span className="hidden sm:inline">New Shift</span><span className="sm:hidden">New</span>
           </button>
         )}
       </div>
 
-      <div className="flex gap-6 overflow-x-auto pb-4 h-[calc(100vh-200px)] min-w-max">
+      {/* Mobile Column Tabs */}
+      <div className="md:hidden flex p-1 bg-surface-100 rounded-xl mb-4 flex-shrink-0">
         {COLUMNS.map(col => (
-          <div key={col.id} className="w-80 flex flex-col bg-surface-50 rounded-2xl border border-surface-200">
-            <div className="p-4 flex items-center justify-between border-b border-surface-200/60">
+          <button
+            key={col.id}
+            onClick={() => setActiveTab(col.id)}
+            className={cn(
+              "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200",
+              activeTab === col.id ? "bg-white shadow-sm text-ink" : "text-ink-tertiary"
+            )}
+          >
+            {col.id === 'IN_PROGRESS' ? 'Active' : col.label.split(' ')[0]}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex-1 flex gap-4 md:gap-6 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar scroll-smooth min-h-0">
+        {COLUMNS.map(col => (
+          <div key={col.id} className={cn(
+            "w-full md:w-80 flex-shrink-0 flex flex-col bg-surface-50/50 rounded-2xl border border-surface-200 shadow-sm",
+            activeTab !== col.id ? "hidden md:flex" : "flex"
+          )}>
+            <div className="p-3 md:p-4 flex items-center justify-between border-b border-surface-200/60 flex-shrink-0 bg-white/50 rounded-t-2xl">
               <div className="flex items-center gap-2">
                 <div className={cn('w-2 h-2 rounded-full', col.color)} />
-                <h2 className="font-bold text-ink text-sm uppercase tracking-wider">{col.label}</h2>
-                <span className="text-xs text-ink-tertiary font-medium bg-surface-200/50 px-2 py-0.5 rounded-full">
+                <h2 className="font-bold text-ink text-[11px] md:text-sm uppercase tracking-wider">{col.label}</h2>
+                <span className="text-[10px] text-ink-tertiary font-bold bg-surface-200/50 px-2 py-0.5 rounded-full">
                   {shifts.filter(s => s.status === col.id).length}
                 </span>
               </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-3 space-y-3">
+            <div className="flex-1 overflow-y-auto p-3 space-y-3 scroll-smooth">
               {shifts.filter(s => s.status === col.id).map(s => (
                 <button key={s.id} onClick={() => handleEventClick(s)}
-                  className="w-full text-left bg-white p-4 rounded-xl border border-surface-200 shadow-sm hover:shadow-md hover:border-brand-200 transition-all group">
-                  <div className="flex items-start justify-between gap-2 mb-3">
-                    <h3 className="font-bold text-ink text-[0.9rem] leading-tight group-hover:text-brand-600 transition-colors">{s.title}</h3>
+                  className="w-full text-left bg-white p-3.5 md:p-4 rounded-xl border border-surface-200 shadow-sm hover:shadow-md hover:border-brand-200 active:scale-[0.98] transition-all group">
+                  <div className="flex items-start justify-between gap-2 mb-2 md:mb-3">
+                    <h3 className="font-bold text-ink text-[0.85rem] md:text-[0.9rem] leading-tight group-hover:text-brand-600 transition-colors">{s.title}</h3>
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{background: s.color}} />
                   </div>
                   
@@ -189,16 +209,16 @@ export default function SchedulePage() {
       {/* Modal */}
       {showModal && (
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
-            <div className="flex items-center justify-between p-5 border-b border-surface-100">
-              <h2 className="font-semibold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between p-4 md:p-5 border-b border-surface-100 flex-shrink-0">
+              <h2 className="font-semibold text-ink text-base md:text-lg" style={{fontFamily:'var(--font-bricolage)'}}>
                 {selected ? 'Shift Details' : 'Create Shift'}
               </h2>
               <button onClick={() => setShowModal(false)} className="btn-ghost p-1.5"><X size={18} /></button>
             </div>
 
             {selected && member?.role === 'EMPLOYEE' ? (
-              <div className="p-5 space-y-3">
+              <div className="p-5 space-y-3 overflow-y-auto">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="w-3 h-3 rounded-full" style={{background: selected.color}} />
                   <h3 className="font-semibold text-ink">{selected.title}</h3>
@@ -217,7 +237,7 @@ export default function SchedulePage() {
                 ))}
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="p-5 space-y-4">
+              <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
                 <div>
                   <label className="text-sm font-medium text-ink-secondary block mb-1.5">Title *</label>
               <input className="input" placeholder="Morning Shift" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required />
