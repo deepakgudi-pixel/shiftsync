@@ -1,18 +1,50 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useUser } from '@clerk/nextjs'
 import { useApi } from '@/hooks/useApi'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import { TrendingUp, Users, Clock, DollarSign, BarChart3 } from 'lucide-react'
 
 export default function AnalyticsPage() {
+  const { isLoaded, isSignedIn } = useUser()
   const api = useApi()
   const [analytics, setAnalytics] = useState<any>(null)
+  const [member, setMember] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    api.get('/api/analytics/overview').then(r => setAnalytics(r.data)).catch(console.error)
-  }, [])
+    if (!isLoaded || !isSignedIn) return
 
-  if (!analytics) return <div className="p-6 text-ink-tertiary">Loading analytics...</div>
+    const load = async () => {
+      try {
+        const me = await api.get('/api/members/me')
+        setMember(me.data)
+        
+        if (me.data.role === 'ADMIN') {
+          const res = await api.get('/api/analytics/overview')
+          setAnalytics(res.data)
+        }
+      } catch (err) {
+        console.error('Error loading analytics:', err)
+      } finally {
+        setLoading(false)
+      }
+    }
+    load()
+  }, [isLoaded, isSignedIn, api])
+
+  if (loading) return <div className="p-6 text-ink-tertiary">Loading analytics...</div>
+
+  if (member?.role !== 'ADMIN') {
+    return (
+      <div className="p-6 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <h1 className="text-xl font-bold text-ink mb-2">Access Restricted</h1>
+        <p className="text-ink-tertiary">Only administrators can view the analytics dashboard.</p>
+      </div>
+    )
+  }
+
+  if (!analytics) return <div className="p-6 text-ink-tertiary">No data available.</div>
 
   const coverageData = analytics.shiftsByDay.map((d: any) => ({
     ...d,

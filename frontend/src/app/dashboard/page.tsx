@@ -65,13 +65,17 @@ export default function DashboardPage() {
         setMember(me.data)
         setAnnouncements(ann.data)
 
-        if (me.data.role !== 'EMPLOYEE') {
+        if (me.data.role === 'ADMIN') {
           const [ana, sh] = await Promise.all([
             api.get('/api/analytics/overview'),
             api.get('/api/shifts', { params: { start: new Date().toISOString(), end: new Date(Date.now() + 7*24*60*60*1000).toISOString() } }),
           ])
           setAnalytics(ana.data)
           setShifts(sh.data.slice(0, 5))
+        } else if (me.data.role === 'MANAGER') {
+          const sh = await api.get('/api/shifts', { params: { start: new Date().toISOString(), end: new Date(Date.now() + 7*24*60*60*1000).toISOString() } })
+          setShifts(sh.data.slice(0, 5))
+          setAnalytics(null)
         } else {
           const sh = await api.get('/api/shifts', { params: { assigneeId: me.data.id, start: new Date().toISOString(), end: new Date(Date.now() + 7*24*60*60*1000).toISOString() } })
           setShifts(sh.data)
