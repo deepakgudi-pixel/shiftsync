@@ -42,12 +42,12 @@ export default function TeamPage() {
     return matchSearch && matchRole
   })
 
-  const updateRole = async (memberId: string, role: string) => {
+  const updateMember = async (memberId: string, updates: Partial<Member>) => {
     try {
-      await api.patch(`/api/members/${memberId}/role`, { role })
-      setMembers(p => p.map(m => m.id === memberId ? {...m, role} : m))
-      toast.success('Role updated')
-    } catch { toast.error('Failed to update role') }
+      const res = await api.patch(`/api/members/${memberId}`, updates)
+      setMembers(p => p.map(m => m.id === memberId ? { ...m, ...res.data } : m))
+      toast.success('Member updated')
+    } catch { toast.error('Failed to update member') }
   }
 
   return (
@@ -100,7 +100,7 @@ export default function TeamPage() {
                   {m.active_shifts} active shift{m.active_shifts > 1 ? 's' : ''}
                 </div>
               )}
-              {m.hourly_rate && <div>${m.hourly_rate}/hr</div>}
+              {(me?.role === 'ADMIN' || m.id === me?.id) && m.hourly_rate && <div>${m.hourly_rate}/hr</div>}
             </div>
 
             {m.skills?.length > 0 && (
@@ -113,11 +113,26 @@ export default function TeamPage() {
             )}
 
             {me?.role === 'ADMIN' && m.id !== me.id && (
-              <select className="input text-xs py-1.5" value={m.role} onChange={e => updateRole(m.id, e.target.value)}>
-                <option value="EMPLOYEE">Employee</option>
-                <option value="MANAGER">Manager</option>
-                <option value="ADMIN">Admin</option>
-              </select>
+              <div className="flex gap-2">
+                <select className="input text-xs py-1.5 flex-1" value={m.role} onChange={e => updateMember(m.id, { role: e.target.value })}>
+                  <option value="EMPLOYEE">Employee</option>
+                  <option value="MANAGER">Manager</option>
+                  <option value="ADMIN">Admin</option>
+                </select>
+                <div className="relative flex-1">
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-tertiary text-[10px]">$</span>
+                  <input 
+                    type="number" 
+                    className="input text-xs py-1.5 pl-5" 
+                    placeholder="Rate"
+                    defaultValue={m.hourly_rate}
+                    onBlur={e => {
+                      const val = parseFloat(e.target.value);
+                      if (!isNaN(val) && val !== m.hourly_rate) updateMember(m.id, { hourly_rate: val });
+                    }}
+                  />
+                </div>
+              </div>
             )}
           </div>
         ))}

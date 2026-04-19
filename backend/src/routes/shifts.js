@@ -9,6 +9,9 @@ router.get("/", requireAuth, async (req, res) => {
                FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id
                WHERE s.organisation_id = $1`;
     const params = [req.member.organisation_id];
+    if (req.member.role === 'MANAGER') {
+      sql += ` AND (m.role = 'EMPLOYEE' OR s.assignee_id IS NULL)`;
+    }
     if (start && end) { params.push(new Date(start), new Date(end)); sql += ` AND s.start_time >= $${params.length-1} AND s.start_time <= $${params.length}`; }
     if (assigneeId) { params.push(assigneeId); sql += ` AND s.assignee_id = $${params.length}`; }
     sql += " ORDER BY s.start_time ASC";
@@ -38,6 +41,11 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) =
   try {
     const { title, startTime, endTime, location, notes, color, assigneeId } = req.body;
     if (assigneeId) {
+      if (req.member.role === 'MANAGER') {
+        const target = await query("SELECT role FROM members WHERE id=$1", [assigneeId]);
+        if (target.rows[0]?.role !== 'EMPLOYEE') return res.status(403).json({ error: "Managers can only assign shifts to employees" });
+      }
+
       const conflict = await query(
         `SELECT id FROM shifts WHERE assignee_id=$1 AND status IN ('ASSIGNED','IN_PROGRESS')
          AND ((start_time<=$2 AND end_time>$2) OR (start_time<$3 AND end_time>=$3) OR (start_time>=$2 AND end_time<=$3))`,
@@ -65,8 +73,24 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) =
 router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) => {
   try {
     const { title, startTime, endTime, location, notes, color, assigneeId, status } = req.body;
-    const existing = await query("SELECT * FROM shifts WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+    const existing = await query(
+      `SELECT s.*, m.role as assignee_role 
+       FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id 
+       WHERE s.id=$1 AND s.organisation_id=$2`, 
+      [req.params.id, req.member.organisation_id]
+    );
     if (!existing.rows.length) return res.status(404).json({ error: "Not found" });
+
+    if (req.member.role === 'MANAGER') {
+      if (existing.rows[0].assignee_id && existing.rows[0].assignee_role !== 'EMPLOYEE') {
+        return res.status(403).json({ error: "Cannot modify non-employee shifts" });
+      }
+      if (assigneeId) {
+        const target = await query("SELECT role FROM members WHERE id=$1", [assigneeId]);
+        if (target.rows[0]?.role !== 'EMPLOYEE') return res.status(403).json({ error: "Managers can only assign to employees" });
+      }
+    }
+
     const result = await query(
       `UPDATE shifts SET title=COALESCE($1,title), start_time=COALESCE($2,start_time), end_time=COALESCE($3,end_time),
        location=$4, notes=$5, color=COALESCE($6,color), assignee_id=COALESCE($7,assignee_id),
@@ -87,8 +111,18 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res)
 
 router.delete("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) => {
   try {
-    const existing = await query("SELECT * FROM shifts WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+    const existing = await query(
+      `SELECT s.*, m.role as assignee_role 
+       FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id 
+       WHERE s.id=$1 AND s.organisation_id=$2`, 
+      [req.params.id, req.member.organisation_id]
+    );
     if (!existing.rows.length) return res.status(404).json({ error: "Not found" });
+
+    if (req.member.role === 'MANAGER' && existing.rows[0].assignee_id && existing.rows[0].assignee_role !== 'EMPLOYEE') {
+      return res.status(403).json({ error: "Cannot delete non-employee shifts" });
+    }
+
     const shift = existing.rows[0];
     await query("DELETE FROM shifts WHERE id=$1", [req.params.id]);
     if (shift.assignee_id) {

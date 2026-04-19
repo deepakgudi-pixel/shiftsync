@@ -8,23 +8,35 @@ import toast from 'react-hot-toast'
 
 export default function AttendancePage() {
   const api = useApi()
-  const [myShifts, setMyShifts] = useState<any[]>([])
+  const [assignedShifts, setAssignedShifts] = useState<any[]>([])
+  const [inProgressShifts, setInProgressShifts] = useState<any[]>([])
   const [liveAttendance, setLiveAttendance] = useState<any[]>([])
   const [timesheet, setTimesheet] = useState<any>(null)
   const [member, setMember] = useState<any>(null)
   const socket = useSocket(member?.organisation_id, member?.id)
+
+  const loadShifts = async (memberId: string) => {
+    const sh = await api.get('/api/shifts', {
+      params: {
+        assigneeId: memberId,
+        start: new Date(Date.now() - 24*60*60*1000).toISOString(),
+        end: new Date(Date.now() + 7*24*60*60*1000).toISOString()
+      }
+    })
+    setAssignedShifts(sh.data.filter((s: any) => s.status === 'ASSIGNED'))
+    setInProgressShifts(sh.data.filter((s: any) => s.status === 'IN_PROGRESS'))
+  }
 
   useEffect(() => {
     const load = async () => {
       try {
         const me = await api.get('/api/members/me')
         setMember(me.data)
-        const [ts, sh] = await Promise.all([
+        const [ts] = await Promise.all([
           api.get('/api/attendance/timesheet/me'),
-          api.get('/api/shifts', { params: { assigneeId: me.data.id, start: new Date().toISOString(), end: new Date(Date.now()+7*24*60*60*1000).toISOString() } }),
+          loadShifts(me.data.id),
         ])
         setTimesheet(ts.data)
-        setMyShifts(sh.data.filter((s: any) => s.status === 'ASSIGNED'))
         if (me.data.role !== 'EMPLOYEE') {
           const live = await api.get('/api/attendance/live')
           setLiveAttendance(live.data)
@@ -48,8 +60,20 @@ export default function AttendancePage() {
   const clockIn = async (shiftId: string) => {
     try {
       await api.post('/api/attendance/clock-in', { shiftId })
-      toast.success('Clocked in successfully')
-      setMyShifts(p => p.filter(s => s.id !== shiftId))
+      toast.success('Clocked in!')
+      if (member) await loadShifts(member.id)
+    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
+  }
+
+  const clockOut = async (shiftId: string) => {
+    try {
+      await api.post('/api/attendance/clock-out', { shiftId })
+      toast.success('Clocked out! Timesheet updated.')
+      if (member) {
+        await loadShifts(member.id)
+        const ts = await api.get('/api/attendance/timesheet/me')
+        setTimesheet(ts.data)
+      }
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
   }
 
@@ -65,7 +89,9 @@ export default function AttendancePage() {
         <div className="grid grid-cols-2 gap-4 mb-8">
           <div className="card p-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center"><Clock size={18} className="text-brand-500" /></div>
+              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
+                <Clock size={18} className="text-brand-500" />
+              </div>
               <div>
                 <p className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>{timesheet.totalHours}h</p>
                 <p className="text-sm text-ink-tertiary">Hours this month</p>
@@ -74,7 +100,9 @@ export default function AttendancePage() {
           </div>
           <div className="card p-5">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center"><CheckCircle size={18} className="text-green-500" /></div>
+              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
+                <CheckCircle size={18} className="text-green-500" />
+              </div>
               <div>
                 <p className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>{timesheet.timesheet.length}</p>
                 <p className="text-sm text-ink-tertiary">Shifts completed</p>
@@ -84,19 +112,49 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* My upcoming shifts to clock into */}
-      {myShifts.length > 0 && (
+      {/* Currently clocked in — show clock out */}
+      {inProgressShifts.length > 0 && (
+        <div className="card p-5 mb-6 border-green-200 bg-green-50">
+          <h2 className="font-semibold text-ink mb-4 flex items-center gap-2" style={{fontFamily:'var(--font-bricolage)'}}>
+            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+            Currently Clocked In
+          </h2>
+          <div className="space-y-3">
+            {inProgressShifts.map(s => (
+              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-green-100">
+                <div className="w-2 h-2 rounded-full flex-shrink-0 bg-green-400" />
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-ink">{s.title}</p>
+                  <p className="text-xs text-ink-tertiary">{fmtDateTime(s.start_time)}</p>
+                </div>
+                <button
+                  onClick={() => clockOut(s.id)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-xs font-medium hover:bg-red-600 active:scale-95 transition-all"
+                >
+                  <LogOut size={14} /> Clock Out
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ready to clock in */}
+      {assignedShifts.length > 0 && (
         <div className="card p-5 mb-6">
           <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Ready to Clock In</h2>
           <div className="space-y-3">
-            {myShifts.map(s => (
+            {assignedShifts.map(s => (
               <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-50">
                 <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background: s.color || '#4f6eff'}} />
                 <div className="flex-1">
                   <p className="text-sm font-medium text-ink">{s.title}</p>
                   <p className="text-xs text-ink-tertiary">{fmtDateTime(s.start_time)}</p>
                 </div>
-                <button onClick={() => clockIn(s.id)} className="btn-primary flex items-center gap-1.5 py-2 text-xs">
+                <button
+                  onClick={() => clockIn(s.id)}
+                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-500 text-white text-xs font-medium hover:bg-brand-600 active:scale-95 transition-all"
+                >
                   <LogIn size={14} /> Clock In
                 </button>
               </div>
@@ -105,7 +163,7 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Live attendance (managers only) */}
+      {/* Live attendance — managers/admins */}
       {liveAttendance.length > 0 && (
         <div className="card p-5 mb-6">
           <h2 className="font-semibold text-ink mb-4 flex items-center gap-2" style={{fontFamily:'var(--font-bricolage)'}}>
@@ -128,7 +186,7 @@ export default function AttendancePage() {
         </div>
       )}
 
-      {/* Timesheet list */}
+      {/* Timesheet */}
       {timesheet?.timesheet?.length > 0 && (
         <div className="card p-5">
           <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>This Month's Timesheet</h2>
@@ -142,11 +200,18 @@ export default function AttendancePage() {
                 </div>
                 <div className="text-right">
                   <p className="text-sm font-semibold text-ink">{row.hoursWorked}h</p>
-                  <p className="text-xs text-ink-tertiary">{row.clock_in ? 'Completed' : 'No clock data'}</p>
+                  <p className="text-xs text-green-600">Completed</p>
                 </div>
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {assignedShifts.length === 0 && inProgressShifts.length === 0 && (
+        <div className="card p-8 text-center text-ink-tertiary">
+          <Clock size={32} className="mx-auto mb-3 text-ink-disabled" />
+          <p className="text-sm">No upcoming shifts assigned to you</p>
         </div>
       )}
     </div>

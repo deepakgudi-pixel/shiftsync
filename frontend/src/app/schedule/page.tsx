@@ -80,13 +80,27 @@ export default function SchedulePage() {
   const handleSlotSelect = ({ start, end }: any) => {
     if (member?.role === 'EMPLOYEE') return
     const fmt = (d: Date) => new Date(d.getTime() - d.getTimezoneOffset()*60000).toISOString().slice(0,16)
-    setForm(f => ({ ...f, startTime: fmt(start), endTime: fmt(end) }))
+    setForm({ title: '', startTime: fmt(start), endTime: fmt(end), location: '', notes: '', color: '#4f6eff', assigneeId: '' })
     setSelected(null)
     setShowModal(true)
   }
 
   const handleEventClick = (e: any) => {
-    setSelected(e.resource)
+    const s = e.resource as Shift
+    const fmt = (d: string) => {
+      const date = new Date(d)
+      return new Date(date.getTime() - date.getTimezoneOffset()*60000).toISOString().slice(0,16)
+    }
+    setForm({
+      title: s.title,
+      startTime: fmt(s.start_time),
+      endTime: fmt(s.end_time),
+      location: s.location || '',
+      notes: s.notes || '',
+      color: s.color,
+      assigneeId: s.assignee_id || ''
+    })
+    setSelected(s)
     setShowModal(true)
   }
 
@@ -116,6 +130,10 @@ export default function SchedulePage() {
       setShowModal(false)
       await loadShifts()
     } catch { toast.error('Failed to delete') }
+  }
+
+  if (member?.role === 'EMPLOYEE') {
+    return <div className="p-6 text-center text-ink-tertiary">You do not have permission to access the schedule.</div>
   }
 
   return (
@@ -179,7 +197,7 @@ export default function SchedulePage() {
               <form onSubmit={handleSubmit} className="p-5 space-y-4">
                 <div>
                   <label className="text-sm font-medium text-ink-secondary block mb-1.5">Title *</label>
-                  <input className="input" placeholder="Morning Shift" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required defaultValue={selected?.title} />
+              <input className="input" placeholder="Morning Shift" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
@@ -195,7 +213,11 @@ export default function SchedulePage() {
                   <label className="text-sm font-medium text-ink-secondary block mb-1.5">Assign To</label>
                   <select className="input" value={form.assigneeId} onChange={e => setForm(f => ({...f, assigneeId: e.target.value}))}>
                     <option value="">Unassigned (Open)</option>
-                    {members.map(m => <option key={m.id} value={m.id}>{m.name} ({m.role})</option>)}
+                    {members
+                      .filter(m => member?.role === 'ADMIN' || m.role === 'EMPLOYEE')
+                      .map(m => (
+                        <option key={m.id} value={m.id}>{m.name} ({m.role})</option>
+                      ))}
                   </select>
                 </div>
                 <div>
@@ -203,6 +225,10 @@ export default function SchedulePage() {
                   <input className="input" placeholder="Warehouse A, Floor 2..." value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} />
                 </div>
                 <div>
+              <label className="text-sm font-medium text-ink-secondary block mb-1.5">Notes</label>
+              <textarea className="input min-h-[80px] py-2" placeholder="Additional details..." value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
+            </div>
+            <div>
                   <label className="text-sm font-medium text-ink-secondary block mb-2">Color</label>
                   <div className="flex gap-2">
                     {COLORS.map(c => (

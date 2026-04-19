@@ -5,10 +5,12 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 router.get("/", requireAuth, async (req, res) => {
   try {
     const result = await query(
-      `SELECT m.*, COUNT(s.id) FILTER (WHERE s.status IN ('ASSIGNED','IN_PROGRESS')) as active_shifts
+      `SELECT m.id, m.name, m.email, m.role, m.phone, m.skills, m.avatar_url, m.organisation_id, m.created_at, m.updated_at,
+       CASE WHEN $2 = 'ADMIN' OR m.id = $3 THEN m.hourly_rate ELSE NULL END as hourly_rate,
+       COUNT(s.id) FILTER (WHERE s.status IN ('ASSIGNED','IN_PROGRESS')) as active_shifts
        FROM members m LEFT JOIN shifts s ON m.id = s.assignee_id
        WHERE m.organisation_id = $1 GROUP BY m.id ORDER BY m.name`,
-      [req.member.organisation_id]
+      [req.member.organisation_id, req.member.role, req.member.id]
     );
     res.json(result.rows);
   } catch (err) { res.status(500).json({ error: "Failed to fetch members" }); }
@@ -72,11 +74,14 @@ router.put("/me/availability", requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
 
-router.patch("/:id/role", requireAuth, requireRole("ADMIN"), async (req, res) => {
+router.patch("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
+    const { role, hourly_rate } = req.body;
     const result = await query(
-      "UPDATE members SET role=$1, updated_at=NOW() WHERE id=$2 AND organisation_id=$3 RETURNING *",
-      [req.body.role, req.params.id, req.member.organisation_id]
+      `UPDATE members SET role=COALESCE($1,role), hourly_rate=COALESCE($2,hourly_rate), updated_at=NOW()
+       WHERE id=$3 AND organisation_id=$4 RETURNING *`,
+      [role !== undefined ? role : null, hourly_rate !== undefined ? hourly_rate : null, 
+       req.params.id, req.member.organisation_id]
     );
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed" }); }

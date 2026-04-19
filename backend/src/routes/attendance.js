@@ -51,58 +51,127 @@ router.get("/live", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res
 router.get("/timesheet/me", requireAuth, async (req, res) => {
   try {
     const { start, end } = req.query;
-    const startDate = start ? new Date(start) : new Date(new Date().setDate(1));
-    const endDate = end ? new Date(end) : new Date();
-    const result = await query(
-      `SELECT s.id, s.title, s.start_time, s.color,
-        ci.timestamp as clock_in, co.timestamp as clock_out
-       FROM shifts s
-       LEFT JOIN clock_events ci ON s.id=ci.shift_id AND ci.type='CLOCK_IN'
-       LEFT JOIN clock_events co ON s.id=co.shift_id AND co.type='CLOCK_OUT'
-       WHERE s.assignee_id=$1 AND s.status='COMPLETED' AND s.start_time>=$2 AND s.start_time<=$3
-       ORDER BY s.start_time ASC`,
-      [req.member.id, startDate, endDate]
-    );
-    const timesheet = result.rows.map(row => {
-      const hours = row.clock_in && row.clock_out ? (new Date(row.clock_out) - new Date(row.clock_in)) / 3600000 : 0;
-      return { ...row, hoursWorked: Math.round(hours * 100) / 100 };
-    });
+    const startDate = start ? new Date(start) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const endDate = end ? new Date(end) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const result = await query(`
+      SELECT s.id, s.title, s.start_time, s.color,
+        ci.timestamp as clock_in, 
+        co.timestamp as clock_out,
+        EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as hours_worked
+      FROM shifts s
+      LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
+      LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
+      WHERE s.assignee_id = $1 
+        AND s.status = 'COMPLETED'
+        AND ci.timestamp >= $2
+      ORDER BY s.start_time ASC
+    `, [req.member.id, startDate]);
+
+    const timesheet = result.rows.map(row => ({
+      ...row,
+      hoursWorked: Math.round((parseFloat(row.hours_worked) || 0) * 100) / 100
+    }));
+
     const totalHours = Math.round(timesheet.reduce((s, t) => s + t.hoursWorked, 0) * 100) / 100;
     res.json({ timesheet, totalHours });
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) { 
+    console.error(err)
+    res.status(500).json({ error: "Failed" }); 
+  }
 });
 
-router.get("/timesheet", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) => {
+router.get("/timesheet", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, res) => {
   try {
     const { start, end } = req.query;
-    const startDate = start ? new Date(start) : new Date(new Date().setDate(1));
-    const endDate = end ? new Date(end) : new Date();
-    const result = await query(
-      `SELECT m.id as member_id, m.name, m.avatar_url, m.hourly_rate,
+    const startDate = start ? new Date(start) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const endDate = end ? new Date(end) : new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+    const result = await query(`
+      SELECT m.id as member_id, m.name, m.avatar_url, 
+        CASE WHEN $3 = 'ADMIN' OR m.id = $4 THEN m.hourly_rate ELSE NULL END as hourly_rate,
         s.id as shift_id, s.title, s.start_time,
-        ci.timestamp as clock_in, co.timestamp as clock_out
-       FROM members m
-       LEFT JOIN shifts s ON m.id=s.assignee_id AND s.status='COMPLETED' AND s.start_time>=$2 AND s.start_time<=$3
-       LEFT JOIN clock_events ci ON s.id=ci.shift_id AND ci.type='CLOCK_IN'
-       LEFT JOIN clock_events co ON s.id=co.shift_id AND co.type='CLOCK_OUT'
-       WHERE m.organisation_id=$1 ORDER BY m.name, s.start_time`,
-      [req.member.organisation_id, startDate, endDate]
-    );
-    const grouped = {};
+        ci.timestamp as clock_in, 
+        co.timestamp as clock_out,
+        EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as hours_worked
+      FROM members m
+      LEFT JOIN shifts s ON m.id = s.assignee_id 
+        AND s.status = 'COMPLETED'
+      LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
+      LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
+      WHERE m.organisation_id = $1
+        AND (ci.timestamp IS NULL OR ci.timestamp >= $2)
+      ORDER BY m.name, s.start_time
+    `, [req.member.organisation_id, startDate, req.member.role, req.member.id]);
+
+   const grouped = {};
     result.rows.forEach(row => {
-      if (!grouped[row.member_id]) grouped[row.member_id] = { id: row.member_id, name: row.name, avatarUrl: row.avatar_url, hourlyRate: row.hourly_rate, shifts: [], totalHours: 0 };
-      if (row.shift_id) {
-        const hours = row.clock_in && row.clock_out ? (new Date(row.clock_out) - new Date(row.clock_in)) / 3600000 : 0;
-        grouped[row.member_id].shifts.push({ ...row, hoursWorked: Math.round(hours * 100) / 100 });
+      if (!grouped[row.member_id]) {
+        grouped[row.member_id] = { 
+          id: row.member_id, 
+          name: row.name, 
+          avatarUrl: row.avatar_url, 
+          hourlyRate: row.hourly_rate, 
+          shifts: [], 
+          totalHours: 0 
+        };
+      }
+      if (row.shift_id && row.clock_in) {
+        const hours = Math.round((parseFloat(row.hours_worked) || 0) * 100) / 100;
+        grouped[row.member_id].shifts.push({ ...row, hoursWorked: hours });
         grouped[row.member_id].totalHours += hours;
       }
     });
-    Object.values(grouped).forEach(m => {
+
+     Object.values(grouped).forEach((m) => {
       m.totalHours = Math.round(m.totalHours * 100) / 100;
       m.totalEarnings = m.hourlyRate ? Math.round(m.totalHours * m.hourlyRate) : null;
     });
+
     res.json(Object.values(grouped));
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) { 
+    console.error(err)
+    res.status(500).json({ error: "Failed" }); 
+  }
 });
+
+
+router.get("/debug", async (req, res) => {
+  try {
+    const result = await query(`
+      SELECT s.title, s.status, m.name,
+        ci.timestamp as clock_in, 
+        co.timestamp as clock_out,
+        EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as hours
+      FROM shifts s
+      LEFT JOIN members m ON s.assignee_id = m.id
+      LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
+      LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
+      WHERE s.status = 'COMPLETED'
+    `)
+    res.json(result.rows)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+});
+
+router.get("/debug2", async (req, res) => {
+  try {
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    const result = await query(`
+      SELECT m.name, m.hourly_rate,
+        s.id as shift_id, s.title, s.status, s.start_time,
+        ci.timestamp as clock_in, 
+        co.timestamp as clock_out,
+        EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as hours
+      FROM members m
+      LEFT JOIN shifts s ON m.id = s.assignee_id 
+        AND s.status = 'COMPLETED'
+        AND s.start_time >= $1
+      LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
+      LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
+      ORDER BY m.name
+    `, [thirtyDaysAgo])
+    res.json(result.rows)
+  } catch (err) { res.status(500).json({ error: err.message }) }
+})
 
 module.exports = router;
