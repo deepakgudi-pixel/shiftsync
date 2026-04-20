@@ -22,6 +22,7 @@ app.use("/api/attendance", require("./routes/attendance"));
 app.use("/api/messages", require("./routes/messages"));
 app.use("/api/notifications", require("./routes/notifications"));
 app.use("/api/analytics", require("./routes/analytics"));
+app.use("/api/audit-logs", require("./routes/audit"));
 initSocket(io);
 
 const PORT = process.env.PORT || 4000;

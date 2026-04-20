@@ -78,6 +78,24 @@ const setup = async () => {
       CREATE INDEX IF NOT EXISTS idx_announcements_org_date ON announcements(organisation_id, created_at DESC);
       CREATE INDEX IF NOT EXISTS idx_messages_conversation ON messages(sender_id, receiver_id);
       CREATE INDEX IF NOT EXISTS idx_notifications_member ON notifications(member_id);
+      CREATE TABLE IF NOT EXISTS audit_logs (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+        member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+        clerk_user_id TEXT,
+        action TEXT NOT NULL CHECK (action IN ('CREATE','UPDATE','DELETE','CLOCK_IN','CLOCK_OUT','APPROVE','REJECT','REQUEST')),
+        entity_type TEXT NOT NULL,
+        entity_id TEXT,
+        old_values JSONB,
+        new_values JSONB,
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_audit_org_date ON audit_logs(organisation_id, created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_audit_entity ON audit_logs(entity_type, entity_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_member ON audit_logs(member_id);
+      CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_logs(action);
     `);
     await client.query("COMMIT");
     console.log("Database setup complete");

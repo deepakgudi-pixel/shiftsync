@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const { logAudit } = require("../lib/audit");
 
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -65,6 +66,7 @@ router.put("/me", requireAuth, async (req, res) => {
         req.member.id
       ]
     );
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "member", entityId: req.member.id, oldValues: result.rows[0], newValues: result.rows[0], req });
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed to update" }); }
 });
@@ -104,9 +106,10 @@ router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, r
       `UPDATE members SET role=COALESCE($1,role), hourly_rate=COALESCE($2,hourly_rate), 
        can_manage_rates=COALESCE($3,can_manage_rates), updated_at=NOW()
        WHERE id=$4 AND organisation_id=$5 RETURNING *`,
-      [role !== undefined ? role : null, hourly_rate !== undefined ? hourly_rate : null, 
+      [role !== undefined ? role : null, hourly_rate !== undefined ? hourly_rate : null,
        can_manage_rates !== undefined ? can_manage_rates : null, req.params.id, req.member.organisation_id]
     );
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "member", entityId: req.params.id, oldValues: result.rows[0], newValues: result.rows[0], req });
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
@@ -122,6 +125,9 @@ router.patch("/organisation/settings", requireAuth, requireRole("ADMIN"), async 
 router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
     if (req.params.id === req.member.id) return res.status(400).json({ error: "Cannot remove yourself" });
+    const existing = await query("SELECT * FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+    if (!existing.rows.length) return res.status(404).json({ error: "Not found" });
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "member", entityId: req.params.id, oldValues: existing.rows[0], req });
     await query("DELETE FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
     res.json({ success: true });
   } catch (err) { res.status(500).json({ error: "Failed" }); }

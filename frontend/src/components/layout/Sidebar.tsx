@@ -3,7 +3,7 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useUser, UserButton } from '@clerk/nextjs'
-import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, Settings } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, Settings, FileText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 
@@ -20,6 +20,7 @@ const nav = [
   { href: '/payroll', icon: DollarSign, label: 'Payroll' },
   { href: '/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/messages', icon: MessageSquare, label: 'Messages' },
+  { href: '/audit', icon: FileText, label: 'Audit Log' },
   { href: '/settings', icon: Settings, label: 'Settings' },  // 👈 add this
 ]
 
