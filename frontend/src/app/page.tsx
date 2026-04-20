@@ -3,6 +3,6 @@ import { auth } from '@clerk/nextjs/server'
 
 export default async function Home() {
   const { userId } = auth()
-  if (userId) redirect('/dashboard')
+  if (userId) redirect('/onboarding')
   redirect('/sign-in')
 }

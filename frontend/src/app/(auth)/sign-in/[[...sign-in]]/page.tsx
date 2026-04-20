@@ -15,15 +15,18 @@ export default function SignInPage() {
           <h1 className="text-3xl font-bold text-white" style={{fontFamily: 'var(--font-bricolage)'}}>ShiftSync</h1>
           <p className="text-brand-300 mt-1 text-sm">Workforce management reimagined</p>
         </div>
-        <SignIn appearance={{
-          elements: {
-            rootBox: 'w-full',
-            card: 'bg-white/95 backdrop-blur rounded-2xl shadow-2xl border-0',
-            headerTitle: 'font-semibold text-ink',
-            formButtonPrimary: 'bg-brand-500 hover:bg-brand-600 rounded-xl',
-            footerActionLink: 'text-brand-500',
-          }
-        }} />
+        <SignIn 
+          forceRedirectUrl="/onboarding"
+          appearance={{
+            elements: {
+              rootBox: 'w-full',
+              card: 'bg-white/95 backdrop-blur rounded-2xl shadow-2xl border-0',
+              headerTitle: 'font-semibold text-ink',
+              formButtonPrimary: 'bg-brand-500 hover:bg-brand-600 rounded-xl',
+              footerActionLink: 'text-brand-500',
+            }
+          }} 
+        />
       </div>
     </div>
   )
