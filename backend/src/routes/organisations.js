@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const { logAudit } = require("../lib/audit");
 
 router.get("/me", requireAuth, async (req, res) => {
   try {
@@ -80,6 +81,7 @@ router.post(
       req.io
         .to(`org:${req.member.organisation_id}`)
         .emit("announcement:new", result.rows[0]);
+      await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CREATE", entityType: "announcement", entityId: result.rows[0].id, newValues: result.rows[0], req });
       res.status(201).json(result.rows[0]);
     } catch (err) {
       res.status(500).json({ error: "Failed" });
@@ -93,6 +95,9 @@ router.delete(
   requireRole("ADMIN"),
   async (req, res) => {
     try {
+      const existing = await query("SELECT * FROM announcements WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+      if (!existing.rows.length) return res.status(404).json({ error: "Not found" });
+      await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "announcement", entityId: req.params.id, oldValues: existing.rows[0], req });
       await query(
         "DELETE FROM announcements WHERE id=$1 AND organisation_id=$2",
         [req.params.id, req.member.organisation_id],

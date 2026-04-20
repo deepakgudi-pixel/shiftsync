@@ -1,6 +1,7 @@
 const router = require("express").Router();
 const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
+const { logAudit } = require("../lib/audit");
 
 router.post("/clock-in", requireAuth, async (req, res) => {
   try {
@@ -13,6 +14,7 @@ router.post("/clock-in", requireAuth, async (req, res) => {
       [req.member.id, shiftId, latitude||null, longitude||null]);
     await query("UPDATE shifts SET status='IN_PROGRESS' WHERE id=$1", [shiftId]);
     req.io.to(`org:${req.member.organisation_id}`).emit("attendance:clockIn", { memberId: req.member.id, memberName: req.member.name, shiftId });
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CLOCK_IN", entityType: "clock_event", entityId: result.rows[0].id, newValues: result.rows[0], req });
     res.status(201).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed to clock in" }); }
 });
@@ -31,6 +33,7 @@ router.post("/clock-out", requireAuth, async (req, res) => {
         [req.member.id, `You worked ${hoursWorked.toFixed(1)} hours`, JSON.stringify({ shiftId, hoursWorked })]);
     }
     req.io.to(`org:${req.member.organisation_id}`).emit("attendance:clockOut", { memberId: req.member.id, shiftId, hoursWorked });
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CLOCK_OUT", entityType: "clock_event", entityId: result.rows[0].id, newValues: result.rows[0], req });
     res.json({ ...result.rows[0], hoursWorked });
   } catch (err) { res.status(500).json({ error: "Failed to clock out" }); }
 });
