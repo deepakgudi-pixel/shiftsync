@@ -13,7 +13,7 @@ export default function SignInPage() {
             </svg>
           </div>
           <h1 className="text-3xl font-bold text-white" style={{fontFamily: 'var(--font-bricolage)'}}>ShiftSync</h1>
-          <p className="text-brand-300 mt-1 text-sm">Workforce management, reimagined</p>
+          <p className="text-brand-300 mt-1 text-sm">Workforce management reimagined</p>
         </div>
         <SignIn appearance={{
           elements: {
