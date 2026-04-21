@@ -44,7 +44,7 @@ export default function SettingsPage() {
   return (
     <div className="p-4 md:p-8 max-w-[700px] mx-auto">
       <div className="mb-6 md:mb-8 animate-in fade-in slide-in-from-left duration-500">
-        <h1 className="text-xl md:text-2xl font-bold text-ink" style={{ fontFamily: 'var(--font-bricolage)' }}>
+        <h1 className="text-xl md:text-2xl font-bold text-ink">
           Settings
         </h1>
         <p className="text-xs md:text-sm text-ink-tertiary mt-1 font-medium">Manage your organisation and invite team members</p>
@@ -57,7 +57,7 @@ export default function SettingsPage() {
             <Building2 size={18} className="text-brand-500" />
           </div>
           <div>
-            <h2 className="font-bold text-ink text-sm md:text-base" style={{ fontFamily: 'var(--font-bricolage)' }}>
+            <h2 className="font-bold text-ink text-sm md:text-base">
               Organisation
             </h2>
             <p className="text-xs text-ink-tertiary">{org.member_count} members</p>
@@ -105,7 +105,7 @@ export default function SettingsPage() {
               <Users size={18} className="text-purple-500" />
             </div>
             <div>
-              <h2 className="font-bold text-ink text-sm md:text-base" style={{ fontFamily: 'var(--font-bricolage)' }}>
+              <h2 className="font-bold text-ink text-sm md:text-base">
                 Invite Team Members
               </h2>
               <p className="text-xs text-ink-tertiary">Share these details with your team</p>
@@ -156,7 +156,7 @@ export default function SettingsPage() {
             <Users size={18} className="text-green-500" />
           </div>
           <div>
-            <h2 className="font-bold text-ink text-sm md:text-base" style={{ fontFamily: 'var(--font-bricolage)' }}>
+            <h2 className="font-bold text-ink text-sm md:text-base">
               My Profile
             </h2>
             <p className="text-xs text-ink-tertiary">{member.role}</p>
