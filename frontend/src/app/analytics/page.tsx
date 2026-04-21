@@ -5,6 +5,7 @@ import { useApi } from '@/hooks/useApi'
 import { cn } from '@/lib/utils'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import { TrendingUp, Users, Clock, DollarSign, BarChart3 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("bg-surface-200 animate-pulse rounded-xl", className)} />
@@ -12,6 +13,7 @@ const Skeleton = ({ className }: { className?: string }) => (
 
 export default function AnalyticsPage() {
   const { isLoaded, isSignedIn } = useUser()
+  const router = useRouter()
   const api = useApi()
   const [analytics, setAnalytics] = useState<any>(null)
   const [member, setMember] = useState<any>(null)
@@ -27,18 +29,21 @@ export default function AnalyticsPage() {
           api.get('/api/analytics/overview')
         ]);
 
-        if (meRes.status === 'fulfilled') setMember(meRes.value.data);
+        if (meRes.status === 'rejected' && meRes.reason.response?.status === 404) {
+          router.push('/onboarding')
+          return
+        }
+        
+        if (meRes.status === 'fulfilled') setMember(meRes.value.data)
         if (analyticsRes.status === 'fulfilled') {
           setAnalytics(analyticsRes.value.data);
         } 
-      } catch (err) {
-        console.error('Error loading analytics:', err)
       } finally {
         setLoading(false)
       }
     }
     load()
-  }, [isLoaded, isSignedIn, api])
+  }, [isLoaded, isSignedIn, api, router])
 
   if (loading) {
     return (

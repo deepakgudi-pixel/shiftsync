@@ -1,6 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
+import { useRouter } from 'next/navigation'
 
 import { Search, UserPlus, MoreHorizontal, Mail, Phone } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -15,6 +16,7 @@ interface Member {
 
 export default function TeamPage() {
   const { isLoaded, isSignedIn } = useUser()
+  const router = useRouter()
   const api = useApi()
   const [members, setMembers] = useState<Member[]>([])
   const [me, setMe] = useState<any>(null)
@@ -29,12 +31,13 @@ export default function TeamPage() {
         const [mem, me] = await Promise.all([api.get('/api/members'), api.get('/api/members/me')])
         setMembers(mem.data)
         setMe(me.data)
-      } catch (err) {
-        console.error('Error loading team:', err)
+      } catch (err: any) {
+        if (err.response?.status === 404) router.push('/onboarding')
+        else console.error('Error loading team:', err)
       }
     }
     load()
-  }, [isLoaded, isSignedIn, api])
+  }, [isLoaded, isSignedIn, api, router])
 
   const filtered = members.filter(m => {
     const matchSearch = m.name.toLowerCase().includes(search.toLowerCase()) || m.email.toLowerCase().includes(search.toLowerCase())

@@ -1,5 +1,5 @@
 'use client'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { useApi } from '@/hooks/useApi'
@@ -13,6 +13,18 @@ export default function OnboardingPage() {
   const [orgName, setOrgName] = useState('')
   const [orgId, setOrgId] = useState('')
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    const checkOnboarded = async () => {
+      try {
+        await api.get('/api/members/me')
+        router.push('/dashboard')
+      } catch (err) {
+        // Not onboarded, stay here
+      }
+    }
+    if (user) checkOnboarded()
+  }, [user, api, router])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()

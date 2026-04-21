@@ -3,24 +3,30 @@ import { useEffect, useState } from 'react'
 import { useApi } from '@/hooks/useApi'
 import { Copy, Check, Users, Link, Building2, Share2 } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
   const api = useApi()
+  const router = useRouter()
   const [org, setOrg] = useState<any>(null)
   const [member, setMember] = useState<any>(null)
   const [copied, setCopied] = useState<string | null>(null)
 
   useEffect(() => {
     const load = async () => {
-      const [me, orgData] = await Promise.all([
-        api.get('/api/members/me'),
-        api.get('/api/organisations/me'),
-      ])
-      setMember(me.data)
-      setOrg(orgData.data)
+      try {
+        const [me, orgData] = await Promise.all([
+          api.get('/api/members/me'),
+          api.get('/api/organisations/me'),
+        ])
+        setMember(me.data)
+        setOrg(orgData.data)
+      } catch (err: any) {
+        if (err.response?.status === 404) router.push('/onboarding')
+      }
     }
     load()
-  }, [])
+  }, [api, router])
 
   const copy = (text: string, type: string) => {
     navigator.clipboard.writeText(text)

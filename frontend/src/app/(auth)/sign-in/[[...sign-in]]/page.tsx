@@ -16,7 +16,6 @@ export default function SignInPage() {
           <p className="text-brand-300 mt-1 text-sm">Workforce management reimagined</p>
         </div>
         <SignIn
-          fallbackRedirectUrl="/dashboard"
           appearance={{
             elements: {
               rootBox: 'w-full',

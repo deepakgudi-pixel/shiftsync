@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useApi } from '@/hooks/useApi'
 import { useSocket } from '@/hooks/useSocket'
+import { useRouter } from 'next/navigation'
 import { fmtDateTime, cn, getInitials, fmtTime } from '@/lib/utils'
 import { Clock, CheckCircle, LogIn, LogOut, MapPin, Activity, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
@@ -24,6 +25,7 @@ const StatCard = ({ icon: Icon, label, value, color }: any) => (
 
 export default function AttendancePage() {
   const api = useApi()
+  const router = useRouter()
   const [assignedShifts, setAssignedShifts] = useState<any[]>([])
   const [inProgressShifts, setInProgressShifts] = useState<any[]>([])
   const [liveAttendance, setLiveAttendance] = useState<any[]>([])
@@ -63,10 +65,13 @@ export default function AttendancePage() {
           const live = await api.get('/api/attendance/live')
           setLiveAttendance(live.data)
         }
-      } catch (err) { console.error(err) } finally { setLoading(false) }
+      } catch (err: any) { 
+        if (err.response?.status === 404) router.push('/onboarding')
+        else console.error(err) 
+      } finally { setLoading(false) }
     }
     load()
-  }, [])
+  }, [api, router])
 
   useEffect(() => {
     if (!socket) return

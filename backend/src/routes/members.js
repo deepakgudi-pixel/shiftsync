@@ -25,6 +25,7 @@ router.get("/me", requireAuth, async (req, res) => {
       query("SELECT * FROM availability WHERE member_id = $1 ORDER BY day_of_week", [req.member.id]),
       query("SELECT * FROM notifications WHERE member_id = $1 AND read = FALSE ORDER BY created_at DESC LIMIT 10", [req.member.id]),
     ]);
+    if (!member.rows[0]) return res.status(404).json({ error: "Member not found" });
     res.json({ ...member.rows[0], availability: avail.rows, notifications: notifs.rows });
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });

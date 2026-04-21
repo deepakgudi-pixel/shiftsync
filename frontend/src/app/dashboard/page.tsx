@@ -72,7 +72,12 @@ export default function DashboardPage() {
   const [annLoading, setAnnLoading] = useState(false)
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn) return
+    if (!isLoaded) return
+
+    if (!isSignedIn) {
+      router.push('/sign-in')
+      return
+    }
 
     const load = async () => {
       try {
@@ -85,9 +90,9 @@ export default function DashboardPage() {
         setMember(me);
         setAnnouncements(annRes.data);
 
-        const weekParams = { 
-          start: new Date().toISOString(), 
-          end: new Date(Date.now() + 7*24*60*60*1000).toISOString() 
+        const weekParams = {
+          start: new Date().toISOString(),
+          end: new Date(Date.now() + 7*24*60*60*1000).toISOString()
         };
 
         if (me.role === 'ADMIN') {
@@ -108,16 +113,16 @@ export default function DashboardPage() {
           setShifts(sh.data)
         }
       } catch (err: any) {
-        // If member not found — new user signed in instead of signed up
         if (err.response?.status === 404) {
           router.push('/onboarding')
           return
         }
         console.error(err)
-      } finally { 
-        setLoading(false) 
+      } finally {
+        setLoading(false)
       }
     }
+
     load()
   }, [isLoaded, isSignedIn, api])
 
