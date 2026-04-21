@@ -27,8 +27,8 @@ export default function SignInPage() {
   }} 
 />
 <p className="text-center text-sm text-brand-300 mt-4">
-  New to ShiftSync? <a href="/sign-up" className="text-white font-medium underline">Create an account</a>
-</p>
+          New to ShiftSync? <a href="/sign-up" className="text-white font-medium underline hover:text-brand-200">Create an account</a>
+        </p>
       </div>
     </div>
   )
