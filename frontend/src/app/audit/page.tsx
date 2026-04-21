@@ -100,7 +100,7 @@ export default function AuditPage() {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <div className="text-center">
-          <p className="text-2xl font-black text-ink mb-2" style={{fontFamily:'var(--font-bricolage)'}}>Access Restricted</p>
+          <p className="text-2xl font-black text-ink mb-2">Access Restricted</p>
           <p className="text-sm text-ink-tertiary">Only admins and managers can view audit logs.</p>
         </div>
       </div>
@@ -111,7 +111,7 @@ export default function AuditPage() {
     <div className="p-4 md:p-8 max-w-[1200px] mx-auto">
       {/* Header */}
       <div className="mb-8">
-        <h1 className="text-3xl font-black text-ink tracking-tight" style={{fontFamily:'var(--font-bricolage)'}}>Audit Log</h1>
+        <h1 className="text-3xl font-black text-ink tracking-tight">Audit Log</h1>
         <p className="text-[11px] font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Track all changes and activity</p>
       </div>
 

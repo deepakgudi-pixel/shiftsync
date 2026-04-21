@@ -52,7 +52,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               <rect x="16" y="8" width="10" height="12" rx="2" fill="white" fillOpacity="0.5"/>
             </svg>
           </div>
-          <span className="font-bold text-ink text-lg" style={{fontFamily:'var(--font-bricolage)'}}>ShiftSync</span>
+          <span className="font-bold text-ink text-lg">ShiftSync</span>
         </div>
       </div>
 

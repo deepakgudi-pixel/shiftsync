@@ -58,7 +58,7 @@ export default function OnboardingPage() {
             </svg>
           </div>
           <div>
-            <h1 className="font-semibold text-ink" style={{fontFamily: 'var(--font-bricolage)'}}>Welcome to ShiftSync</h1>
+            <h1 className="font-semibold text-ink">Welcome to ShiftSync</h1>
             <p className="text-sm text-ink-tertiary">Set up your workspace</p>
           </div>
         </div>
