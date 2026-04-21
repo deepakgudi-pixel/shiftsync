@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
-
+import { useRouter } from 'next/navigation'
 
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { Users, Calendar, AlertCircle, TrendingUp, Clock, DollarSign, Activity, Bell, Plus, X, Trash2, User } from 'lucide-react'
@@ -58,6 +58,7 @@ const Skeleton = ({ className }: { className?: string }) => (
 
 export default function DashboardPage() {
   const { user, isLoaded, isSignedIn } = useUser()
+  const router = useRouter()
   const api = useApi()
   const [analytics, setAnalytics] = useState<Analytics | null>(null)
   const [shifts, setShifts] = useState<Shift[]>([])
@@ -79,7 +80,7 @@ export default function DashboardPage() {
           api.get('/api/members/me'),
           api.get('/api/organisations/announcements'),
         ])
-        
+
         const me = meRes.data;
         setMember(me);
         setAnnouncements(annRes.data);
@@ -106,7 +107,16 @@ export default function DashboardPage() {
           const sh = await api.get('/api/shifts', { params: { ...weekParams, assigneeId: me.id } })
           setShifts(sh.data)
         }
-      } catch (err) { console.error(err) } finally { setLoading(false) }
+      } catch (err: any) {
+        // If member not found — new user signed in instead of signed up
+        if (err.response?.status === 404) {
+          router.push('/onboarding')
+          return
+        }
+        console.error(err)
+      } finally { 
+        setLoading(false) 
+      }
     }
     load()
   }, [isLoaded, isSignedIn, api])
@@ -168,7 +178,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Stats — admin/manager only */}
+      {/* Stats — admin only */}
       {(analytics || loading) && (member?.role === 'ADMIN') && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
           {loading ? [1,2,3,4].map(i => <Skeleton key={i} className="h-32" />) : (
@@ -197,14 +207,14 @@ export default function DashboardPage() {
                 </div>
                 <div className="h-[240px] md:h-[300px]">
                   <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={analytics?.shiftsByDay} barSize={36}>
-                    <XAxis dataKey="day" tick={{ fontSize:11, fontWeight:700, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-                    <YAxis tick={{ fontSize:11, fontWeight:700, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
-                    <Tooltip cursor={{fill: 'rgba(79, 110, 255, 0.05)'}} contentStyle={{ borderRadius:'20px', border:'none', boxShadow:'0 10px 40px rgba(0,0,0,0.1)', fontSize:'13px' }} />
-                    <Bar dataKey="total" fill="#f1f5f9" radius={[12,12,0,0]} name="Total" />
-                    <Bar dataKey="completed" fill="#4f6eff" radius={[12,12,0,0]} name="Completed" />
-                  </BarChart>
-                </ResponsiveContainer>
+                    <BarChart data={analytics?.shiftsByDay} barSize={36}>
+                      <XAxis dataKey="day" tick={{ fontSize:11, fontWeight:700, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize:11, fontWeight:700, fill:'#94a3b8' }} axisLine={false} tickLine={false} />
+                      <Tooltip cursor={{fill: 'rgba(79, 110, 255, 0.05)'}} contentStyle={{ borderRadius:'20px', border:'none', boxShadow:'0 10px 40px rgba(0,0,0,0.1)', fontSize:'13px' }} />
+                      <Bar dataKey="total" fill="#f1f5f9" radius={[12,12,0,0]} name="Total" />
+                      <Bar dataKey="completed" fill="#4f6eff" radius={[12,12,0,0]} name="Completed" />
+                    </BarChart>
+                  </ResponsiveContainer>
                 </div>
               </>
             )}
@@ -309,7 +319,7 @@ export default function DashboardPage() {
                 >
                   <option value="">Global (Everyone)</option>
                   <optgroup label="Direct Message">
-                    {team.filter(t => t.id !== member.id).map(t => (
+                    {team.filter(t => t.id !== member?.id).map(t => (
                       <option key={t.id} value={t.id}>{t.name} ({t.role})</option>
                     ))}
                   </optgroup>
