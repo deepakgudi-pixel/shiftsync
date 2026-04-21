@@ -16,17 +16,17 @@ export default function SignInPage() {
           <p className="text-brand-300 mt-1 text-sm">Workforce management reimagined</p>
         </div>
         <SignIn 
-          forceRedirectUrl="/onboarding"
-          appearance={{
-            elements: {
-              rootBox: 'w-full',
-              card: 'bg-white/95 backdrop-blur rounded-2xl shadow-2xl border-0',
-              headerTitle: 'font-semibold text-ink',
-              formButtonPrimary: 'bg-brand-500 hover:bg-brand-600 rounded-xl',
-              footerActionLink: 'text-brand-500',
-            }
-          }} 
-        />
+  forceRedirectUrl="/dashboard"
+  appearance={{
+    elements: {
+      rootBox: 'w-full',
+      card: 'bg-white/95 backdrop-blur rounded-2xl shadow-2xl border-0',
+      headerTitle: 'font-semibold text-ink',
+      formButtonPrimary: 'bg-brand-500 hover:bg-brand-600 rounded-xl',
+      footerActionLink: 'text-brand-500',
+    }
+  }} 
+/>
       </div>
     </div>
   )
