@@ -61,7 +61,7 @@ export default function LandingPage() {
 
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <Link 
-                href={isSignedIn ? "/dashboard" : "/onboarding"} 
+                href={isSignedIn ? "/dashboard" : "/sign-up"} 
                 className="group flex items-center gap-4 bg-white text-black px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-brand-500 hover:text-white transition-all"
               >
                 Initialize <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
@@ -175,8 +175,8 @@ export default function LandingPage() {
 
       {/* Footer */}
       <footer className="py-20 bg-black text-center border-t border-white/5">
-        <p className="text-[9px] font-bold uppercase tracking-[0.8em] text-white/20">
-          ShiftSync Intelligence &copy; {new Date().getFullYear()} — Terminal Ready.
+        <p className="text-[12px] font-bold uppercase tracking-[0.8em] text-white/40">
+          ShiftSync &copy; {new Date().getFullYear()}.
         </p>
       </footer>
     </div>
