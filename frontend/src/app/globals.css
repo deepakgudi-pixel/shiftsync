@@ -12,6 +12,8 @@
 html { -webkit-font-smoothing: antialiased; }
 body { background: #f8f8fc; color: #0d0d1a; }
 
+.cl-formFieldHintText { display: none; }
+
 ::-webkit-scrollbar { width: 5px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d0d0e4; border-radius: 99px; }

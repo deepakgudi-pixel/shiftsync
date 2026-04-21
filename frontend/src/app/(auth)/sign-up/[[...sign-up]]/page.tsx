@@ -3,7 +3,7 @@ import { SignUp } from '@clerk/nextjs'
 export default function SignUpPage() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-brand-950 via-brand-900 to-purple-950 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
+      <div className="max-w-md">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 backdrop-blur mb-4">
             <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
@@ -15,7 +15,7 @@ export default function SignUpPage() {
           <h1 className="text-3xl font-bold text-white" style={{fontFamily: 'var(--font-bricolage)'}}>ShiftSync</h1>
           <p className="text-brand-300 mt-1 text-sm">Get started for free</p>
         </div>
-        <SignUp 
+        <SignUp
           forceRedirectUrl="/onboarding"
           appearance={{
             elements: {
@@ -24,8 +24,9 @@ export default function SignUpPage() {
               headerTitle: 'font-semibold text-ink',
               formButtonPrimary: 'bg-brand-500 hover:bg-brand-600 rounded-xl',
               footerActionLink: 'text-brand-500',
+              formFieldOptional: 'hidden',
             }
-          }} 
+          }}
         />
       </div>
     </div>
