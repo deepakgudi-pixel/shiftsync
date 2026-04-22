@@ -97,56 +97,7 @@ export default function SettingsPage() {
         </div>
       </div>
 
-      {/* Invite Section */}
-      {member.role === 'ADMIN' && (
-        <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-none shadow-sm mb-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 bg-zinc-50 border border-zinc-100 flex items-center justify-center flex-shrink-0">
-              <Users size={18} className="text-black" />
-            </div>
-            <div>
-              <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em] border-l-2 border-black pl-3">
-                Invite Team Members
-              </h2>
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Share access credentials</p>
-            </div>
-          </div>
-
-          <div className="border border-dashed border-zinc-200 bg-zinc-50 p-6 mb-8">
-            <p className="text-[10px] font-black text-black uppercase tracking-widest mb-4 flex items-center gap-2">
-              <Share2 size={12} /> Deployment Instructions:
-            </p>
-            <div className="bg-white border border-zinc-200 p-4 text-[10px] font-bold text-zinc-500 space-y-3 uppercase tracking-widest">
-              <p className="leading-relaxed">1. Access: <span className="text-black break-all">{onboardingLink}</span></p>
-              <p className="leading-relaxed">2. Initialize: Select <span className="text-black">"Join Existing"</span></p>
-              <p className="leading-relaxed">3. Registry ID:</p>
-              <p className="text-black font-black text-xs pl-3 border-l-2 border-black ml-1 font-mono">{org.id}</p>
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3">
-            <button
-              onClick={() => copy(
-                `Join my organisation on ShiftSync!\n\n1. Go to: ${onboardingLink}\n2. Sign up and choose "Join Existing"\n3. Enter Organisation ID: ${org.id}`,
-                'invite'
-              )}
-              className="flex items-center justify-center gap-2 w-full py-4 bg-black text-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-zinc-800 transition-all active:scale-95"
-            >
-              {copied === 'invite' ? <Check size={14} /> : <Share2 size={14} />}
-              {copied === 'invite' ? 'Message Copied' : 'Copy Full Invite Message'}
-            </button>
-
-            <button
-              onClick={() => copy(org.id, 'orgId2')}
-              className="flex items-center justify-center gap-2 w-full py-2 border border-zinc-200 bg-white text-black font-bold uppercase tracking-widest text-[10px] hover:bg-zinc-50 transition-all active:scale-95"
-            >
-              {copied === 'orgId2' ? <Check size={14} /> : <Copy size={14} />}
-              {copied === 'orgId2' ? 'ID Copied' : 'Copy Organisation ID Only'}
-            </button>
-          </div>
-        </div>
-      )}
-
+     
       {/* My Profile */}
       <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-none shadow-sm">
         <div className="flex items-center gap-3 mb-8">
