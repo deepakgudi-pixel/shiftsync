@@ -22,6 +22,22 @@ router.get("/", requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Failed to fetch shifts" }); }
 });
 
+router.get("/swaps/pending", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, res) => {
+  try {
+    const result = await query(
+      `SELECT sr.*, s.title as shift_title, m.name as requester_name, m2.name as target_name
+       FROM swap_requests sr
+       JOIN shifts s ON sr.shift_id = s.id
+       JOIN members m ON sr.requester_id = m.id
+       LEFT JOIN members m2 ON sr.target_id = m2.id
+       WHERE s.organisation_id = $1 AND sr.status = 'PENDING'
+       ORDER BY sr.created_at DESC`,
+      [req.member.organisation_id]
+    );
+    res.json(result.rows);
+  } catch (err) { res.status(500).json({ error: "Failed to fetch swap requests" }); }
+});
+
 router.get("/:id", requireAuth, async (req, res) => {
   try {
     const shift = await query(
@@ -157,7 +173,16 @@ router.post("/:id/swap", requireAuth, async (req, res) => {
     if (!shift.rows.length) return res.status(404).json({ error: "Shift not found or not yours" });
     const result = await query("INSERT INTO swap_requests (shift_id,requester_id,target_id,reason) VALUES ($1,$2,$3,$4) RETURNING *",
       [req.params.id, req.member.id, targetId||null, reason||null]);
-    req.io.to(`org:${req.member.organisation_id}`).emit("swap:requested", result.rows[0]);
+
+    const details = await query(
+      `SELECT sr.*, s.title as shift_title, m.name as requester_name, m2.name as target_name
+       FROM swap_requests sr
+       JOIN shifts s ON sr.shift_id = s.id
+       JOIN members m ON sr.requester_id = m.id
+       LEFT JOIN members m2 ON sr.target_id = m2.id
+       WHERE sr.id = $1`, [result.rows[0].id]);
+
+    req.io.to(`org:${req.member.organisation_id}`).emit("swap:requested", details.rows[0]);
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "REQUEST", entityType: "swap_request", entityId: result.rows[0].id, newValues: result.rows[0], req });
     res.status(201).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed" }); }
@@ -168,10 +193,21 @@ router.patch("/:id/swap/:swapId", requireAuth, requireRole("ADMIN","MANAGER"), a
     const { status } = req.body;
     const result = await query("UPDATE swap_requests SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *", [status, req.params.swapId]);
     const swap = result.rows[0];
+
+    if (status === 'APPROVED') {
+      await query("UPDATE shifts SET assignee_id=$1, status=$2 WHERE id=$3", 
+        [swap.target_id, swap.target_id ? 'ASSIGNED' : 'OPEN', swap.shift_id]);
+      
+      const updatedShift = await query("SELECT s.*, m.name as assignee_name FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id WHERE s.id=$1", [swap.shift_id]);
+      req.io.to(`org:${req.member.organisation_id}`).emit("shift:updated", updatedShift.rows[0]);
+    }
+
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: status === 'APPROVED' ? 'APPROVE' : 'REJECT', entityType: "swap_request", entityId: swap.id, oldValues: { status: 'PENDING' }, newValues: swap, req });
     await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,$2,$3,$4,$5)`,
       [swap.requester_id, `SWAP_${status}`, `Swap ${status}`, `Your swap request was ${status.toLowerCase()}`, JSON.stringify({ shiftId: swap.shift_id })]);
     req.io.to(`user:${swap.requester_id}`).emit("notification", { type: `SWAP_${status}`, swap });
+    req.io.to(`org:${req.member.organisation_id}`).emit("swap:processed", { id: swap.id, status });
+
     res.json(swap);
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
