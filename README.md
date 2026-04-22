@@ -20,9 +20,10 @@ I built this with a modern, scalable stack:
 
 *   **Smart Scheduling:** A drag-and-drop interface that prevents double-booking. If a manager tries to assign overlapping shifts, the system catches it at the database level using SQL interval checks.
 *   **Real-time Team Sync:** Using WebSockets, the schedule updates instantly for everyone. If a shift is created or a swap is requested, you see it without refreshing.
-*   **Member Management:** Admins can invite team members, assign roles, and track skills/hourly rates.
+*   **Audit Logging:** Comprehensive tracking of all system actions (CREATE, UPDATE, DELETE, CLOCK_IN/OUT) with detailed state diff views and IP tracking for administrative oversight.
+*   **Member Management:** Admins can manage organisation settings, invite team members via unique Registry IDs, and assign system clearance roles.
 *   **Live Analytics:** Dashboards showing workforce utilization, labor costs, and shift coverage gaps.
-*   **Messaging:** A built-in chat system for team members to coordinate and an announcement board for urgent updates.
+*   **Announcements & Messaging:** A high-visibility announcement board for broadcasting urgent updates or targeted messages to specific team members with real-time Socket.io delivery.
 
 ---
 
