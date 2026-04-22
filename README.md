@@ -18,7 +18,7 @@ I built this with a modern, scalable stack:
 
 ## ✨ Key Features
 
-*   **Smart Scheduling:** A drag-and-drop interface that prevents double-booking. If a manager tries to assign overlapping shifts, the system catches it at the database level using SQL interval checks.
+*   **Smart Scheduling:** A simple, reliable way to manage shifts. The system uses SQL-level overlap checks to automatically block double-bookings, keeping your schedule clean and conflict-free.
 *   **Real-time Team Sync:** Using WebSockets, the schedule updates instantly for everyone. If a shift is created or a swap is requested, you see it without refreshing.
 *   **Audit Logging:** Comprehensive tracking of all system actions (CREATE, UPDATE, DELETE, CLOCK_IN/OUT) with detailed state diff views and IP tracking for administrative oversight.
 *   **Member Management:** Admins can manage organisation settings, invite team members via unique Registry IDs, and assign system clearance roles.
