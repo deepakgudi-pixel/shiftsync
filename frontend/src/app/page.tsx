@@ -227,7 +227,7 @@ export default function LandingPage() {
             <div className="md:col-span-2 md:row-span-2 bg-[#050505] p-12 flex flex-col justify-between group overflow-hidden relative">
               <div className="relative z-10">
                 <Cpu size={20} className="text-white/20 mb-12 group-hover:text-white transition-colors duration-500" />
-                <h3 className="text-4xl font-light tracking-tighter mb-6">Autonomous <br />Conflict Resolution</h3>
+                <h3 className="text-4xl font-light tracking-normal mb-6">Autonomous <br />Conflict Resolution</h3>
                 <p className="text-white/40 text-sm font-light leading-relaxed max-w-xs">
                   Our PostgreSQL core implements hard-coded interval constraints. Scheduling conflicts are physically impossible.
                 </p>
@@ -280,7 +280,7 @@ export default function LandingPage() {
               <div className="inline-block px-4 py-1 border border-white/10 text-[9px] font-bold uppercase tracking-[0.3em] mb-8 text-white/40">
                 Core Infrastructure
               </div>
-              <h2 className="text-5xl font-light tracking-tighter mb-8 leading-tight">Built on the <br />modern edge.</h2>
+              <h2 className="text-5xl font-light tracking-normal mb-8">Built on the <br />modern edge.</h2>
               <div className="grid grid-cols-2 gap-8">
                 {[
                   { label: 'Frontend', val: 'Next.js 14' },
