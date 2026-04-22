@@ -47,45 +47,49 @@ export default function OnboardingPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-brand-950 via-brand-900 to-purple-950 flex items-center justify-center p-4">
-      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md animate-slide-up">
+    <div className="min-h-screen bg-[#050505] flex items-center justify-center p-4 relative overflow-hidden font-sans">
+      {/* Futuristic Background Grid */}
+      <div className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none" 
+           style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+
+      <div className="bg-zinc-900/90 backdrop-blur-xl border border-white/10 rounded-none p-8 w-full max-w-md animate-slide-up relative z-10 shadow-2xl">
         <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center">
+          <div className="w-10 h-10 bg-white flex items-center justify-center">
             <svg width="20" height="20" viewBox="0 0 28 28" fill="none">
-              <rect x="2" y="8" width="10" height="4" rx="2" fill="white"/>
-              <rect x="2" y="16" width="16" height="4" rx="2" fill="white" fillOpacity="0.7"/>
-              <rect x="16" y="8" width="10" height="12" rx="2" fill="white" fillOpacity="0.5"/>
+              <rect x="2" y="8" width="10" height="4" fill="black"/>
+              <rect x="2" y="16" width="16" height="4" fill="black" fillOpacity="0.7"/>
+              <rect x="16" y="8" width="10" height="12" fill="black" fillOpacity="0.5"/>
             </svg>
           </div>
           <div>
-            <h1 className="font-semibold text-ink">Welcome to ShiftSync</h1>
-            <p className="text-sm text-ink-tertiary">Set up your workspace</p>
+            <h1 className="font-bold text-white text-sm uppercase tracking-widest">Welcome to ShiftSync</h1>
+            <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mt-0.5">Set up your workspace</p>
           </div>
         </div>
 
-        <div className="flex rounded-xl bg-surface-100 p-1 mb-6">
+        <div className="flex bg-white/5 p-1 mb-8">
           {(['create', 'join'] as const).map(m => (
             <button key={m} onClick={() => setMode(m)}
-              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-all ${mode === m ? 'bg-white shadow-sm text-ink' : 'text-ink-secondary'}`}>
+              className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${mode === m ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'}`}>
               {m === 'create' ? 'Create Organisation' : 'Join Existing'}
             </button>
           ))}
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           {mode === 'create' ? (
             <div>
-              <label className="text-sm font-medium text-ink-secondary block mb-1.5">Organisation Name</label>
-              <input className="input" placeholder="e.g. Acme Retail Corp" value={orgName} onChange={e => setOrgName(e.target.value)} required />
+              <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest block mb-2">Organisation Name</label>
+              <input className="w-full bg-white/[0.03] border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-white/20 transition-all" placeholder="e.g. Acme Retail Corp" value={orgName} onChange={e => setOrgName(e.target.value)} required />
             </div>
           ) : (
             <div>
-              <label className="text-sm font-medium text-ink-secondary block mb-1.5">Organisation ID</label>
-              <input className="input" placeholder="Paste the ID from your admin" value={orgId} onChange={e => setOrgId(e.target.value)} required />
-              <p className="text-xs text-ink-tertiary mt-1">Ask your admin for the organisation ID from their settings page</p>
+              <label className="text-[9px] font-bold text-white/40 uppercase tracking-widest block mb-2">Organisation ID</label>
+              <input className="w-full bg-white/[0.03] border border-white/10 px-4 py-3 text-white text-sm focus:outline-none focus:border-white/20 transition-all font-mono" placeholder="ID from admin settings" value={orgId} onChange={e => setOrgId(e.target.value)} required />
+              <p className="text-[10px] text-white/20 mt-3 leading-relaxed">Ask your admin for the organisation ID from their settings page.</p>
             </div>
           )}
-          <button type="submit" className="btn-primary w-full" disabled={loading}>
+          <button type="submit" className="w-full h-12 bg-white text-black font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all mt-4" disabled={loading}>
             {loading ? 'Setting up...' : mode === 'create' ? 'Create & Continue' : 'Join & Continue'}
           </button>
         </form>

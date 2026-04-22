@@ -123,32 +123,32 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-[1600px] mx-auto h-[calc(100vh-56px)] md:h-auto flex flex-col overflow-hidden">
+    <div className="p-5 md:p-8 max-w-[1600px] mx-auto min-h-screen">
       {/* Header - Compact & Responsive */}
-      <div className="flex items-center justify-between gap-4 mb-8 flex-shrink-0">
-        <div className="animate-in fade-in slide-in-from-left duration-500 min-w-0">
-          <h1 className="text-3xl font-black text-ink tracking-tight truncate" style={{fontFamily:'var(--font-bricolage)'}}>Roster</h1>
-          <p className="text-[11px] font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Live coordination center</p>
+      <div className="mb-10 border-b border-zinc-200 pb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">Roster</h1>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Live coordination center</p>
         </div>
         {(member?.role === 'ADMIN' || member?.role === 'MANAGER') && (
           <button 
-            className="btn-primary flex items-center justify-center gap-2 py-3 px-5 text-sm font-black tracking-tight rounded-2xl shadow-[0_8px_20px_-6px_rgba(79,110,255,0.4)] hover:shadow-[0_12px_25px_-6px_rgba(79,110,255,0.5)] active:scale-95 transition-all flex-shrink-0" 
+            className="px-6 py-3 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95 flex items-center gap-2" 
             onClick={() => { setSelected(null); setForm({title:'',startTime:'',endTime:'',location:'',notes:'',color:'#4f6eff',assigneeId:''}); setShowModal(true) }}
           >
-            <Plus size={16} /> <span className="hidden sm:inline">New Shift</span><span className="sm:hidden">New</span>
+            <Plus size={14} /> New Shift
           </button>
         )}
       </div>
 
       {/* Mobile Column Tabs */}
-      <div className="md:hidden flex p-1 bg-surface-100 rounded-xl mb-4 flex-shrink-0">
+      <div className="md:hidden flex p-1 bg-zinc-100 mb-6">
         {COLUMNS.map(col => (
           <button
             key={col.id}
             onClick={() => setActiveTab(col.id)}
             className={cn(
-              "flex-1 py-2 text-[10px] font-bold uppercase tracking-wider rounded-lg transition-all duration-200",
-              activeTab === col.id ? "bg-white shadow-sm text-ink" : "text-ink-tertiary"
+              "flex-1 py-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-200",
+              activeTab === col.id ? "bg-white text-black" : "text-zinc-400"
             )}
           >
             {col.id === 'IN_PROGRESS' ? 'Active' : col.label.split(' ')[0]}
@@ -156,47 +156,44 @@ export default function SchedulePage() {
         ))}
       </div>
 
-      <div className="flex-1 flex gap-4 md:gap-6 overflow-x-auto md:overflow-x-visible pb-4 md:pb-0 -mx-4 px-4 md:mx-0 md:px-0 no-scrollbar scroll-smooth min-h-0">
+      <div className="flex flex-col md:flex-row gap-6 overflow-x-auto pb-6">
         {COLUMNS.map(col => (
           <div key={col.id} className={cn(
-            "w-full md:w-80 flex-shrink-0 flex flex-col bg-surface-100/40 rounded-[2.5rem] border border-surface-200/60 shadow-[0_8px_30px_rgb(0,0,0,0.02)]",
+            "w-full md:w-80 flex-shrink-0 flex flex-col bg-white border border-zinc-200 shadow-sm",
             activeTab !== col.id ? "hidden md:flex" : "flex"
           )}>
-            <div className="p-5 flex items-center justify-between flex-shrink-0">
-              <div className="flex items-center gap-2">
-                <div className={cn('w-1.5 h-1.5 rounded-full ring-4 ring-offset-2', col.color.replace('bg-', 'ring-'), 'ring-opacity-20')} />
-                <h2 className="font-black text-ink text-[12px] uppercase tracking-widest opacity-80">{col.label}</h2>
-                <span className="text-[10px] text-ink-tertiary font-black bg-white px-2.5 py-1 rounded-full border border-surface-200/60 shadow-sm">
-                  {shifts.filter(s => s.status === col.id).length}
-                </span>
-              </div>
+            <div className="p-5 flex items-center justify-between border-b border-zinc-100">
+              <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em] border-l-2 border-black pl-3">{col.label}</h2>
+              <span className="text-[10px] text-zinc-400 font-bold bg-zinc-50 px-2 py-0.5 border border-zinc-200">
+                {shifts.filter(s => s.status === col.id).length}
+              </span>
             </div>
             
-            <div className="flex-1 overflow-y-auto px-4 pb-4 space-y-4 scroll-smooth">
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[400px]">
               {shifts.filter(s => s.status === col.id).map(s => (
                 <button key={s.id} onClick={() => handleEventClick(s)}
-                  className="w-full text-left bg-white p-5 rounded-3xl border border-surface-200/80 shadow-[0_4px_15px_rgba(0,0,0,0.02)] hover:shadow-[0_10px_30px_rgba(0,0,0,0.06)] hover:border-brand-300 hover:-translate-y-1 active:scale-[0.98] transition-all duration-500 group">
+                  className="w-full text-left bg-zinc-50 p-5 border border-zinc-100 hover:border-zinc-300 transition-all duration-300 group">
                   <div className="flex items-start justify-between gap-2 mb-4">
-                    <h3 className="font-black text-ink text-[0.95rem] leading-snug group-hover:text-brand-600 transition-colors">{s.title}</h3>
-                    <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" style={{background: s.color}} />
+                    <h3 className="font-bold text-black text-[11px] uppercase tracking-widest leading-snug truncate">{s.title}</h3>
+                    <div className="w-2.5 h-2.5 flex-shrink-0 border border-zinc-200" style={{background: s.color}} />
                   </div>
                   
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2.5 text-ink-tertiary">
+                    <div className="flex items-center gap-2.5 text-zinc-400">
                       <Clock size={15} className="opacity-50" />
-                      <span className="text-[11px] font-black uppercase tracking-widest">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-widest">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</span>
                     </div>
                     {s.location && (
-                      <div className="flex items-center gap-2.5 text-ink-tertiary">
+                      <div className="flex items-center gap-2.5 text-zinc-400">
                         <MapPin size={15} className="opacity-50" />
-                        <span className="text-xs font-semibold truncate">{s.location}</span>
+                        <span className="text-[10px] font-bold uppercase truncate">{s.location}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2.5 pt-3 border-t border-surface-100">
-                      <div className="w-6 h-6 rounded-lg bg-surface-100 flex items-center justify-center flex-shrink-0">
-                        <User size={12} className="text-ink-tertiary" />
+                    <div className="flex items-center gap-2.5 pt-3 border-t border-zinc-200">
+                      <div className="w-6 h-6 bg-zinc-200 flex items-center justify-center flex-shrink-0">
+                        <User size={12} className="text-zinc-500" />
                       </div>
-                      <span className="text-[11px] font-black text-ink-secondary uppercase tracking-widest">{s.assignee_name || 'Open Slot'}</span>
+                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{s.assignee_name || 'Unassigned'}</span>
                     </div>
                   </div>
                 </button>
@@ -208,13 +205,11 @@ export default function SchedulePage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up max-h-[90vh] flex flex-col">
-            <div className="flex items-center justify-between p-4 md:p-5 border-b border-surface-100 flex-shrink-0">
-              <h2 className="font-semibold text-ink text-base md:text-lg" style={{fontFamily:'var(--font-bricolage)'}}>
-                {selected ? 'Shift Details' : 'Create Shift'}
-              </h2>
-              <button onClick={() => setShowModal(false)} className="btn-ghost p-1.5"><X size={18} /></button>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+          <div className="bg-white border border-zinc-200 w-full max-w-md animate-slide-up relative shadow-2xl flex flex-col">
+            <div className="flex items-center justify-between p-5 border-b border-zinc-100">
+              <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">{selected ? 'Shift Details' : 'New Shift'}</h2>
+              <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
             </div>
 
             {selected && member?.role === 'EMPLOYEE' ? (
@@ -239,22 +234,22 @@ export default function SchedulePage() {
             ) : (
               <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
                 <div>
-                  <label className="text-sm font-medium text-ink-secondary block mb-1.5">Title *</label>
-              <input className="input" placeholder="Morning Shift" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required />
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Subject *</label>
+                  <input className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="e.g. Morning Logistics" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="text-sm font-medium text-ink-secondary block mb-1.5">Start *</label>
-                    <input type="datetime-local" className="input" value={form.startTime} onChange={e => setForm(f => ({...f, startTime: e.target.value}))} required />
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Start *</label>
+                    <input type="datetime-local" className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" value={form.startTime} onChange={e => setForm(f => ({...f, startTime: e.target.value}))} required />
                   </div>
                   <div>
-                    <label className="text-sm font-medium text-ink-secondary block mb-1.5">End *</label>
-                    <input type="datetime-local" className="input" value={form.endTime} onChange={e => setForm(f => ({...f, endTime: e.target.value}))} required />
+                    <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">End *</label>
+                    <input type="datetime-local" className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" value={form.endTime} onChange={e => setForm(f => ({...f, endTime: e.target.value}))} required />
                   </div>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-ink-secondary block mb-1.5">Assign To</label>
-                  <select className="input" value={form.assigneeId} onChange={e => setForm(f => ({...f, assigneeId: e.target.value}))}>
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Assign Recipient</label>
+                  <select className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors appearance-none" value={form.assigneeId} onChange={e => setForm(f => ({...f, assigneeId: e.target.value}))}>
                     <option value="">Unassigned (Open)</option>
                     {members
                       .filter(m => member?.role === 'ADMIN' || m.role === 'EMPLOYEE')
@@ -264,28 +259,28 @@ export default function SchedulePage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-ink-secondary block mb-1.5">Location</label>
-                  <input className="input" placeholder="Warehouse A, Floor 2..." value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} />
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Location</label>
+                  <input className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="e.g. Warehouse A" value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} />
                 </div>
                 <div>
-              <label className="text-sm font-medium text-ink-secondary block mb-1.5">Notes</label>
-              <textarea className="input min-h-[80px] py-2" placeholder="Additional details..." value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
-            </div>
-            <div>
-                  <label className="text-sm font-medium text-ink-secondary block mb-2">Color</label>
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Instructions</label>
+                  <textarea className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors min-h-[80px]" placeholder="Add details..." value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
+                </div>
+                <div>
+                  <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Color Tag</label>
                   <div className="flex gap-2">
                     {COLORS.map(c => (
                       <button type="button" key={c} onClick={() => setForm(f => ({...f, color: c}))}
-                        className={cn('w-7 h-7 rounded-full transition-transform', form.color === c ? 'scale-125 ring-2 ring-offset-2 ring-brand-400' : 'hover:scale-110')}
+                        className={cn('w-7 h-7 border border-zinc-200 transition-transform', form.color === c ? 'scale-125 ring-2 ring-offset-2 ring-black' : 'hover:scale-110')}
                         style={{background: c}} />
                     ))}
                   </div>
                 </div>
-                <div className="flex gap-2 pt-2">
+                <div className="flex gap-3 pt-4">
                   {selected && (
-                    <button type="button" onClick={handleDelete} className="btn-secondary text-red-500 hover:bg-red-50">Delete</button>
+                    <button type="button" onClick={handleDelete} className="px-4 py-3 border border-zinc-200 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete</button>
                   )}
-                  <button type="submit" className="btn-primary flex-1" disabled={loading}>
+                  <button type="submit" className="flex-1 py-4 bg-black text-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-zinc-800 transition-colors" disabled={loading}>
                     {loading ? 'Saving...' : selected ? 'Update Shift' : 'Create Shift'}
                   </button>
                 </div>

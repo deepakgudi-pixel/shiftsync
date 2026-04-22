@@ -8,7 +8,7 @@ import { TrendingUp, Users, Clock, DollarSign, BarChart3 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 const Skeleton = ({ className }: { className?: string }) => (
-  <div className={cn("bg-surface-200 animate-pulse rounded-xl", className)} />
+  <div className={cn("bg-zinc-100 animate-pulse rounded-none", className)} />
 )
 
 export default function AnalyticsPage() {
@@ -91,77 +91,77 @@ export default function AnalyticsPage() {
   const COLORS = ['#4f6eff','#7c3aed','#059669','#d97706']
 
   return (
-    <div className="p-6 max-w-[1200px]">
-      <div className="mb-6">
-        <h1 className="text-3xl font-black text-ink tracking-tight" style={{fontFamily:'var(--font-bricolage)'}}>Analytics Dashboard</h1>
-        <p className="text-sm font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Workforce performance metrics</p>
+    <div className="p-5 md:p-8 max-w-[1200px] mx-auto min-h-screen">
+      <div className="mb-10 border-b border-zinc-200 pb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">Analytics</h1>
+        <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Workforce performance metrics</p>
       </div>
 
       {/* KPI row */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mb-10">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-10">
         {[
-          { icon: Users, label: 'Total Members', value: analytics.totalMembers, color: 'bg-brand-50 text-brand-600' },
-          { icon: Clock, label: 'Hours Tracked', value: `${analytics.totalHours}h`, color: 'bg-violet-50 text-violet-600' },
-          { icon: DollarSign, label: 'Labor Cost', value: `$${analytics.totalLaborCost.toLocaleString()}`, color: 'bg-green-50 text-green-600' },
-          { icon: TrendingUp, label: 'Efficiency', value: analytics.completedThisMonth, color: 'bg-amber-50 text-amber-600' },
-        ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="bg-white/80 border border-white/60 p-6 rounded-[2rem] shadow-[0_10px_30px_-10px_rgba(0,0,0,0.04)] flex items-center gap-5 hover:shadow-[0_15px_40px_-10px_rgba(0,0,0,0.08)] transition-all duration-500">
-            <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 shadow-sm', color)}>
-              <Icon size={24} strokeWidth={2.5} />
+          { icon: Users, label: 'Total Members', value: analytics.totalMembers },
+          { icon: Clock, label: 'Hours Tracked', value: `${analytics.totalHours}h` },
+          { icon: DollarSign, label: 'Labor Cost', value: `$${analytics.totalLaborCost.toLocaleString()}` },
+          { icon: TrendingUp, label: 'Efficiency', value: analytics.completedThisMonth },
+        ].map(({ icon: Icon, label, value }) => (
+          <div key={label} className="bg-white border border-zinc-200 p-6 rounded-none shadow-sm hover:shadow-md transition-all duration-300">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2 bg-zinc-50 border border-zinc-100">
+                <Icon size={16} className="text-black" />
+              </div>
+              <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{label}</p>
             </div>
-            <div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-ink-tertiary opacity-60 mb-1">{label}</p>
-              <p className="text-3xl font-black text-ink tracking-tight leading-none" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
-            </div>
+            <p className="text-3xl font-bold text-black tracking-tight leading-none">{value}</p>
           </div>
         ))}
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Shifts by day */}
-        <div className="bg-white/80 border border-white/60 p-8 rounded-[2.5rem] shadow-sm">
-          <h2 className="text-xl font-black text-ink tracking-tight mb-8" style={{fontFamily:'var(--font-bricolage)'}}>Weekly Distribution</h2>
+        <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-none shadow-sm">
+          <h2 className="text-lg font-bold text-black uppercase tracking-widest mb-8 border-l-2 border-black pl-3">Weekly Distribution</h2>
           <div className="h-[200px] md:h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={analytics.shiftsByDay} barSize={28}>
-              <XAxis dataKey="day" tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
-              <YAxis tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{borderRadius:'12px',border:'1px solid #e4e4f0',fontSize:'13px'}} />
-              <Bar dataKey="total" fill="#e4e4f0" radius={[6,6,0,0]} name="Total" />
-              <Bar dataKey="completed" fill="#4f6eff" radius={[6,6,0,0]} name="Completed" />
+              <XAxis dataKey="day" tick={{fontSize:10, fontWeight: 700, fill:'#a1a1aa'}} axisLine={false} tickLine={false} />
+              <YAxis tick={{fontSize:10, fontWeight: 700, fill:'#a1a1aa'}} axisLine={false} tickLine={false} />
+              <Tooltip cursor={{fill: 'rgba(0, 0, 0, 0.02)'}} contentStyle={{backgroundColor: '#fff', border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '12px'}} />
+              <Bar dataKey="total" fill="#f4f4f5" radius={0} name="Total" />
+              <Bar dataKey="completed" fill="#18181b" radius={0} name="Completed" />
             </BarChart>
           </ResponsiveContainer>
           </div>
         </div>
 
         {/* Coverage rate */}
-        <div className="card p-5">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Coverage Rate by Day (%)</h2>
+        <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-none shadow-sm">
+          <h2 className="text-lg font-bold text-black uppercase tracking-widest mb-8 border-l-2 border-black pl-3">Coverage Rate (%)</h2>
           <div className="h-[200px] md:h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={coverageData}>
-              <XAxis dataKey="day" tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
-              <YAxis domain={[0,100]} tick={{fontSize:12,fill:'#8888aa'}} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{borderRadius:'12px',border:'1px solid #e4e4f0',fontSize:'13px'}} formatter={(v: any) => [`${v}%`, 'Coverage']} />
-              <Line type="monotone" dataKey="coverage" stroke="#4f6eff" strokeWidth={2.5} dot={{fill:'#4f6eff',r:5}} activeDot={{r:7}} />
+              <XAxis dataKey="day" tick={{fontSize:10, fontWeight: 700, fill:'#a1a1aa'}} axisLine={false} tickLine={false} />
+              <YAxis domain={[0,100]} tick={{fontSize:10, fontWeight: 700, fill:'#a1a1aa'}} axisLine={false} tickLine={false} />
+              <Tooltip contentStyle={{backgroundColor: '#fff', border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '12px'}} formatter={(v: any) => [`${v}%`, 'Coverage']} />
+              <Line type="monotone" dataKey="coverage" stroke="#18181b" strokeWidth={2} dot={{fill:'#18181b',r:4}} activeDot={{r:6}} />
             </LineChart>
           </ResponsiveContainer>
           </div>
         </div>
 
         {/* Summary stats */}
-        <div className="card p-5 lg:col-span-2">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Quick Summary</h2>
+        <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-none lg:col-span-2 shadow-sm">
+          <h2 className="text-lg font-bold text-black uppercase tracking-widest mb-8 border-l-2 border-black pl-3">Quick Summary</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
-              { label: 'Open Shifts', value: analytics.openShifts, note: 'Need assignment', color: 'text-amber-500' },
-              { label: 'Active Right Now', value: analytics.activeNow, note: 'Clocked in', color: 'text-green-500' },
-              { label: 'Shifts This Week', value: analytics.shiftsThisWeek, note: 'Scheduled', color: 'text-brand-500' },
+              { label: 'Open Shifts', value: analytics.openShifts, note: 'Need assignment' },
+              { label: 'Active Right Now', value: analytics.activeNow, note: 'Clocked in' },
+              { label: 'Shifts This Week', value: analytics.shiftsThisWeek, note: 'Scheduled' },
             ].map(item => (
-              <div key={item.label} className="text-center p-4 rounded-xl bg-surface-50">
-                <p className={`text-3xl font-bold ${item.color}`} style={{fontFamily:'var(--font-bricolage)'}}>{item.value}</p>
-                <p className="text-sm font-medium text-ink mt-1">{item.label}</p>
-                <p className="text-xs text-ink-tertiary">{item.note}</p>
+              <div key={item.label} className="text-center p-6 bg-zinc-50 border border-zinc-100">
+                <p className="text-3xl font-bold text-black">{item.value}</p>
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-2">{item.label}</p>
+                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter mt-1">{item.note}</p>
               </div>
             ))}
           </div>

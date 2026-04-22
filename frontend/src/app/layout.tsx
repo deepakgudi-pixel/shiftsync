@@ -18,8 +18,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <body className={inter.className}>
           {children}
           <Toaster position="top-right" toastOptions={{
-            style: { background: '#0d0d1a', color: '#fff', borderRadius: '12px', fontSize: '14px' },
-            success: { iconTheme: { primary: '#4f6eff', secondary: '#fff' } },
+            style: { background: '#000', color: '#fff', borderRadius: '0', fontSize: '11px', fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.1em', border: '1px solid rgba(255,255,255,0.1)' },
+            success: { iconTheme: { primary: '#fff', secondary: '#000' } },
           }} />
         </body>
       </html>

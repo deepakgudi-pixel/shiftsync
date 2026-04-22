@@ -63,22 +63,22 @@ export default function TeamPage() {
   }
 
   return (
-    <div className="p-8 max-w-[1400px] mx-auto min-h-screen">
-      <div className="flex items-center justify-between mb-10">
-        <div className="animate-in fade-in slide-in-from-left duration-500">
-          <h1 className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Team</h1>
-          <p className="text-sm text-ink-tertiary mt-0.5">{members.length} members in your organisation</p>
+    <div className="p-5 md:p-8 max-w-[1400px] mx-auto min-h-screen">
+      <div className="mb-10 border-b border-zinc-200 pb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
+        <div>
+          <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">Team</h1>
+          <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">{members.length} active members</p>
         </div>
       </div>
 
       {me?.role === 'ADMIN' && (
-        <div className="mb-10 p-6 rounded-[2rem] bg-gradient-to-r from-brand-500/5 to-transparent border border-brand-500/10 flex items-center justify-between backdrop-blur-sm">
-          <div className="flex items-center gap-3 text-brand-900">
-            <div className="w-10 h-10 rounded-xl bg-brand-500 flex items-center justify-center text-white shadow-lg shadow-brand-500/20"><UserPlus size={18} /></div>
-            <p className="text-sm font-semibold tracking-tight">Allow managers to set employee hourly rates</p>
+        <div className="mb-10 p-6 bg-white border border-zinc-200 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-black flex items-center justify-center text-white"><UserPlus size={18} /></div>
+            <p className="text-[10px] font-bold uppercase tracking-widest text-black">Allow managers to set employee hourly rates</p>
           </div>
-          <button onClick={toggleManagerRates} className={cn('relative inline-flex h-7 w-12 items-center rounded-full transition-all duration-300 focus:outline-none ring-offset-2 focus:ring-2 focus:ring-brand-500', me.allow_manager_rates ? 'bg-brand-500' : 'bg-surface-300')}>
-            <span className={cn('inline-block h-5 w-5 transform rounded-full bg-white transition-transform shadow-md', me.allow_manager_rates ? 'translate-x-6' : 'translate-x-1')} />
+          <button onClick={toggleManagerRates} className={cn('relative inline-flex h-6 w-11 items-center rounded-none transition-all duration-300', me.allow_manager_rates ? 'bg-black' : 'bg-zinc-200')}>
+            <span className={cn('inline-block h-4 w-4 transform bg-white transition-transform', me.allow_manager_rates ? 'translate-x-6' : 'translate-x-1')} />
           </button>
         </div>
       )}
@@ -86,13 +86,13 @@ export default function TeamPage() {
       {/* Filters */}
       <div className="flex flex-col md:flex-row gap-3 mb-6">
         <div className="relative flex-1 md:max-w-xs">
-          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-ink-disabled" />
-          <input className="input pl-9" placeholder="Search members..." value={search} onChange={e => setSearch(e.target.value)} />
+          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+          <input className="w-full bg-white border border-zinc-200 pl-9 pr-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="Search members..." value={search} onChange={e => setSearch(e.target.value)} />
         </div>
-        <div className="flex rounded-xl bg-surface-100 p-1 gap-0.5 overflow-x-auto no-scrollbar">
+        <div className="flex bg-zinc-100 p-1 gap-1 overflow-x-auto no-scrollbar">
           {['ALL','ADMIN','MANAGER','EMPLOYEE'].map(r => (
             <button key={r} onClick={() => setFilter(r)}
-              className={cn('px-3 py-1.5 rounded-lg text-xs font-medium transition-all', filter === r ? 'bg-white shadow-sm text-ink' : 'text-ink-secondary hover:text-ink')}>
+              className={cn('px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest transition-all', filter === r ? 'bg-white text-black shadow-sm' : 'text-zinc-500 hover:text-zinc-700')}>
               {r}
             </button>
           ))}
@@ -102,58 +102,62 @@ export default function TeamPage() {
       {/* Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filtered.map(m => (
-          <div key={m.id} className="group bg-white rounded-[2rem] p-6 border border-surface-200/60 shadow-[0_2px_15px_-3px_rgba(0,0,0,0.04)] hover:shadow-[0_20px_40px_-12px_rgba(0,0,0,0.08)] hover:-translate-y-1.5 transition-all duration-500">
+          <div key={m.id} className="group bg-white p-6 border border-zinc-200 shadow-sm hover:border-zinc-300 transition-all duration-300">
             <div className="flex items-start gap-3 mb-4">
-              <div className="w-12 h-12 rounded-2xl bg-brand-50 flex items-center justify-center text-brand-600 font-bold text-base flex-shrink-0 border border-brand-100 group-hover:scale-105 transition-transform">
+              <div className="w-12 h-12 bg-zinc-50 border border-zinc-100 flex items-center justify-center text-black font-bold text-base flex-shrink-0 group-hover:bg-zinc-100 transition-colors">
                 {getInitials(m.name)}
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-bold text-ink text-[0.95rem] tracking-tight truncate">{m.name}</h3>
-                <p className="text-xs text-ink-tertiary truncate">{m.email}</p>
+                <h3 className="font-bold text-black text-[13px] uppercase tracking-widest truncate">{m.name}</h3>
+                <p className="text-[11px] text-zinc-400 truncate font-medium">{m.email}</p>
               </div>
-              <span className={cn('badge py-1 px-3 text-[10px] font-bold uppercase tracking-wider', ROLE_COLORS[m.role])}>{m.role}</span>
+              <span className={cn('text-[9px] font-black uppercase px-2 py-0.5 tracking-tighter', m.role === 'ADMIN' ? 'bg-black text-white' : m.role === 'MANAGER' ? 'bg-zinc-200 text-black' : 'bg-zinc-100 text-zinc-500')}>
+                {m.role}
+              </span>
             </div>
 
-            <div className="space-y-3 text-xs text-ink-secondary mb-5">
+            <div className="space-y-3 text-[10px] font-bold uppercase tracking-widest text-zinc-500 mb-5">
               {m.phone && (
-                <div className="flex items-center gap-2"><Phone size={13} className="text-ink-disabled" />{m.phone}</div>
+                <div className="flex items-center gap-2"><Phone size={13} className="text-zinc-300" />{m.phone}</div>
               )}
               {m.active_shifts > 0 && (
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 text-emerald-600">
                   <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                   {m.active_shifts} active shift{m.active_shifts > 1 ? 's' : ''}
                 </div>
               )}
-              {(me?.role === 'ADMIN' || m.id === me?.id || (me?.role === 'MANAGER' && m.role === 'EMPLOYEE')) && m.hourly_rate && <div className="font-bold text-ink text-sm tracking-tight">${m.hourly_rate} / <span className="text-ink-tertiary font-medium">hour</span></div>}
+              {(me?.role === 'ADMIN' || m.id === me?.id || (me?.role === 'MANAGER' && m.role === 'EMPLOYEE')) && m.hourly_rate && (
+                <div className="font-bold text-black text-sm tracking-tight">${m.hourly_rate} / <span className="text-zinc-400 font-medium text-[10px]">HOUR</span></div>
+              )}
             </div>
 
             {m.skills?.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mb-4">
                 {m.skills.slice(0,3).map((s, i) => (
-                  <span key={i} className="badge bg-surface-100 text-ink-tertiary">{s}</span>
+                  <span key={i} className="px-2 py-0.5 bg-zinc-50 text-zinc-400 border border-zinc-100 text-[9px] font-bold uppercase tracking-tighter">{s}</span>
                 ))}
-                {m.skills.length > 3 && <span className="badge bg-surface-100 text-ink-disabled">+{m.skills.length-3}</span>}
+                {m.skills.length > 3 && <span className="px-2 py-0.5 bg-white text-zinc-300 border border-zinc-100 text-[9px] font-bold uppercase tracking-tighter">+{m.skills.length-3}</span>}
               </div>
             )}
 
             {(me?.role === 'ADMIN' || (me?.role === 'MANAGER' && m.role === 'EMPLOYEE' && me?.can_manage_rates)) && m.id !== me.id && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 pt-4 border-t border-zinc-100">
                 {me?.role === 'ADMIN' ? (
-                  <select className="input text-xs py-1.5 flex-1" value={m.role} onChange={e => updateMember(m.id, { role: e.target.value })}>
+                  <select className="flex-1 bg-zinc-50 border border-zinc-200 px-2 py-1.5 text-[10px] font-bold uppercase tracking-widest text-black focus:border-black outline-none appearance-none" value={m.role} onChange={e => updateMember(m.id, { role: e.target.value })}>
                     <option value="EMPLOYEE">Employee</option>
                     <option value="MANAGER">Manager</option>
                     <option value="ADMIN">Admin</option>
                   </select>
                 ) : (
-                  <div className="flex-1 px-3 py-1.5 text-xs font-medium bg-surface-50 rounded-lg text-ink-secondary border border-surface-200 flex items-center">
+                  <div className="flex-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-zinc-50 text-zinc-500 border border-zinc-200">
                     {m.role}
                   </div>
                 )}
                 <div className="relative flex-1">
-                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-tertiary text-[10px]">$</span>
+                  <span className="absolute left-2 top-1/2 -translate-y-1/2 text-zinc-400 text-[10px] font-bold">$</span>
                   <input 
                     type="number" 
-                    className="input text-xs py-1.5 pl-5" 
+                    className="w-full bg-zinc-50 border border-zinc-200 py-1.5 pl-5 pr-2 text-[10px] font-bold text-black focus:border-black outline-none" 
                     placeholder="Rate"
                     defaultValue={m.hourly_rate}
                     onBlur={e => {
@@ -166,13 +170,13 @@ export default function TeamPage() {
             )}
 
             {me?.role === 'ADMIN' && m.role === 'MANAGER' && (
-              <div className="mt-3 pt-3 border-t border-surface-100 flex items-center justify-between">
-                <span className="text-[10px] uppercase tracking-wider font-bold text-ink-tertiary">Rate Management</span>
+              <div className="mt-3 pt-3 border-t border-zinc-100 flex items-center justify-between">
+                <span className="text-[9px] uppercase tracking-widest font-black text-zinc-400">Rate Management</span>
                 <button 
                   onClick={() => updateMember(m.id, { can_manage_rates: !m.can_manage_rates })}
-                  className={cn('relative inline-flex h-5 w-9 items-center rounded-full transition-colors', m.can_manage_rates ? 'bg-brand-500' : 'bg-surface-300')}
+                  className={cn('relative inline-flex h-5 w-9 items-center rounded-none transition-colors', m.can_manage_rates ? 'bg-black' : 'bg-zinc-200')}
                 >
-                  <span className={cn('inline-block h-3 w-3 transform rounded-full bg-white transition-transform', m.can_manage_rates ? 'translate-x-5' : 'translate-x-1')} />
+                  <span className={cn('inline-block h-3 w-3 transform bg-white transition-transform', m.can_manage_rates ? 'translate-x-5' : 'translate-x-1')} />
                 </button>
               </div>
             )}

@@ -14,7 +14,7 @@ export default function LandingPage() {
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 border-b border-white/[0.05] bg-black/50 backdrop-blur-xl">
+      <nav className="fixed top-0 w-full z-50 border-b border-white/[0.05] bg-zinc-900/50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2.5">
@@ -28,9 +28,6 @@ export default function LandingPage() {
               <span className="font-bold text-white text-sm tracking-[0.3em] uppercase">ShiftSync</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <Link href="/sign-in" className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
-                Sign In
-              </Link>
               <Link 
                 href={isSignedIn ? "/dashboard" : "/sign-up"} 
                 className="bg-white text-black px-6 py-2 rounded-none text-[9px] font-black uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95"
@@ -62,7 +59,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <Link 
                 href={isSignedIn ? "/dashboard" : "/sign-up"} 
-                className="group flex items-center gap-4 bg-white text-black px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-brand-500 hover:text-white transition-all"
+                className="group flex items-center gap-4 bg-white text-black px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all"
               >
                 Initialize <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -148,10 +145,10 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            <div className="flex-1 w-full aspect-square border border-white/5 bg-white/[0.01] relative flex items-center justify-center">
-              <div className="w-1/2 h-1/2 border border-white/10 rotate-45 animate-pulse" />
+            <div className="flex-1 w-full aspect-square border border-white/10 bg-white/[0.04] relative flex items-center justify-center">
+              <div className="w-1/2 h-1/2 border border-white/20 rotate-45 animate-pulse" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <Globe size={120} strokeWidth={0.5} className="text-white/[0.05]" />
+                <Globe size={120} strokeWidth={0.5} className="text-white/10" />
               </div>
             </div>
           </div>
