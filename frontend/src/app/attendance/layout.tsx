@@ -14,7 +14,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-ink-secondary hover:text-ink">
           <Menu size={20} />
         </button>
-        <span className="ml-2 font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>ShiftSync</span>
+        <span className="ml-2 font-bold text-ink">ShiftSync</span>
       </header>
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

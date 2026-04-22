@@ -18,7 +18,7 @@ const StatCard = ({ icon: Icon, label, value, color }: any) => (
     </div>
     <div>
       <p className="text-[10px] font-black uppercase tracking-widest text-ink-tertiary opacity-60 mb-1">{label}</p>
-      <p className="text-3xl font-black text-ink tracking-tighter leading-none" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
+      <p className="text-3xl font-black text-ink tracking-tighter leading-none">{value}</p>
     </div>
   </div>
 )
@@ -107,7 +107,7 @@ export default function AttendancePage() {
   return (
     <div className="p-6 max-w-[1000px]">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Attendance</h1>
+        <h1 className="text-2xl font-bold text-ink">Attendance</h1>
         <p className="text-sm text-ink-tertiary mt-0.5">Clock in/out and view timesheets</p>
       </div>
 
@@ -120,7 +120,7 @@ export default function AttendancePage() {
                 <Clock size={18} className="text-brand-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>{timesheet.totalHours}h</p>
+                <p className="text-2xl font-bold text-ink">{timesheet.totalHours}h</p>
                 <p className="text-sm text-ink-tertiary">Hours this month</p>
               </div>
             </div>
@@ -131,7 +131,7 @@ export default function AttendancePage() {
                 <CheckCircle size={18} className="text-green-500" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>{timesheet.timesheet.length}</p>
+                <p className="text-2xl font-bold text-ink">{timesheet.timesheet.length}</p>
                 <p className="text-sm text-ink-tertiary">Shifts completed</p>
               </div>
             </div>
@@ -142,7 +142,7 @@ export default function AttendancePage() {
       {/* Currently clocked in — show clock out */}
       {inProgressShifts.length > 0 && (
         <div className="card p-5 mb-6 border-green-200 bg-green-50">
-          <h2 className="font-semibold text-ink mb-4 flex items-center gap-2" style={{fontFamily:'var(--font-bricolage)'}}>
+          <h2 className="font-semibold text-ink mb-4 flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             Currently Clocked In
           </h2>
@@ -169,7 +169,7 @@ export default function AttendancePage() {
       {/* Ready to clock in */}
       {assignedShifts.length > 0 && (
         <div className="card p-5 mb-6">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Ready to Clock In</h2>
+          <h2 className="font-semibold text-ink mb-4">Ready to Clock In</h2>
           <div className="space-y-3">
             {assignedShifts.map(s => (
               <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-50">
@@ -193,7 +193,7 @@ export default function AttendancePage() {
       {/* Live attendance — managers/admins */}
       {liveAttendance.length > 0 && (
         <div className="card p-5 mb-6">
-          <h2 className="font-semibold text-ink mb-4 flex items-center gap-2" style={{fontFamily:'var(--font-bricolage)'}}>
+          <h2 className="font-semibold text-ink mb-4 flex items-center gap-2">
             <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
             Currently On Shift ({liveAttendance.length})
           </h2>
@@ -216,7 +216,7 @@ export default function AttendancePage() {
       {/* Timesheet */}
       {timesheet?.timesheet?.length > 0 && (
         <div className="card p-5">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>This Month's Timesheet</h2>
+          <h2 className="font-semibold text-ink mb-4">This Month's Timesheet</h2>
           <div className="space-y-2">
             {timesheet.timesheet.map((row: any) => (
               <div key={row.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 transition-colors">

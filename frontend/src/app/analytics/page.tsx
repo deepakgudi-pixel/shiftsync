@@ -93,7 +93,7 @@ export default function AnalyticsPage() {
   return (
     <div className="p-6 max-w-[1200px]">
       <div className="mb-6">
-        <h1 className="text-3xl font-black text-ink tracking-tight" style={{fontFamily:'var(--font-bricolage)'}}>Analytics Dashboard</h1>
+        <h1 className="text-3xl font-black text-ink tracking-tight">Analytics Dashboard</h1>
         <p className="text-sm font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Workforce performance metrics</p>
       </div>
 
@@ -111,7 +111,7 @@ export default function AnalyticsPage() {
             </div>
             <div>
               <p className="text-[10px] font-black uppercase tracking-widest text-ink-tertiary opacity-60 mb-1">{label}</p>
-              <p className="text-3xl font-black text-ink tracking-tight leading-none" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
+              <p className="text-3xl font-black text-ink tracking-tight leading-none">{value}</p>
             </div>
           </div>
         ))}
@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Shifts by day */}
         <div className="bg-white/80 border border-white/60 p-8 rounded-[2.5rem] shadow-sm">
-          <h2 className="text-xl font-black text-ink tracking-tight mb-8" style={{fontFamily:'var(--font-bricolage)'}}>Weekly Distribution</h2>
+          <h2 className="text-xl font-black text-ink tracking-tight mb-8">Weekly Distribution</h2>
           <div className="h-[200px] md:h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={analytics.shiftsByDay} barSize={28}>
@@ -136,7 +136,7 @@ export default function AnalyticsPage() {
 
         {/* Coverage rate */}
         <div className="card p-5">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Coverage Rate by Day (%)</h2>
+          <h2 className="font-semibold text-ink mb-4">Coverage Rate by Day (%)</h2>
           <div className="h-[200px] md:h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={coverageData}>
@@ -151,7 +151,7 @@ export default function AnalyticsPage() {
 
         {/* Summary stats */}
         <div className="card p-5 lg:col-span-2">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>Quick Summary</h2>
+          <h2 className="font-semibold text-ink mb-4">Quick Summary</h2>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             {[
               { label: 'Open Shifts', value: analytics.openShifts, note: 'Need assignment', color: 'text-amber-500' },
@@ -159,7 +159,7 @@ export default function AnalyticsPage() {
               { label: 'Shifts This Week', value: analytics.shiftsThisWeek, note: 'Scheduled', color: 'text-brand-500' },
             ].map(item => (
               <div key={item.label} className="text-center p-4 rounded-xl bg-surface-50">
-                <p className={`text-3xl font-bold ${item.color}`} style={{fontFamily:'var(--font-bricolage)'}}>{item.value}</p>
+                <p className={`text-3xl font-bold ${item.color}`}>{item.value}</p>
                 <p className="text-sm font-medium text-ink mt-1">{item.label}</p>
                 <p className="text-xs text-ink-tertiary">{item.note}</p>
               </div>

@@ -28,9 +28,6 @@ export default function LandingPage() {
               <span className="font-bold text-white text-sm tracking-[0.3em] uppercase">ShiftSync</span>
             </div>
             <div className="hidden md:flex items-center gap-8">
-              <Link href="/sign-in" className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/40 hover:text-white transition-colors">
-                Sign In
-              </Link>
               <Link 
                 href={isSignedIn ? "/dashboard" : "/sign-up"} 
                 className="bg-white text-black px-6 py-2 rounded-none text-[9px] font-black uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95"
@@ -62,7 +59,7 @@ export default function LandingPage() {
             <div className="flex flex-col sm:flex-row items-start gap-4">
               <Link 
                 href={isSignedIn ? "/dashboard" : "/sign-up"} 
-                className="group flex items-center gap-4 bg-white text-black px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-brand-500 hover:text-white transition-all"
+                className="group flex items-center gap-4 bg-white text-black px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all"
               >
                 Initialize <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
               </Link>

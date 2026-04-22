@@ -41,7 +41,7 @@ const StatCard = ({ icon: Icon, label, value, sub, color }: any) => (
       <div className="flex-1">
         <p className="text-xs font-bold uppercase tracking-widest text-ink-tertiary mb-0.5 opacity-60">{label}</p>
         <div className="flex items-baseline gap-2">
-          <p className="text-4xl font-black tracking-tighter text-ink leading-none" style={{fontFamily:'var(--font-bricolage)'}}>{value}</p>
+          <p className="text-4xl font-black tracking-tighter text-ink leading-none">{value}</p>
           {sub && <p className="text-[11px] font-bold text-ink-disabled lowercase">{sub}</p>}
         </div>
       </div>
@@ -173,7 +173,7 @@ export default function DashboardPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" /> Live System
             </span>
           </div>
-          <h1 className="text-4xl md:text-5xl font-black text-ink tracking-tight mb-3" style={{fontFamily:'var(--font-bricolage)'}}>
+          <h1 className="text-4xl md:text-5xl font-black text-ink tracking-tight mb-3">
             {greeting}, <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-600 to-violet-600">{user?.firstName || 'there'}</span> 👋
           </h1>
           <p className="text-ink-tertiary font-semibold flex items-center gap-2.5 opacity-80">
@@ -205,7 +205,7 @@ export default function DashboardPage() {
               <>
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
                   <div>
-                    <h2 className="text-2xl font-black text-ink tracking-tight" style={{fontFamily:'var(--font-bricolage)'}}>Workforce Velocity</h2>
+                    <h2 className="text-2xl font-black text-ink tracking-tight">Workforce Velocity</h2>
                     <p className="text-xs font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Shift completion efficiency</p>
                   </div>
                   <div className="flex gap-2"><div className="w-3 h-3 rounded-full bg-brand-200" /><div className="w-3 h-3 rounded-full bg-brand-500" /></div>
@@ -228,7 +228,7 @@ export default function DashboardPage() {
 
         {/* Upcoming Shifts */}
         <div className="card p-5">
-          <h2 className="font-semibold text-ink mb-4" style={{fontFamily:'var(--font-bricolage)'}}>
+          <h2 className="font-semibold text-ink mb-4">
             {member?.role === 'EMPLOYEE' ? 'My Upcoming Shifts' : 'Upcoming Shifts'}
           </h2>
           <div className="space-y-3">
@@ -254,7 +254,7 @@ export default function DashboardPage() {
         {/* Announcements */}
         <div className="card p-5 lg:col-span-3">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-semibold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Announcements</h2>
+            <h2 className="font-semibold text-ink">Announcements</h2>
             {member?.role === 'ADMIN' && (
               <button onClick={() => setShowAnnModal(true)} className="btn-primary py-1.5 px-3 text-xs flex items-center gap-2">
                 <Plus size={14} /> Post Announcement
@@ -295,7 +295,7 @@ export default function DashboardPage() {
         <div className="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowAnnModal(false)}>
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md animate-slide-up">
             <div className="flex items-center justify-between p-5 border-b border-surface-100">
-              <h2 className="font-semibold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Post Announcement</h2>
+              <h2 className="font-semibold text-ink">Post Announcement</h2>
               <button onClick={() => setShowAnnModal(false)} className="btn-ghost p-1.5"><X size={18} /></button>
             </div>
             <form onSubmit={handlePostAnnouncement} className="p-5 space-y-4">
