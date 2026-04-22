@@ -3,9 +3,8 @@ import React from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useUser, UserButton } from '@clerk/nextjs'
-import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, Settings, FileText } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, FileText, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
-
 
 interface SidebarProps {
   isOpen?: boolean
@@ -21,7 +20,7 @@ const nav = [
   { href: '/analytics', icon: BarChart3, label: 'Analytics' },
   { href: '/messages', icon: MessageSquare, label: 'Messages' },
   { href: '/audit', icon: FileText, label: 'Audit Log' },
-  { href: '/settings', icon: Settings, label: 'Settings' },  // 👈 add this
+  { href: '/invite', icon: Send, label: 'Invite' },
 ]
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {

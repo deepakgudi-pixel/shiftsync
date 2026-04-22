@@ -45,7 +45,7 @@ export default function SettingsPage() {
     <div className="p-5 md:p-8 max-w-[800px] mx-auto min-h-screen">
       <div className="mb-10 border-b border-zinc-200 pb-8">
         <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">
-          Settings
+          Invite
         </h1>
         <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Manage your organisation and invite team members</p>
       </div>
