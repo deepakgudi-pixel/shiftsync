@@ -210,7 +210,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="py-20 bg-black text-center border-t border-white/5">
         <p className="text-[12px] font-bold uppercase tracking-[0.8em] text-white/40">
-          ShiftSync &copy; {new Date().getFullYear()}.
+          ShiftSync &copy; {new Date().getFullYear()}
         </p>
       </footer>
     </div>
