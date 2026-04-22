@@ -1,5 +1,5 @@
 'use client'
-import React from 'react'
+import React, { useEffect } from 'react'
 import Link from 'next/link'
 import { Calendar, Zap, BarChart3, ArrowRight, ShieldCheck, Users, LayoutGrid, Globe, Cpu } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
@@ -7,8 +7,49 @@ import { useUser } from '@clerk/nextjs'
 export default function LandingPage() {
   const { isSignedIn } = useUser()
 
+  useEffect(() => {
+    // Momentum Scrolling Logic
+    let target = window.scrollY;
+    let current = window.scrollY;
+    let raf: number;
+
+    const lerp = (start: number, end: number, factor: number) => start + (end - start) * factor;
+
+    const update = () => {
+      current = lerp(current, target, 0.075); // Adjust 0.075 for "weight" (lower = smoother/slower)
+      window.scrollTo(0, current);
+      
+      if (Math.abs(target - current) > 0.1) {
+        raf = requestAnimationFrame(update);
+      }
+    };
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      target += e.deltaY;
+      target = Math.max(0, Math.min(target, document.documentElement.scrollHeight - window.innerHeight));
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(update);
+    };
+
+    // Sync positions if the user uses the scrollbar or touch
+    const syncPosition = () => {
+      target = window.scrollY;
+      current = window.scrollY;
+    };
+
+    window.addEventListener('wheel', handleWheel, { passive: false });
+    window.addEventListener('touchstart', syncPosition);
+    
+    return () => {
+      window.removeEventListener('wheel', handleWheel);
+      window.removeEventListener('touchstart', syncPosition);
+      cancelAnimationFrame(raf);
+    };
+  }, []);
+
   return (
-    <div className="min-h-screen bg-[#050505] text-white selection:bg-white selection:text-black overflow-x-hidden font-sans">
+    <div className="min-h-screen bg-[#050505] text-white selection:bg-white selection:text-black overflow-x-hidden font-sans scroll-smooth">
       {/* Futuristic Background Grid */}
       <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none" 
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
@@ -42,10 +83,6 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="relative pt-40 pb-32 md:pt-60 md:pb-48 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
-          <div className="mb-6 animate-in fade-in slide-in-from-bottom-4 duration-1000">
-            <span className="text-[10px] font-bold uppercase tracking-[0.5em] text-white/30 border-l border-white/20 pl-4">System v1.024</span>
-          </div>
-          
           <h1 className="text-6xl md:text-[120px] font-bold leading-[1.1] text-white mb-12 tracking-[-0.02em] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
             THE FUTURE OF <br />
             MANAGEMENT.
