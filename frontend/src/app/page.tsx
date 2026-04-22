@@ -53,7 +53,7 @@ export default function LandingPage() {
           
           <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
             <p className="max-w-md text-sm md:text-base text-white/40 leading-relaxed font-light">
-              An autonomous orchestration layer for frontline teams. We solve the complexity of workforce scheduling with mathematical precision.
+              An autonomous orchestration layer for frontline teams. <br /> We solve the complexity of workforce scheduling with mathematical precision.
             </p>
 
             <div className="flex flex-col sm:flex-row items-start gap-4">
