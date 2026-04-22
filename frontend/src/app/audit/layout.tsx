@@ -10,14 +10,14 @@ export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex min-h-screen">
       {/* Mobile Header */}
-      <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-white border-b border-surface-200 z-30 flex items-center px-4">
+      <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-zinc-900 border-b border-white/5 z-30 flex items-center px-4">
         <button
           onClick={() => setIsSidebarOpen(true)}
-          className="p-2 -ml-2 text-ink-secondary hover:text-ink"
+          className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
         >
           <Menu size={20} />
         </button>
-        <span className="ml-2 font-bold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>ShiftSync</span>
+        <span className="ml-2 font-bold text-white tracking-widest uppercase text-xs">ShiftSync</span>
       </header>
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

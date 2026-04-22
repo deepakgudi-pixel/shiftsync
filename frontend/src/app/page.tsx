@@ -14,7 +14,7 @@ export default function LandingPage() {
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
 
       {/* Navigation */}
-      <nav className="fixed top-0 w-full z-50 border-b border-white/[0.05] bg-black/50 backdrop-blur-xl">
+      <nav className="fixed top-0 w-full z-50 border-b border-white/[0.05] bg-zinc-900/50 backdrop-blur-xl">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between h-16 items-center">
             <div className="flex items-center gap-2.5">
@@ -145,10 +145,10 @@ export default function LandingPage() {
                 ))}
               </div>
             </div>
-            <div className="flex-1 w-full aspect-square border border-white/5 bg-white/[0.01] relative flex items-center justify-center">
-              <div className="w-1/2 h-1/2 border border-white/10 rotate-45 animate-pulse" />
+            <div className="flex-1 w-full aspect-square border border-white/10 bg-white/[0.04] relative flex items-center justify-center">
+              <div className="w-1/2 h-1/2 border border-white/20 rotate-45 animate-pulse" />
               <div className="absolute inset-0 flex items-center justify-center">
-                <Globe size={120} strokeWidth={0.5} className="text-white/[0.05]" />
+                <Globe size={120} strokeWidth={0.5} className="text-white/10" />
               </div>
             </div>
           </div>

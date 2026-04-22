@@ -17,7 +17,7 @@ export default function SignInPage() {
             </svg>
           </div>
           <h1 className="text-xl font-bold text-white tracking-[0.3em] uppercase">ShiftSync</h1>
-          <p className="text-white/30 mt-3 text-[10px] font-bold uppercase tracking-[0.2em]">System Access</p>
+          <p className="text-white/30 mt-3 text-[10px] font-bold uppercase tracking-[0.2em]">Workforce management reimagined</p>
         </div>
         <SignIn
           appearance={{
