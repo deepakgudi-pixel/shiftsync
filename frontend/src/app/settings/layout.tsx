@@ -17,7 +17,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
       </header>
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />
-      <main className="pt-14 md:pt-0 md:ml-[240px] min-h-screen">
+      <main className="flex-1 pt-14 md:pt-0 md:ml-[240px] min-h-screen">
         {children}
       </main>
     </div>
