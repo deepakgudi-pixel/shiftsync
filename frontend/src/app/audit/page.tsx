@@ -19,14 +19,14 @@ interface AuditLog {
 }
 
 const ACTION_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
-  CREATE:    { icon: Plus,       color: 'text-emerald-600',   bg: 'bg-emerald-50' },
-  UPDATE:    { icon: Pencil,    color: 'text-amber-600',     bg: 'bg-amber-50' },
-  DELETE:    { icon: Trash2,     color: 'text-rose-600',      bg: 'bg-rose-50' },
-  CLOCK_IN:  { icon: Clock,      color: 'text-brand-600',     bg: 'bg-brand-50' },
-  CLOCK_OUT: { icon: CheckCircle, color: 'text-purple-600',   bg: 'bg-purple-50' },
-  APPROVE:   { icon: CheckCircle, color: 'text-emerald-600',  bg: 'bg-emerald-50' },
-  REJECT:    { icon: XCircle,    color: 'text-rose-600',     bg: 'bg-rose-50' },
-  REQUEST:   { icon: ArrowRightLeft, color: 'text-cyan-600', bg: 'bg-cyan-50' },
+  CREATE:    { icon: Plus,       color: 'text-black',   bg: 'bg-zinc-50' },
+  UPDATE:    { icon: Pencil,    color: 'text-black',     bg: 'bg-zinc-50' },
+  DELETE:    { icon: Trash2,     color: 'text-black',      bg: 'bg-zinc-50' },
+  CLOCK_IN:  { icon: Clock,      color: 'text-black',     bg: 'bg-zinc-50' },
+  CLOCK_OUT: { icon: CheckCircle, color: 'text-black',   bg: 'bg-zinc-50' },
+  APPROVE:   { icon: CheckCircle, color: 'text-black',  bg: 'bg-zinc-50' },
+  REJECT:    { icon: XCircle,    color: 'text-black',     bg: 'bg-zinc-50' },
+  REQUEST:   { icon: ArrowRightLeft, color: 'text-black', bg: 'bg-zinc-50' },
 }
 
 const ENTITY_LABELS: Record<string, string> = {
@@ -38,7 +38,7 @@ const ENTITY_LABELS: Record<string, string> = {
 }
 
 const Skeleton = ({ className }: { className?: string }) => (
-  <div className={cn("bg-surface-100 animate-pulse rounded-2xl", className)} />
+  <div className={cn("bg-zinc-100 animate-pulse rounded-none", className)} />
 )
 
 export default function AuditPage() {
@@ -98,32 +98,29 @@ export default function AuditPage() {
   if (!isLoaded || !isSignedIn) return null
   if (member && member.role !== 'ADMIN' && member.role !== 'MANAGER') {
     return (
-      <div className="flex items-center justify-center min-h-[60vh]">
-        <div className="text-center">
-          <p className="text-2xl font-black text-ink mb-2">Access Restricted</p>
-          <p className="text-sm text-ink-tertiary">Only admins and managers can view audit logs.</p>
-        </div>
+      <div className="p-6 flex flex-col items-center justify-center min-h-[50vh] text-center">
+        <h1 className="text-xl font-bold text-black mb-2 uppercase tracking-widest">Access Restricted</h1>
+        <p className="text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Only administrators and managers can view audit logs.</p>
       </div>
     )
   }
 
   return (
-    <div className="p-4 md:p-8 max-w-[1200px] mx-auto">
+    <div className="p-5 md:p-8 max-w-[1200px] mx-auto min-h-screen">
       {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-3xl font-black text-ink tracking-tight">Audit Log</h1>
-        <p className="text-[11px] font-bold text-ink-tertiary uppercase tracking-widest opacity-60 mt-1">Track all changes and activity</p>
+      <div className="mb-10 border-b border-zinc-200 pb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">Audit Log</h1>
+        <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Track all changes and activity</p>
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-2xl border border-surface-200 p-4 mb-6 shadow-card">
-        <div className="flex items-center gap-3 mb-4">
-          <Filter size={16} className="text-ink-tertiary" />
-          <span className="text-sm font-semibold text-ink">Filters</span>
+      <div className="bg-white border border-zinc-200 p-6 rounded-none shadow-sm mb-8">
+        <div className="flex items-center gap-3 mb-6">
+          <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em] border-l-2 border-black pl-3">Filters</h2>
         </div>
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
           <select
-            className="input text-sm"
+            className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors appearance-none"
             value={filters.action}
             onChange={e => handleFilterChange('action', e.target.value)}
           >
@@ -138,7 +135,7 @@ export default function AuditPage() {
             <option value="REQUEST">Request</option>
           </select>
           <select
-            className="input text-sm"
+            className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors appearance-none"
             value={filters.entity_type}
             onChange={e => handleFilterChange('entity_type', e.target.value)}
           >
@@ -151,21 +148,21 @@ export default function AuditPage() {
           </select>
           <input
             type="date"
-            className="input text-sm"
+            className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors"
             value={filters.start}
             onChange={e => handleFilterChange('start', e.target.value)}
             placeholder="From date"
           />
           <input
             type="date"
-            className="input text-sm"
+            className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors"
             value={filters.end}
             onChange={e => handleFilterChange('end', e.target.value)}
             placeholder="To date"
           />
-          <div className="flex gap-2">
-            <button onClick={applyFilters} className="btn-primary text-sm flex-1">Apply</button>
-            <button onClick={clearFilters} className="btn-secondary text-sm">Clear</button>
+          <div className="flex gap-2 flex-col sm:flex-row">
+            <button onClick={applyFilters} className="flex-1 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all">Apply</button>
+            <button onClick={clearFilters} className="px-4 py-2 border border-zinc-200 text-black text-[10px] font-bold uppercase tracking-widest hover:bg-zinc-50 transition-all">Clear</button>
           </div>
         </div>
       </div>
@@ -175,51 +172,49 @@ export default function AuditPage() {
         {loading ? (
           [1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-32" />)
         ) : logs.length === 0 ? (
-          <div className="bg-white rounded-2xl border border-surface-200 p-12 text-center shadow-card">
-            <FileText size={40} className="mx-auto text-surface-300 mb-3" />
-            <p className="text-lg font-semibold text-ink">No audit logs yet</p>
-            <p className="text-sm text-ink-tertiary mt-1">Activity will appear here as changes are made.</p>
+          <div className="p-12 text-center bg-white border border-zinc-200">
+            <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Zero activity logs recorded</p>
           </div>
         ) : (
           logs.map(log => {
             const config = ACTION_CONFIG[log.action] || ACTION_CONFIG.UPDATE
             const Icon = config.icon
             return (
-              <div key={log.id} className="bg-white rounded-2xl border border-surface-200 p-5 shadow-card hover:shadow-card-hover transition-shadow">
+              <div key={log.id} className="bg-white border border-zinc-200 p-6 rounded-none shadow-sm hover:border-zinc-300 transition-all duration-300">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className={cn('w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0', config.bg)}>
+                    <div className={cn('w-10 h-10 flex items-center justify-center flex-shrink-0 border border-zinc-100', config.bg)}>
                       <Icon size={18} className={config.color} />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-ink">
+                      <p className="text-[11px] font-bold text-black uppercase tracking-widest">
                         {log.member_name || 'System'}
                       </p>
-                      <p className="text-xs text-ink-tertiary">
+                      <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider mt-0.5">
                         {log.action} {ENTITY_LABELS[log.entity_type] || log.entity_type}
-                        {log.entity_id && <span className="text-surface-300"> · {log.entity_id.slice(0, 8)}...</span>}
+                        {log.entity_id && <span className="text-zinc-300 font-mono"> // {log.entity_id.slice(0, 8)}</span>}
                       </p>
                     </div>
                   </div>
                   <div className="text-right flex-shrink-0">
-                    <span className={cn('badge text-xs', config.bg, config.color)}>{log.action}</span>
-                    <p className="text-xs text-ink-tertiary mt-1">{fmtDateTime(log.created_at)}</p>
-                    <p className="text-[10px] text-surface-300">{fmtRelative(log.created_at)}</p>
+                    <span className={cn('text-[8px] font-black px-1.5 py-0.5 uppercase tracking-tighter bg-zinc-100 text-zinc-500 border border-zinc-200')}>{log.action}</span>
+                    <p className="text-[9px] font-bold text-zinc-400 mt-2 uppercase tracking-widest">{fmtDateTime(log.created_at)}</p>
+                    <p className="text-[8px] font-black text-zinc-300 uppercase tracking-tighter">{fmtRelative(log.created_at)}</p>
                   </div>
                 </div>
 
                 {/* Diff view for UPDATE/DELETE */}
                 {(log.action === 'UPDATE' || log.action === 'DELETE') && log.old_values && log.new_values && (
                   <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="p-4 rounded-xl bg-surface-50 border border-surface-200">
-                      <p className="text-[10px] font-bold uppercase text-ink-disabled mb-2">Before</p>
-                      <pre className="text-xs text-ink-secondary overflow-x-auto whitespace-pre-wrap">
+                    <div className="p-4 bg-zinc-50 border border-zinc-100 rounded-none">
+                      <p className="text-[9px] font-black uppercase text-zinc-300 tracking-widest mb-3">Previous State</p>
+                      <pre className="text-[10px] font-mono text-zinc-600 overflow-x-auto whitespace-pre-wrap leading-relaxed">
                         {JSON.stringify(log.old_values, null, 2)}
                       </pre>
                     </div>
-                    <div className="p-4 rounded-xl bg-brand-50 border border-brand-100">
-                      <p className="text-[10px] font-bold uppercase text-brand-600 mb-2">After</p>
-                      <pre className="text-xs text-ink-secondary overflow-x-auto whitespace-pre-wrap">
+                    <div className="p-4 bg-zinc-100 border border-zinc-200 rounded-none">
+                      <p className="text-[9px] font-black uppercase text-black tracking-widest mb-3">Updated State</p>
+                      <pre className="text-[10px] font-mono text-black overflow-x-auto whitespace-pre-wrap leading-relaxed">
                         {JSON.stringify(log.new_values, null, 2)}
                       </pre>
                     </div>
@@ -228,9 +223,9 @@ export default function AuditPage() {
 
                 {/* New values for CREATE/CLOCK_IN/CLOCK_OUT/REQUEST */}
                 {(log.action === 'CREATE' || log.action === 'CLOCK_IN' || log.action === 'CLOCK_OUT' || log.action === 'REQUEST') && log.new_values && (
-                  <div className="mt-4 p-4 rounded-xl bg-surface-50 border border-surface-200">
-                    <p className="text-[10px] font-bold uppercase text-ink-disabled mb-2">Details</p>
-                    <pre className="text-xs text-ink-secondary overflow-x-auto whitespace-pre-wrap">
+                  <div className="mt-4 p-4 bg-zinc-50 border border-zinc-100 rounded-none">
+                    <p className="text-[9px] font-black uppercase text-zinc-400 tracking-widest mb-3">Details</p>
+                    <pre className="text-[10px] font-mono text-zinc-600 overflow-x-auto whitespace-pre-wrap leading-relaxed">
                       {JSON.stringify(log.new_values, null, 2)}
                     </pre>
                   </div>
@@ -238,7 +233,7 @@ export default function AuditPage() {
 
                 {/* IP address */}
                 {log.ip_address && (
-                  <p className="text-xs text-surface-300 mt-3">IP: {log.ip_address}</p>
+                  <p className="text-[8px] font-mono text-zinc-300 mt-4 tracking-tighter uppercase">IP_ADDRESS: {log.ip_address}</p>
                 )}
               </div>
             )
@@ -248,25 +243,25 @@ export default function AuditPage() {
 
       {/* Pagination */}
       {!loading && logs.length > 0 && (
-        <div className="flex items-center justify-between mt-6">
-          <p className="text-sm text-ink-tertiary">
+        <div className="flex items-center justify-between mt-10 pt-6 border-t border-zinc-200">
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
             {pagination.total} total entries
           </p>
           <div className="flex items-center gap-2">
             <button
               onClick={() => loadLogs(pagination.page - 1)}
               disabled={pagination.page <= 1}
-              className="btn-secondary p-2 disabled:opacity-50"
+              className="p-2 bg-white border border-zinc-200 text-black hover:bg-zinc-50 disabled:opacity-30 transition-colors"
             >
               <ChevronLeft size={16} />
             </button>
-            <span className="text-sm font-medium text-ink">
+            <span className="text-[10px] font-bold text-black uppercase tracking-widest mx-2">
               Page {pagination.page} of {pagination.pages}
             </span>
             <button
               onClick={() => loadLogs(pagination.page + 1)}
               disabled={pagination.page >= pagination.pages}
-              className="btn-secondary p-2 disabled:opacity-50"
+              className="p-2 bg-white border border-zinc-200 text-black hover:bg-zinc-50 disabled:opacity-30 transition-colors"
             >
               <ChevronRight size={16} />
             </button>

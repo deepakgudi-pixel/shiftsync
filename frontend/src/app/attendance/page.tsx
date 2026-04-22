@@ -8,19 +8,7 @@ import { Clock, CheckCircle, LogIn, LogOut, MapPin, Activity, Calendar } from 'l
 import toast from 'react-hot-toast'
 
 const Skeleton = ({ className }: { className?: string }) => (
-  <div className={cn("bg-surface-100 animate-pulse rounded-[2rem]", className)} />
-)
-
-const StatCard = ({ icon: Icon, label, value, color }: any) => (
-  <div className="bg-white/80 border border-white/60 p-6 rounded-[2.5rem] shadow-[0_15px_40px_-15px_rgba(0,0,0,0.05)] flex items-center gap-5">
-    <div className={cn('w-14 h-14 rounded-3xl flex items-center justify-center shadow-sm', color)}>
-      <Icon size={24} strokeWidth={2.5} />
-    </div>
-    <div>
-      <p className="text-[10px] font-black uppercase tracking-widest text-ink-tertiary opacity-60 mb-1">{label}</p>
-      <p className="text-3xl font-black text-ink tracking-tighter leading-none">{value}</p>
-    </div>
-  </div>
+  <div className={cn("bg-zinc-100 animate-pulse rounded-none", className)} />
 )
 
 export default function AttendancePage() {
@@ -105,34 +93,34 @@ export default function AttendancePage() {
   }
 
   return (
-    <div className="p-6 max-w-[1000px]">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-ink">Attendance</h1>
-        <p className="text-sm text-ink-tertiary mt-0.5">Clock in/out and view timesheets</p>
+    <div className="p-5 md:p-8 max-w-[1000px] mx-auto min-h-screen">
+      <div className="mb-10 border-b border-zinc-200 pb-8">
+        <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">Attendance</h1>
+        <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Clock in/out and view timesheets</p>
       </div>
 
       {/* Timesheet summary */}
       {timesheet && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-8">
-          <div className="card p-5">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+          <div className="bg-white border border-zinc-200 p-6 rounded-none shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-brand-50 flex items-center justify-center">
-                <Clock size={18} className="text-brand-500" />
+              <div className="w-10 h-10 bg-zinc-50 border border-zinc-100 flex items-center justify-center">
+                <Clock size={18} className="text-black" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-ink">{timesheet.totalHours}h</p>
-                <p className="text-sm text-ink-tertiary">Hours this month</p>
+                <p className="text-2xl font-bold text-black">{timesheet.totalHours}h</p>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Hours this month</p>
               </div>
             </div>
           </div>
-          <div className="card p-5">
+          <div className="bg-white border border-zinc-200 p-6 rounded-none shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-green-50 flex items-center justify-center">
-                <CheckCircle size={18} className="text-green-500" />
+              <div className="w-10 h-10 bg-zinc-50 border border-zinc-100 flex items-center justify-center">
+                <CheckCircle size={18} className="text-black" />
               </div>
               <div>
-                <p className="text-2xl font-bold text-ink">{timesheet.timesheet.length}</p>
-                <p className="text-sm text-ink-tertiary">Shifts completed</p>
+                <p className="text-2xl font-bold text-black">{timesheet.timesheet.length}</p>
+                <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Units completed</p>
               </div>
             </div>
           </div>
@@ -141,24 +129,24 @@ export default function AttendancePage() {
 
       {/* Currently clocked in — show clock out */}
       {inProgressShifts.length > 0 && (
-        <div className="card p-5 mb-6 border-green-200 bg-green-50">
-          <h2 className="font-semibold text-ink mb-4 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+        <div className="bg-white border border-zinc-200 p-5 mb-6 shadow-sm">
+          <h2 className="text-[10px] font-bold text-black mb-4 uppercase tracking-[0.2em] border-l-2 border-black pl-3 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Currently Clocked In
           </h2>
           <div className="space-y-3">
             {inProgressShifts.map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-white border border-green-100">
-                <div className="w-2 h-2 rounded-full flex-shrink-0 bg-green-400" />
+              <div key={s.id} className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-100">
+                <div className="w-2.5 h-2.5 bg-emerald-500 flex-shrink-0" />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-ink">{s.title}</p>
-                  <p className="text-xs text-ink-tertiary">{fmtDateTime(s.start_time)}</p>
+                  <p className="text-[11px] font-bold text-black uppercase tracking-widest">{s.title}</p>
+                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">{fmtDateTime(s.start_time)}</p>
                 </div>
                 <button
                   onClick={() => clockOut(s.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-red-500 text-white text-xs font-medium hover:bg-red-600 active:scale-95 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95"
                 >
-                  <LogOut size={14} /> Clock Out
+                  <LogOut size={12} /> Clock Out
                 </button>
               </div>
             ))}
@@ -168,21 +156,21 @@ export default function AttendancePage() {
 
       {/* Ready to clock in */}
       {assignedShifts.length > 0 && (
-        <div className="card p-5 mb-6">
-          <h2 className="font-semibold text-ink mb-4">Ready to Clock In</h2>
+        <div className="bg-white border border-zinc-200 p-5 mb-6 shadow-sm">
+          <h2 className="text-[10px] font-bold text-black mb-4 uppercase tracking-[0.2em] border-l-2 border-black pl-3">Ready to Clock In</h2>
           <div className="space-y-3">
             {assignedShifts.map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-50">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background: s.color || '#4f6eff'}} />
+              <div key={s.id} className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-100">
+                <div className="w-2.5 h-2.5 flex-shrink-0 border border-zinc-200" style={{background: s.color || '#000'}} />
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-ink">{s.title}</p>
-                  <p className="text-xs text-ink-tertiary">{fmtDateTime(s.start_time)}</p>
+                  <p className="text-[11px] font-bold text-black uppercase tracking-widest">{s.title}</p>
+                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">{fmtDateTime(s.start_time)}</p>
                 </div>
                 <button
                   onClick={() => clockIn(s.id)}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-xl bg-brand-500 text-white text-xs font-medium hover:bg-brand-600 active:scale-95 transition-all"
+                  className="flex items-center gap-2 px-4 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95"
                 >
-                  <LogIn size={14} /> Clock In
+                  <LogIn size={12} /> Clock In
                 </button>
               </div>
             ))}
@@ -192,20 +180,20 @@ export default function AttendancePage() {
 
       {/* Live attendance — managers/admins */}
       {liveAttendance.length > 0 && (
-        <div className="card p-5 mb-6">
-          <h2 className="font-semibold text-ink mb-4 flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
+        <div className="bg-white border border-zinc-200 p-5 mb-6 shadow-sm">
+          <h2 className="text-[10px] font-bold text-black mb-4 uppercase tracking-[0.2em] border-l-2 border-black pl-3 flex items-center gap-2">
+            <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
             Currently On Shift ({liveAttendance.length})
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
             {liveAttendance.map(s => (
-              <div key={s.id} className="flex items-center gap-3 p-3 rounded-xl border border-green-100 bg-green-50">
-                <div className="w-9 h-9 rounded-lg bg-green-200 flex items-center justify-center text-green-700 font-semibold text-xs flex-shrink-0">
+              <div key={s.id} className="flex items-center gap-3 p-3 bg-zinc-50 border border-zinc-100">
+                <div className="w-9 h-9 bg-zinc-200 flex items-center justify-center text-zinc-500 font-bold text-[10px] flex-shrink-0 uppercase tracking-tighter">
                   {getInitials(s.member_name)}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-ink truncate">{s.member_name}</p>
-                  <p className="text-xs text-ink-tertiary truncate">{s.title}</p>
+                  <p className="text-[11px] font-bold text-black truncate uppercase tracking-widest">{s.member_name}</p>
+                  <p className="text-[9px] font-bold text-zinc-400 truncate uppercase tracking-wider">{s.title}</p>
                 </div>
               </div>
             ))}
@@ -215,19 +203,19 @@ export default function AttendancePage() {
 
       {/* Timesheet */}
       {timesheet?.timesheet?.length > 0 && (
-        <div className="card p-5">
-          <h2 className="font-semibold text-ink mb-4">This Month's Timesheet</h2>
-          <div className="space-y-2">
+        <div className="bg-white border border-zinc-200 p-5 shadow-sm">
+          <h2 className="text-[10px] font-bold text-black mb-4 uppercase tracking-[0.2em] border-l-2 border-black pl-3">This Month's Timesheet</h2>
+          <div className="space-y-1">
             {timesheet.timesheet.map((row: any) => (
-              <div key={row.id} className="flex items-center gap-3 p-3 rounded-xl hover:bg-surface-50 transition-colors">
-                <div className="w-2 h-2 rounded-full flex-shrink-0" style={{background: row.color || '#4f6eff'}} />
+              <div key={row.id} className="flex items-center gap-3 p-3 border-b border-zinc-50 last:border-0 hover:bg-zinc-50 transition-colors">
+                <div className="w-2 h-2 flex-shrink-0 bg-black" style={{background: row.color}} />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-ink">{row.title}</p>
-                  <p className="text-xs text-ink-tertiary">{fmtDateTime(row.start_time)}</p>
+                  <p className="text-[11px] font-bold text-black uppercase tracking-widest">{row.title}</p>
+                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">{fmtDateTime(row.start_time)}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold text-ink">{row.hoursWorked}h</p>
-                  <p className="text-xs text-green-600">Completed</p>
+                  <p className="text-[11px] font-bold text-black">{row.hoursWorked}h</p>
+                  <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-tighter">Completed</p>
                 </div>
               </div>
             ))}
@@ -236,9 +224,9 @@ export default function AttendancePage() {
       )}
 
       {assignedShifts.length === 0 && inProgressShifts.length === 0 && (
-        <div className="card p-8 text-center text-ink-tertiary">
-          <Clock size={32} className="mx-auto mb-3 text-ink-disabled" />
-          <p className="text-sm">No upcoming shifts assigned to you</p>
+        <div className="p-12 text-center bg-white border border-zinc-200">
+          <Clock size={32} className="mx-auto mb-4 text-zinc-200" />
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">No upcoming units assigned</p>
         </div>
       )}
     </div>

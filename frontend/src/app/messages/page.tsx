@@ -55,20 +55,20 @@ export default function MessagesPage() {
   return (
     <div className="flex h-[calc(100vh-56px)] md:h-screen">
       {/* Members list */}
-      <div className={cn("w-full md:w-64 border-r border-surface-200 bg-white flex flex-col", active ? "hidden md:flex" : "flex")}>
-        <div className="p-4 border-b border-surface-100">
-          <h2 className="font-semibold text-ink" style={{fontFamily:'var(--font-bricolage)'}}>Messages</h2>
+      <div className={cn("w-full md:w-64 border-r border-zinc-200 bg-white flex flex-col", active ? "hidden md:flex" : "flex")}>
+        <div className="p-5 border-b border-zinc-100">
+          <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em] border-l-2 border-black pl-3">Messages</h2>
         </div>
         <div className="flex-1 overflow-y-auto p-2">
           {members.map(m => (
             <button key={m.id} onClick={() => setActive(m)}
-              className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-all mb-0.5 ${active?.id === m.id ? 'bg-brand-50' : 'hover:bg-surface-100'}`}>
-              <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 font-semibold text-xs flex-shrink-0">
+              className={`w-full flex items-center gap-3 p-3 rounded-none text-left transition-all mb-1 ${active?.id === m.id ? 'bg-black text-white' : 'hover:bg-zinc-50'}`}>
+              <div className={cn("w-9 h-9 flex items-center justify-center font-bold text-[10px] flex-shrink-0 uppercase tracking-tighter", active?.id === m.id ? "bg-zinc-800 text-white" : "bg-zinc-100 text-zinc-500")}>
                 {getInitials(m.name)}
               </div>
               <div className="min-w-0">
-                <p className={`text-sm font-medium truncate ${active?.id === m.id ? 'text-brand-700' : 'text-ink'}`}>{m.name}</p>
-                <p className="text-xs text-ink-tertiary truncate">{m.role}</p>
+                <p className={cn("text-[11px] font-bold uppercase tracking-widest truncate", active?.id === m.id ? "text-white" : "text-black")}>{m.name}</p>
+                <p className={cn("text-[9px] font-bold uppercase tracking-wider truncate", active?.id === m.id ? "text-zinc-500" : "text-zinc-400")}>{m.role}</p>
               </div>
             </button>
           ))}
@@ -76,48 +76,48 @@ export default function MessagesPage() {
       </div>
 
       {/* Chat area */}
-      <div className={cn("flex-1 flex flex-col bg-surface-50", !active ? "hidden md:flex" : "flex")}>
+      <div className={cn("flex-1 flex flex-col bg-zinc-50", !active ? "hidden md:flex" : "flex")}>
         {active ? (
           <>
-            <div className="p-4 border-b border-surface-200 bg-white flex items-center gap-3">
-              <button onClick={() => setActive(null)} className="md:hidden p-2 -ml-2 text-ink-secondary">
+            <div className="p-4 border-b border-zinc-200 bg-white flex items-center gap-3">
+              <button onClick={() => setActive(null)} className="md:hidden p-2 -ml-2 text-zinc-400">
                 <ArrowLeft size={20} />
               </button>
-              <div className="w-9 h-9 rounded-lg bg-brand-100 flex items-center justify-center text-brand-600 font-semibold text-xs">
+              <div className="w-9 h-9 bg-zinc-100 border border-zinc-200 flex items-center justify-center text-zinc-500 font-bold text-[10px] uppercase tracking-tighter">
                 {getInitials(active.name)}
               </div>
               <div>
-                <p className="font-semibold text-ink text-sm">{active.name}</p>
-                <p className="text-xs text-ink-tertiary">{active.role}</p>
+                <p className="font-bold text-black text-[11px] uppercase tracking-widest">{active.name}</p>
+                <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider">{active.role}</p>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map(msg => (
                 <div key={msg.id} className={`flex ${msg.sender_id === me?.id ? 'justify-end' : 'justify-start'}`}>
-                  <div className={`max-w-xs px-4 py-2.5 rounded-2xl text-sm ${msg.sender_id === me?.id ? 'bg-brand-500 text-white rounded-br-sm' : 'bg-white border border-surface-200 text-ink rounded-bl-sm'}`}>
-                    <p>{msg.content}</p>
-                    <p className={`text-xs mt-1 ${msg.sender_id === me?.id ? 'text-brand-200' : 'text-ink-disabled'}`}>{fmtTime(msg.created_at)}</p>
+                  <div className={`max-w-xs px-4 py-2.5 rounded-none text-[11px] font-medium ${msg.sender_id === me?.id ? 'bg-black text-white' : 'bg-white border border-zinc-200 text-black'}`}>
+                    <p className="leading-relaxed">{msg.content}</p>
+                    <p className={cn("text-[9px] font-bold uppercase tracking-widest mt-2", msg.sender_id === me?.id ? "text-zinc-500" : "text-zinc-400")}>{fmtTime(msg.created_at)}</p>
                   </div>
                 </div>
               ))}
               <div ref={bottomRef} />
             </div>
 
-            <form onSubmit={send} className="p-4 border-t border-surface-200 bg-white flex gap-3">
-              <input className="input flex-1" placeholder="Type a message..." value={text} onChange={e => setText(e.target.value)} />
-              <button type="submit" className="btn-primary px-4" disabled={!text.trim()}>
+            <form onSubmit={send} className="p-4 border-t border-zinc-200 bg-white flex gap-3">
+              <input className="flex-1 bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="Type a message..." value={text} onChange={e => setText(e.target.value)} />
+              <button type="submit" className="px-6 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all disabled:opacity-50" disabled={!text.trim()}>
                 <Send size={16} />
               </button>
             </form>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-ink-tertiary">
+          <div className="flex-1 flex items-center justify-center">
             <div className="text-center">
-              <div className="w-12 h-12 rounded-2xl bg-surface-100 flex items-center justify-center mx-auto mb-3">
-                <Send size={20} className="text-ink-disabled" />
+              <div className="w-12 h-12 bg-zinc-100 flex items-center justify-center mx-auto mb-4 border border-zinc-200">
+                <Send size={20} className="text-zinc-300" />
               </div>
-              <p className="text-sm">Select a team member to message</p>
+              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">Select a team member to message</p>
             </div>
           </div>
         )}
