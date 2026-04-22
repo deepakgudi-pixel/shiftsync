@@ -26,31 +26,28 @@ const WebGLHero = () => {
       precision highp float;
       uniform float u_time;
       uniform vec2 u_resolution;
+      uniform float u_ratio;
 
       void main() {
         vec2 uv = gl_FragCoord.xy / u_resolution.xy;
-        float ratio = u_resolution.x / u_resolution.y;
         vec2 p = uv * 4.0;
-        p.x *= ratio;
+        p.x *= u_ratio;
 
         float t = u_time * 0.5;
         
-        // Layered sine-wave distortion for fluid movement
-        for(int i=1; i<4; i++){
+        for(int i=1; i<5; i++){
           float fi = float(i);
           p.x += 0.4 / fi * sin(fi * p.y + t + 0.5 * fi);
           p.y += 0.4 / fi * sin(fi * p.x + t + 0.3 * fi);
         }
 
-        // Create "wet" surface highlights
         float strength = sin(p.x + p.y);
-        vec3 color = mix(vec3(0.02, 0.05, 0.1), vec3(0.2, 0.4, 0.8), strength * 0.5 + 0.5);
+        vec3 color = mix(vec3(0.05, 0.1, 0.2), vec3(0.2, 0.5, 1.0), strength * 0.5 + 0.5);
         
-        // Specular highlight boost
         float highlight = pow(max(0.0, strength), 12.0);
         color += highlight * 0.4;
 
-        gl_FragColor = vec4(color * 0.6, 1.0);
+        gl_FragColor = vec4(color * 0.8, 1.0);
       }
     `;
 
@@ -77,11 +74,13 @@ const WebGLHero = () => {
 
     const utime = gl.getUniformLocation(program, 'u_time');
     const ures = gl.getUniformLocation(program, 'u_resolution');
+    const uratio = gl.getUniformLocation(program, 'u_ratio');
 
     const handleResize = () => {
       const displayWidth = window.innerWidth;
       const displayHeight = window.innerHeight;
       const dpr = window.devicePixelRatio || 1;
+      const ratio = displayWidth / displayHeight;
       
       if (canvas.width !== displayWidth * dpr || canvas.height !== displayHeight * dpr) {
         canvas.width = displayWidth * dpr;
@@ -89,6 +88,7 @@ const WebGLHero = () => {
         gl.viewport(0, 0, canvas.width, canvas.height);
         gl.useProgram(program);
         gl.uniform2f(ures, canvas.width, canvas.height);
+        gl.uniform1f(uratio, ratio);
       }
     };
 
@@ -110,7 +110,7 @@ const WebGLHero = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full opacity-40 pointer-events-none" />;
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full opacity-60 pointer-events-none z-[-1]" />;
 };
 
 export default function LandingPage() {
@@ -158,7 +158,10 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white selection:bg-white selection:text-black overflow-x-hidden font-sans scroll-smooth">
+    <div className="min-h-screen bg-transparent text-white selection:bg-white selection:text-black overflow-x-hidden font-sans scroll-smooth">
+      {/* Essential: Base background layer placed behind the WebGL canvas */}
+      <div className="fixed inset-0 bg-[#050505] z-[-2]" />
+
       <WebGLHero />
       {/* Futuristic Background Grid */}
       <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none" 
