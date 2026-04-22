@@ -3,12 +3,47 @@ const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
 
+// Helper: calculate overtime components from a set of daily hours
+const calcOvertime = (dailyHours, rule) => {
+  let dailyOT = 0, weeklyOT = 0;
+
+  for (const h of dailyHours) {
+    if (h > rule.daily_threshold_hours) {
+      dailyOT += h - rule.daily_threshold_hours;
+    }
+  }
+
+  const totalHours = dailyHours.reduce((s, h) => s + h, 0);
+  weeklyOT = Math.max(0, totalHours - rule.weekly_threshold_hours);
+
+  // Use whichever is larger — not both (prevents double-counting)
+  return { overtimeHours: Math.max(dailyOT, weeklyOT), totalHours };
+};
+
+// Helper: fetch all shifts with clock events for an org within a date range — single query
+const fetchAllShiftsForPeriod = async (orgId, startDate, endDate) => {
+  const result = await query(`
+    SELECT
+      s.assignee_id,
+      DATE(ci.timestamp AT TIME ZONE 'UTC') as shift_date,
+      EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as raw_hours
+    FROM shifts s
+    JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
+    JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
+    WHERE s.organisation_id = $1
+      AND s.status = 'COMPLETED'
+      AND ci.timestamp >= $2::date
+      AND ci.timestamp <= ($3::date + INTERVAL '1 day')
+  `, [orgId, startDate, endDate]);
+  return result.rows;
+};
+
 // List pay periods
 router.get("/pay-periods", requireAuth, async (req, res) => {
   try {
     const result = await query(
       `SELECT pp.*, COUNT(p.id) as payslip_count,
-       (SELECT SUM(total_earnings) FROM payslips WHERE pay_period_id=pp.id) as total_cost
+       COALESCE((SELECT SUM(total_earnings) FROM payslips WHERE pay_period_id=pp.id), 0) as total_cost
        FROM pay_periods pp
        LEFT JOIN payslips p ON pp.id=p.pay_period_id
        WHERE pp.organisation_id=$1
@@ -42,70 +77,66 @@ router.get("/pay-periods/:id/timesheet", requireAuth, async (req, res) => {
     const rules = await query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
     const rule = rules.rows[0] || { daily_threshold_hours: 8, weekly_threshold_hours: 40, daily_multiplier: 1.5, weekly_multiplier: 1.5 };
 
-    const employees = await query(`
+    // Single query: all employees with their rate overrides
+    const empResult = await query(`
       SELECT m.id, m.name, m.avatar_url, m.hourly_rate,
-        er.hourly_rate as override_rate, er.overtime_multiplier as override_ot_mult
+        er.hourly_rate as override_rate,
+        COALESCE(er.overtime_multiplier, $2) as ot_multiplier
       FROM members m
-      LEFT JOIN LATERAL (SELECT * FROM employee_rates WHERE member_id=m.id ORDER BY effective_from DESC LIMIT 1) er ON true
+      LEFT JOIN LATERAL (SELECT * FROM employee_rates WHERE member_id=m.id AND effective_from <= $3 ORDER BY effective_from DESC LIMIT 1) er ON true
       WHERE m.organisation_id=$1 AND m.role='EMPLOYEE'
-    `, [req.member.organisation_id]);
+    `, [req.member.organisation_id, rule.daily_multiplier, period.rows[0].end_date]);
 
-    const timesheetData = [];
-    for (const emp of employees.rows) {
-      const shifts = await query(`
-        SELECT s.id, s.title, s.start_time,
-          ci.timestamp as clock_in, co.timestamp as clock_out,
-          EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as raw_hours
-        FROM shifts s
-        LEFT JOIN clock_events ci ON s.id=ci.shift_id AND ci.type='CLOCK_IN'
-        LEFT JOIN clock_events co ON s.id=co.shift_id AND co.type='CLOCK_OUT'
-        WHERE s.assignee_id=$1 AND s.status='COMPLETED'
-          AND ci.timestamp >= $2::date AND ci.timestamp <= ($3::date + INTERVAL '1 day')
-      `, [emp.id, period.rows[0].start_date, period.rows[0].end_date]);
+    // Single query: all shifts + clock events for all employees in the period
+    const shiftRows = await fetchAllShiftsForPeriod(
+      req.member.organisation_id,
+      period.rows[0].start_date,
+      period.rows[0].end_date
+    );
 
-      let totalHours = 0, overtimeHours = 0;
-      const shiftDetails = shifts.rows.map(s => {
-        const h = Math.max(0, parseFloat(s.raw_hours) || 0);
-        totalHours += h;
-        return { id: s.id, title: s.title, date: s.start_time, hours: Math.round(h * 100) / 100 };
-      });
+    // Group shifts by employee
+    const shiftsByEmp = {};
+    for (const row of shiftRows) {
+      if (!row.assignee_id) continue;
+      if (!shiftsByEmp[row.assignee_id]) shiftsByEmp[row.assignee_id] = [];
+      shiftsByEmp[row.assignee_id].push(row);
+    }
 
-      // Daily overtime
+    const employees = empResult.rows.map(emp => {
+      const empShifts = shiftsByEmp[emp.id] || [];
+
+      // Build daily hours map
       const byDay = {};
-      shiftDetails.forEach(s => {
-        const day = new Date(s.date).toDateString();
-        byDay[day] = (byDay[day] || 0) + s.hours;
-      });
-      Object.values(byDay).forEach(h => {
-        if (h > rule.daily_threshold_hours) overtimeHours += h - rule.daily_threshold_hours;
-      });
+      for (const s of empShifts) {
+        const h = Math.max(0, parseFloat(s.raw_hours) || 0);
+        const day = s.shift_date;
+        byDay[day] = (byDay[day] || 0) + h;
+      }
 
-      // Weekly overtime (simplified: total beyond weekly_threshold)
-      const weeklyOT = Math.max(0, totalHours - rule.weekly_threshold_hours);
-      overtimeHours = Math.max(overtimeHours, weeklyOT);
-
+      const dailyHours = Object.values(byDay);
+      const { overtimeHours, totalHours } = calcOvertime(dailyHours, rule);
       const hourlyRate = parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0;
-      const otMult = parseFloat(emp.override_ot_mult) || parseFloat(rule.daily_multiplier);
+      const otMult = parseFloat(emp.ot_multiplier) || parseFloat(rule.daily_multiplier);
       const baseHours = Math.max(0, totalHours - overtimeHours);
       const baseEarnings = baseHours * hourlyRate;
       const otEarnings = overtimeHours * hourlyRate * otMult;
 
-      timesheetData.push({
+      return {
         employeeId: emp.id,
         name: emp.name,
         avatarUrl: emp.avatar_url,
         hourlyRate,
-        shifts: shiftDetails,
+        shifts: empShifts.map(s => ({ date: s.shift_date, hours: Math.round((parseFloat(s.raw_hours) || 0) * 100) / 100 })),
         totalHours: Math.round(totalHours * 100) / 100,
         baseHours: Math.round(baseHours * 100) / 100,
         overtimeHours: Math.round(overtimeHours * 100) / 100,
         baseEarnings: Math.round(baseEarnings * 100) / 100,
         overtimeEarnings: Math.round(otEarnings * 100) / 100,
         totalEarnings: Math.round((baseEarnings + otEarnings) * 100) / 100,
-      });
-    }
+      };
+    });
 
-    res.json({ period: period.rows[0], rule, employees: timesheetData });
+    res.json({ period: period.rows[0], rule, employees });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed" }); }
 });
 
@@ -115,36 +146,55 @@ router.get("/pay-periods/:id/summary", requireAuth, async (req, res) => {
     const period = await query("SELECT * FROM pay_periods WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
     if (!period.rows.length) return res.status(404).json({ error: "Not found" });
 
-    const employees = await query(`
+    const rules = await query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
+    const rule = rules.rows[0] || { daily_threshold_hours: 8, weekly_threshold_hours: 40, daily_multiplier: 1.5 };
+
+    // Single query: all employee rates
+    const empResult = await query(`
       SELECT m.id, m.name,
         er.hourly_rate as override_rate, m.hourly_rate,
-        COALESCE(er.overtime_multiplier, 1.5) as ot_mult
+        COALESCE(er.overtime_multiplier, $2) as ot_mult
       FROM members m
-      LEFT JOIN LATERAL (SELECT * FROM employee_rates WHERE member_id=m.id ORDER BY effective_from DESC LIMIT 1) er ON true
+      LEFT JOIN LATERAL (SELECT * FROM employee_rates WHERE member_id=m.id AND effective_from <= $3 ORDER BY effective_from DESC LIMIT 1) er ON true
       WHERE m.organisation_id=$1 AND m.role='EMPLOYEE'
-    `, [req.member.organisation_id]);
+    `, [req.member.organisation_id, rule.daily_multiplier, period.rows[0].end_date]);
+
+    // Single query: all completed shifts within the period
+    const shiftRows = await fetchAllShiftsForPeriod(
+      req.member.organisation_id,
+      period.rows[0].start_date,
+      period.rows[0].end_date
+    );
+
+    // Build daily hours per employee
+    const byEmp = {};
+    for (const row of shiftRows) {
+      if (!row.assignee_id) continue;
+      if (!byEmp[row.assignee_id]) byEmp[row.assignee_id] = {};
+      const day = row.shift_date;
+      byEmp[row.assignee_id][day] = (byEmp[row.assignee_id][day] || 0) + Math.max(0, parseFloat(row.raw_hours) || 0);
+    }
 
     let totalBase = 0, totalOT = 0, totalHours = 0, empCount = 0;
-    for (const emp of employees.rows) {
-      const shifts = await query(`
-        SELECT EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as raw_hours
-        FROM shifts s
-        LEFT JOIN clock_events ci ON s.id=ci.shift_id AND ci.type='CLOCK_IN'
-        LEFT JOIN clock_events co ON s.id=co.shift_id AND co.type='CLOCK_OUT'
-        WHERE s.assignee_id=$1 AND s.status='COMPLETED'
-          AND ci.timestamp >= $2::date AND ci.timestamp <= ($3::date + INTERVAL '1 day')
-      `, [emp.id, period.rows[0].start_date, period.rows[0].end_date]);
+    const summary = [];
 
-      let empTotalH = 0;
-      shifts.rows.forEach(s => { empTotalH += Math.max(0, parseFloat(s.raw_hours) || 0); });
+    for (const emp of empResult.rows) {
+      const dailyMap = byEmp[emp.id] || {};
+      const dailyHours = Object.values(dailyMap);
+      if (dailyHours.length === 0) continue;
 
+      const { overtimeHours, totalHours: empTotal } = calcOvertime(dailyHours, rule);
       const rate = parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0;
       const otMult = parseFloat(emp.ot_mult);
-      const otH = Math.max(0, empTotalH - 40);
-      totalBase += (empTotalH - otH) * rate;
-      totalOT += otH * rate * otMult;
-      totalHours += empTotalH;
-      if (empTotalH > 0) empCount++;
+      const baseHours = Math.max(0, empTotal - overtimeHours);
+      const baseEarn = baseHours * rate;
+      const otEarn = overtimeHours * rate * otMult;
+
+      totalBase += baseEarn;
+      totalOT += otEarn;
+      totalHours += empTotal;
+      empCount++;
+      summary.push({ empId: emp.id, name: emp.name, rate, totalHours: empTotal, overtimeHours, baseEarn, otEarn });
     }
 
     res.json({
@@ -153,6 +203,8 @@ router.get("/pay-periods/:id/summary", requireAuth, async (req, res) => {
       totalBaseEarnings: Math.round(totalBase * 100) / 100,
       totalOvertimeEarnings: Math.round(totalOT * 100) / 100,
       totalCost: Math.round((totalBase + totalOT) * 100) / 100,
+      rule,
+      breakdown: summary,
     });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed" }); }
 });
@@ -164,57 +216,99 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
     if (!period.rows.length) return res.status(404).json({ error: "Pay period not found" });
     if (period.rows[0].status !== "DRAFT") return res.status(400).json({ error: "Period already processed" });
 
+    // Idempotency: check if payslips already exist for this period
+    const existingPayslips = await query("SELECT COUNT(*) FROM payslips WHERE pay_period_id=$1", [req.params.id]);
+    if (parseInt(existingPayslips.rows[0].count) > 0) {
+      return res.status(409).json({ error: "Payslips already exist for this period. Delete them first to reprocess." });
+    }
+
     const org = await query("SELECT currency FROM organisations WHERE id=$1", [req.member.organisation_id]);
     const currency = org.rows[0]?.currency || "USD";
 
     const rules = await query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
     const rule = rules.rows[0] || { daily_threshold_hours: 8, weekly_threshold_hours: 40, daily_multiplier: 1.5 };
 
-    const employees = await query(`
-      SELECT m.id, m.name, er.hourly_rate as override_rate, er.overtime_multiplier as override_ot_mult, m.hourly_rate
+    // Single query: all employees with their effective rates
+    const empResult = await query(`
+      SELECT m.id, m.name,
+        er.hourly_rate as override_rate, m.hourly_rate,
+        COALESCE(er.overtime_multiplier, $2) as ot_mult
       FROM members m
-      LEFT JOIN LATERAL (SELECT * FROM employee_rates WHERE member_id=m.id ORDER BY effective_from DESC LIMIT 1) er ON true
+      LEFT JOIN LATERAL (SELECT * FROM employee_rates WHERE member_id=m.id AND effective_from <= $3 ORDER BY effective_from DESC LIMIT 1) er ON true
       WHERE m.organisation_id=$1 AND m.role='EMPLOYEE'
-    `, [req.member.organisation_id]);
+    `, [req.member.organisation_id, rule.daily_multiplier, period.rows[0].end_date]);
+
+    // Single query: ALL shifts for the period — no N+1
+    const shiftRows = await fetchAllShiftsForPeriod(
+      req.member.organisation_id,
+      period.rows[0].start_date,
+      period.rows[0].end_date
+    );
+
+    // Group shifts by employee
+    const shiftsByEmp = {};
+    for (const row of shiftRows) {
+      if (!row.assignee_id) continue;
+      if (!shiftsByEmp[row.assignee_id]) shiftsByEmp[row.assignee_id] = [];
+      shiftsByEmp[row.assignee_id].push(row);
+    }
 
     const generated = [];
-    for (const emp of employees.rows) {
-      const shifts = await query(`
-        SELECT EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as raw_hours
-        FROM shifts s
-        LEFT JOIN clock_events ci ON s.id=ci.shift_id AND ci.type='CLOCK_IN'
-        LEFT JOIN clock_events co ON s.id=co.shift_id AND co.type='CLOCK_OUT'
-        WHERE s.assignee_id=$1 AND s.status='COMPLETED'
-          AND ci.timestamp >= $2::date AND ci.timestamp <= ($3::date + INTERVAL '1 day')
-      `, [emp.id, period.rows[0].start_date, period.rows[0].end_date]);
+    const skipped = [];
 
-      let totalHours = 0;
-      shifts.rows.forEach(s => { totalHours += Math.max(0, parseFloat(s.raw_hours) || 0); });
-
+    for (const emp of empResult.rows) {
       const hourlyRate = parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0;
-      const otMult = parseFloat(emp.override_ot_mult) || parseFloat(rule.daily_multiplier);
-      const otHours = Math.max(0, totalHours - 40);
-      const baseHours = totalHours - otHours;
-      const baseEarn = baseHours * hourlyRate;
-      const otEarn = otHours * hourlyRate * otMult;
 
-      if (hourlyRate > 0) {
-        const result = await query(
-          `INSERT INTO payslips (member_id, pay_period_id, organisation_id, base_hours, overtime_hours, overtime_rate, base_earnings, overtime_earnings, total_earnings, currency, generated_by)
-           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
-          [emp.id, req.params.id, req.member.organisation_id,
-           Math.round(baseHours * 100) / 100, Math.round(otHours * 100) / 100, otMult,
-           Math.round(baseEarn * 100) / 100, Math.round(otEarn * 100) / 100,
-           Math.round((baseEarn + otEarn) * 100) / 100, currency, req.member.id]
-        );
-        generated.push(result.rows[0]);
+      if (hourlyRate <= 0) {
+        skipped.push({ id: emp.id, name: emp.name, reason: "No hourly rate set" });
+        continue;
       }
+
+      const empShifts = shiftsByEmp[emp.id] || [];
+      if (empShifts.length === 0) {
+        skipped.push({ id: emp.id, name: emp.name, reason: "No completed shifts in this period" });
+        continue;
+      }
+
+      // Build daily hours map
+      const byDay = {};
+      for (const s of empShifts) {
+        const h = Math.max(0, parseFloat(s.raw_hours) || 0);
+        const day = s.shift_date;
+        byDay[day] = (byDay[day] || 0) + h;
+      }
+
+      const dailyHours = Object.values(byDay);
+      const { overtimeHours, totalHours } = calcOvertime(dailyHours, rule);
+      const otMult = parseFloat(emp.ot_mult) || parseFloat(rule.daily_multiplier);
+      const baseHours = totalHours - overtimeHours;
+      const baseEarn = baseHours * hourlyRate;
+      const otEarn = overtimeHours * hourlyRate * otMult;
+
+      const result = await query(
+        `INSERT INTO payslips (member_id, pay_period_id, organisation_id, base_hours, overtime_hours, overtime_rate, base_earnings, overtime_earnings, total_earnings, currency, generated_by)
+         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
+        [emp.id, req.params.id, req.member.organisation_id,
+         Math.round(baseHours * 100) / 100, Math.round(overtimeHours * 100) / 100, otMult,
+         Math.round(baseEarn * 100) / 100, Math.round(otEarn * 100) / 100,
+         Math.round((baseEarn + otEarn) * 100) / 100, currency, req.member.id]
+      );
+      generated.push({ id: result.rows[0].id, name: emp.name, totalEarn: Math.round((baseEarn + otEarn) * 100) / 100 });
     }
 
     await query("UPDATE pay_periods SET status='PROCESSED', processed_at=NOW() WHERE id=$1", [req.params.id]);
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "pay_period", entityId: req.params.id, newValues: { status: "PROCESSED" }, req });
+    await logAudit({
+      organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId,
+      action: "UPDATE", entityType: "pay_period", entityId: req.params.id,
+      newValues: { status: "PROCESSED", payslipsGenerated: generated.length }, req
+    });
 
-    res.json({ success: true, payslipsGenerated: generated.length });
+    res.json({
+      success: true,
+      payslipsGenerated: generated.length,
+      generated,
+      skipped,
+    });
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to process period" }); }
 });
 
@@ -222,7 +316,18 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
 router.post("/pay-periods/:id/paid", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
     await query("UPDATE pay_periods SET status='PAID' WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "pay_period", entityId: req.params.id, newValues: { status: "PAID" }, req });
     res.json({ success: true });
+  } catch (err) { res.status(500).json({ error: "Failed" }); }
+});
+
+// Delete payslips for a period (to allow reprocessing)
+router.delete("/pay-periods/:id/payslips", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  try {
+    const result = await query("DELETE FROM payslips WHERE pay_period_id=$1 AND organisation_id=$2 RETURNING id", [req.params.id, req.member.organisation_id]);
+    await query("UPDATE pay_periods SET status='DRAFT', processed_at=NULL WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "payslip_batch", entityId: req.params.id, oldValues: { count: result.rowCount }, req });
+    res.json({ success: true, deleted: result.rowCount });
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
 

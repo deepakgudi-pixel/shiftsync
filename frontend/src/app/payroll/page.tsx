@@ -148,11 +148,32 @@ export default function PayrollPage() {
 
   const processPayPeriod = async (id: string) => {
     if (!confirm('Process this pay period? This will generate payslips for all employees.')) return
-    const res = await api.post(`/api/payroll/pay-periods/${id}/process`)
-    await loadPayPeriods()
-    await loadPayslips()
-    if (selectedPeriodId === id) loadPeriodData(id)
-    alert(`Generated ${res.data.payslipsGenerated} payslips`)
+    try {
+      const res = await api.post(`/api/payroll/pay-periods/${id}/process`)
+      await loadPayPeriods()
+      await loadPayslips()
+      if (selectedPeriodId === id) loadPeriodData(id)
+      const { payslipsGenerated, skipped } = res.data
+      if (skipped?.length > 0) {
+        const names = skipped.map((s: any) => s.name).join(', ')
+        alert(`Generated ${payslipsGenerated} payslips.\nSkipped: ${names}`)
+      } else {
+        alert(`Generated ${payslipsGenerated} payslips`)
+      }
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to process')
+    }
+  }
+
+  const reprocessPayPeriod = async (id: string) => {
+    if (!confirm('This will delete existing payslips and reset the period to DRAFT. Continue?')) return
+    try {
+      await api.delete(`/api/payroll/pay-periods/${id}/payslips`)
+      await loadPayPeriods()
+      toast.success('Period reset — you can now process again')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to reset')
+    }
   }
 
   const markPaid = async (id: string) => {
@@ -278,21 +299,27 @@ export default function PayrollPage() {
           )}
 
           {summary && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
               {[
                 { label: 'Employees', value: summary.employeeCount, icon: Users, color: 'text-blue-600' },
-                { label: 'Total Hours', value: `${summary.totalHours}h`, icon: Clock, color: 'text-zinc-600' },
+                { label: 'Total Hrs', value: `${summary.totalHours}h`, icon: Clock, color: 'text-zinc-600' },
                 { label: 'Base Pay', value: fmt(summary.totalBaseEarnings, getCurrencySym()), icon: DollarSign, color: 'text-green-600' },
-                { label: 'Overtime Cost', value: fmt(summary.totalOvertimeEarnings, getCurrencySym()), icon: TrendingUp, color: 'text-orange-500' },
+                { label: 'OT Cost', value: fmt(summary.totalOvertimeEarnings, getCurrencySym()), icon: TrendingUp, color: 'text-orange-500' },
+                { label: 'Total Cost', value: fmt(summary.totalCost, getCurrencySym()), icon: DollarSign, color: 'text-black' },
               ].map(card => (
-                <div key={card.label} className="bg-white border border-zinc-200 p-5">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">{card.label}</p>
-                  <p className={cn('text-xl font-bold flex items-center gap-2', card.color)}>
-                    <card.icon size={18} />{card.value}
+                <div key={card.label} className="bg-white border border-zinc-200 p-4 md:p-5">
+                  <p className="text-[9px] md:text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">{card.label}</p>
+                  <p className={cn('text-base md:text-xl font-bold flex items-center gap-2', card.color)}>
+                    <card.icon size={14} className="md:size-[18]" />{card.value}
                   </p>
                 </div>
               ))}
             </div>
+          )}
+          {summary?.rule && (
+            <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-widest">
+              OT: {summary.rule.daily_threshold_hours}h/day · {summary.rule.weekly_threshold_hours}h/week · {summary.rule.daily_multiplier}x multiplier
+            </p>
           )}
 
           {timesheetData?.employees?.length > 0 && (
@@ -467,12 +494,21 @@ export default function PayrollPage() {
                     </button>
                   )}
                   {pp.status === 'PROCESSED' && (
-                    <button
-                      onClick={() => markPaid(pp.id)}
-                      className="text-[11px] font-bold bg-green-600 text-white px-4 py-2 uppercase tracking-wider hover:bg-green-700 transition-colors"
-                    >
-                      Mark Paid
-                    </button>
+                    <>
+                      <button
+                        onClick={() => markPaid(pp.id)}
+                        className="text-[11px] font-bold bg-green-600 text-white px-4 py-2 uppercase tracking-wider hover:bg-green-700 transition-colors"
+                      >
+                        Mark Paid
+                      </button>
+                      <button
+                        onClick={() => reprocessPayPeriod(pp.id)}
+                        className="text-[11px] font-bold text-zinc-500 border border-zinc-200 px-3 py-2 uppercase tracking-wider hover:bg-zinc-50 transition-colors"
+                        title="Delete payslips and reset to DRAFT"
+                      >
+                        Reset
+                      </button>
+                    </>
                   )}
                   {pp.payslip_count > 0 && (
                     <span className="text-[10px] font-bold text-zinc-400">{pp.payslip_count} payslips</span>

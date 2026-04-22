@@ -4,6 +4,34 @@ A full-stack workforce management platform for frontline teams. Handles scheduli
 
 ---
 
+## 🎯 The Problem
+
+Frontline teams — retail, logistics, healthcare, hospitality — run on shifts, not desks. Yet almost every workforce tool is built for office workers and bolted onto shift work as an afterthought.
+
+**The pain points nobody talks about:**
+
+- **Scheduling is a nightmare** — Spreadsheets or whiteboards. No visibility into who requested time off, who double-booked, who picked up extra hours
+- **Clock in/out is disconnected** — Time clocks and scheduling live in separate systems. Payroll is a manual reconciliation nightmare at the end of every cycle
+- **Shift swaps break down** — WhatsApp messages, sticky notes, nobody knows if coverage is confirmed until the shift starts
+- **Payroll math is opaque** — Employees don't know how their pay was calculated. Managers can't explain it. Overtime rules change mid-period and nobody updates the spreadsheet
+- **No real accountability** — Managers approve schedules but have no audit trail of who changed what, when, and why
+- **Announcements die in email** — Important updates get buried in group chats nobody reads anymore
+
+---
+
+## 💡 What ShiftSync Solves
+
+| Problem | ShiftSync Solution |
+|---|---|
+| Scheduling chaos | SQL-conflict checking prevents double-booking at creation. Kanban columns (OPEN / ASSIGNED / IN_PROGRESS / COMPLETED) give instant status visibility |
+| Disconnected attendance | Clock in/out happens inside the shift context. Hours flow directly into payroll — no manual export |
+| Broken shift swaps | Employees request a swap with a reason. Managers see the full request card and approve/reject in one click. Assignee updates instantly for everyone |
+| Opaque payroll | Every pay period shows the exact OT rules applied, hours worked, base vs OT split, and total cost before processing. Payslips are downloadable PDFs |
+| Zero accountability | Every write operation — CREATE, UPDATE, DELETE, CLOCK_IN/OUT — is logged with before/after state diffs, IP, and user agent |
+| Announcements get ignored | High-priority announcements surface with visual urgency. Socket.io delivers them in real time, not as background notifications |
+
+---
+
 ## 🛠 Tech Stack
 
 | Layer | Technology |
