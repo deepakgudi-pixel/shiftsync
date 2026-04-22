@@ -18,6 +18,9 @@ body { background: #f8f8fc; color: #0d0d1a; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: #d0d0e4; border-radius: 99px; }
 
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+
 .rbc-calendar { font-family: var(--font-dm) !important; background: white; border-radius: 16px; overflow: hidden; border: 1px solid #e4e4f0 !important; }
 .rbc-header { padding: 10px 8px !important; font-weight: 500 !important; font-size: 12px !important; color: #8888aa !important; border-bottom: 1px solid #f0f0f8 !important; text-transform: uppercase; letter-spacing: 0.06em; }
 .rbc-today { background-color: #f0f4ff !important; }

@@ -140,40 +140,42 @@ router.get("/timesheet", requireAuth, requireRole("ADMIN", "MANAGER"), async (re
 });
 
 
-router.get("/debug", async (req, res) => {
+router.get("/debug", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
     const result = await query(`
       SELECT s.title, s.status, m.name,
-        ci.timestamp as clock_in, 
+        ci.timestamp as clock_in,
         co.timestamp as clock_out,
         EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as hours
       FROM shifts s
       LEFT JOIN members m ON s.assignee_id = m.id
       LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
       LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
-      WHERE s.status = 'COMPLETED'
-    `)
+      WHERE s.status = 'COMPLETED' AND s.organisation_id = $1
+    `, [req.member.organisation_id])
     res.json(result.rows)
   } catch (err) { res.status(500).json({ error: err.message }) }
 });
 
-router.get("/debug2", async (req, res) => {
+router.get("/debug2", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
     const result = await query(`
       SELECT m.name, m.hourly_rate,
         s.id as shift_id, s.title, s.status, s.start_time,
-        ci.timestamp as clock_in, 
+        ci.timestamp as clock_in,
         co.timestamp as clock_out,
         EXTRACT(EPOCH FROM (co.timestamp - ci.timestamp))/3600 as hours
       FROM members m
-      LEFT JOIN shifts s ON m.id = s.assignee_id 
+      LEFT JOIN shifts s ON m.id = s.assignee_id
         AND s.status = 'COMPLETED'
         AND s.start_time >= $1
+        AND s.organisation_id = $2
       LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
       LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
+      WHERE m.organisation_id = $2
       ORDER BY m.name
-    `, [thirtyDaysAgo])
+    `, [thirtyDaysAgo, req.member.organisation_id])
     res.json(result.rows)
   } catch (err) { res.status(500).json({ error: err.message }) }
 })

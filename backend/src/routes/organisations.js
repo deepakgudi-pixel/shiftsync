@@ -112,4 +112,13 @@ router.delete(
   },
 );
 
+router.put("/currency", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  try {
+    const { currency } = req.body;
+    if (!currency) return res.status(400).json({ error: "Currency required" });
+    const result = await query("UPDATE organisations SET currency=$1, updated_at=NOW() WHERE id=$2 RETURNING *", [currency, req.member.organisation_id]);
+    res.json(result.rows[0]);
+  } catch (err) { res.status(500).json({ error: "Failed to update currency" }); }
+});
+
 module.exports = router;
