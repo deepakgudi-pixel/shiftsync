@@ -1,8 +1,94 @@
 'use client'
-import React, { useEffect } from 'react'
+import React, { useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Calendar, Zap, BarChart3, ArrowRight, ShieldCheck, Users, LayoutGrid, Globe, Cpu } from 'lucide-react'
 import { useUser } from '@clerk/nextjs'
+
+const WebGLHero = () => {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const gl = canvas.getContext('webgl');
+    if (!gl) return;
+
+    const vs = `
+      attribute vec2 position;
+      void main() { gl_Position = vec4(position, 0.0, 1.0); }
+    `;
+
+    const fs = `
+      precision highp float;
+      uniform float u_time;
+      uniform vec2 u_resolution;
+
+      void main() {
+        vec2 uv = gl_FragCoord.xy / u_resolution.xy;
+        float ratio = u_resolution.x / u_resolution.y;
+        vec2 p = uv * 4.0;
+        p.x *= ratio;
+
+        float t = u_time * 0.5;
+        
+        // Layered sine-wave distortion for fluid movement
+        for(int i=1; i<4; i++){
+          float fi = float(i);
+          p.x += 0.4 / fi * sin(fi * p.y + t + 0.5 * fi);
+          p.y += 0.4 / fi * sin(fi * p.x + t + 0.3 * fi);
+        }
+
+        // Create "wet" surface highlights
+        float strength = sin(p.x + p.y);
+        vec3 color = mix(vec3(0.02, 0.05, 0.1), vec3(0.2, 0.4, 0.8), strength * 0.5 + 0.5);
+        
+        // Specular highlight boost
+        float highlight = pow(max(0.0, strength), 12.0);
+        color += highlight * 0.4;
+
+        gl_FragColor = vec4(color * 0.6, 1.0);
+      }
+    `;
+
+    const createShader = (gl: WebGLRenderingContext, type: number, source: string) => {
+      const shader = gl.createShader(type)!;
+      gl.shaderSource(shader, source);
+      gl.compileShader(shader);
+      return shader;
+    };
+
+    const program = gl.createProgram()!;
+    gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vs));
+    gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fs));
+    gl.linkProgram(program);
+    gl.useProgram(program);
+
+    const buffer = gl.createBuffer();
+    gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+    gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+
+    const pos = gl.getAttribLocation(program, 'position');
+    gl.enableVertexAttribArray(pos);
+    gl.vertexAttribPointer(pos, 2, gl.FLOAT, false, 0, 0);
+
+    const utime = gl.getUniformLocation(program, 'u_time');
+    const ures = gl.getUniformLocation(program, 'u_resolution');
+
+    const render = (time: number) => {
+      if (!canvasRef.current) return;
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(utime, time * 0.001);
+      gl.uniform2f(ures, canvas.width, canvas.height);
+      gl.drawArrays(gl.TRIANGLES, 0, 6);
+      requestAnimationFrame(render);
+    };
+    requestAnimationFrame(render);
+  }, []);
+
+  return <canvas ref={canvasRef} className="fixed inset-0 w-full h-full opacity-40 pointer-events-none" />;
+};
 
 export default function LandingPage() {
   const { isSignedIn } = useUser()
@@ -50,6 +136,7 @@ export default function LandingPage() {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white selection:bg-white selection:text-black overflow-x-hidden font-sans scroll-smooth">
+      <WebGLHero />
       {/* Futuristic Background Grid */}
       <div className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none" 
            style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
@@ -106,7 +193,7 @@ export default function LandingPage() {
       </section>
 
       {/* Minimal Bento Grid */}
-      <section className="py-24 bg-black/40 relative z-10 border-y border-white/[0.05]">
+      <section className="py-24  relative z-10 border-y border-white/[0.05]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-px bg-white/10 border border-white/10">
             
@@ -160,7 +247,7 @@ export default function LandingPage() {
       </section>
 
       {/* Technical Specification Section */}
-      <section className="py-32 overflow-hidden border-b border-white/[0.05]">
+      <section className="relative py-32 overflow-hidden border-b border-white/[0.05]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row gap-20 items-center">
             <div className="flex-1">
@@ -193,7 +280,7 @@ export default function LandingPage() {
       </section>
 
       {/* Final Call to Action */}
-      <section className="py-48 bg-[#050505] text-white border-t border-white/[0.05]">
+      <section className="py-48 relative z- text-white border-t border-white/[0.05]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-6xl md:text-[100px] font-bold tracking-tight mb-16 leading-tight">READY TO <br />TRANSFORM?</h2>
           <div className="flex justify-center">
@@ -208,7 +295,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-20 bg-black text-center border-t border-white/5">
+      <footer className="py-20 relative text-center border-t border-white/5">
         <p className="text-[12px] font-bold uppercase tracking-[0.8em] text-white/40">
           ShiftSync &copy; {new Date().getFullYear()}
         </p>
