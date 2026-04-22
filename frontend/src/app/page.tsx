@@ -83,7 +83,7 @@ export default function LandingPage() {
       {/* Hero Section */}
       <section className="relative pt-40 pb-32 md:pt-60 md:pb-48 z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left">
-          <h1 className="text-6xl md:text-[120px] font-bold leading-[1.1] text-white mb-12 tracking-[-0.02em] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
+          <h1 className="text-5xl md:text-[120px] font-bold leading-[1.1] text-white mb-12 tracking-[-0.02em] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
             THE FUTURE OF <br />
             MANAGEMENT.
           </h1>
