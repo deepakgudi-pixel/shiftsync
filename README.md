@@ -269,3 +269,14 @@ The landing page features a futuristic WebGL hero with animated canvas effects, 
 **Payroll logic** — Processing a pay period pulls all completed shifts whose clock_in falls within the period's `start_date` and `end_date`. Overtime is calculated against the configured rules (daily threshold 8h, weekly 40h default). Processing can happen at any time after the period ends — the date range is the source of truth, not the processing date.
 
 **Audit logging** — Every write operation logs to `audit_logs` with old/new state diffs. Audit failures are caught silently (non-blocking) so they never break the main operation.
+
+---
+
+## Security
+
+- **API Rate Limiting** — Global 1000 requests per 15 minutes per IP on all `/api` routes
+- **Socket Authentication** — Clerk JWT required on socket handshake; `join:org` verifies member belongs to authenticated user before allowing room join
+- **Input Validation** — All POST/PUT/PATCH endpoints use express-validator with sanitized, schema-validated inputs (strings trimmed & escaped, UUIDs validated, enum values checked)
+- **Failed Auth Audit** — All authentication failures (missing token, invalid token) are logged to `audit_logs` with IP and reason for security monitoring
+- **Parameterized SQL** — All database queries use parameterized statements preventing SQL injection
+- **Role-based Access** — Middleware enforces role checks on every protected route; socket room joins verified server-side
