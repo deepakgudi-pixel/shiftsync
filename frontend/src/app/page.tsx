@@ -210,7 +210,7 @@ export default function LandingPage() {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left w-full">
             <h1 className="text-4xl sm:text-5xl md:text-[120px] font-bold leading-[1.1] text-white mb-12 tracking-[-0.02em] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
               THE FUTURE OF <br />
-              MANAGEMENT<span className="text-white/20">.</span>
+              MANAGEMENT
             </h1>
             
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-12 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
@@ -321,7 +321,7 @@ export default function LandingPage() {
         <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center py-20 sm:py-32 z-10 sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <div className="mb-16">
-              <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-4">BEYOND LEGACY TOOLS<span className="text-white/20">.</span></h2>
+              <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-4">BEYOND LEGACY TOOLS</h2>
               <p className="text-white/40 uppercase tracking-[0.3em] text-[10px] font-bold">Designed for clarity. Built for control.</p>
             </div>
             
