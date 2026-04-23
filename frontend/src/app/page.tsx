@@ -219,12 +219,12 @@ export default function LandingPage() {
       </section>
 
       {/* Minimal Bento Grid */}
-      <section className="py-24  relative z-10 border-y border-white/[0.05]">
+      <section className="py-24  relative z-10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-px bg-white/10 border border-white/10">
+          <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-px bg-white/[0.04] border border-white/[0.04]">
             
             {/* Logic Block */}
-            <div className="md:col-span-2 md:row-span-2 bg-[#050505] p-12 flex flex-col justify-between group overflow-hidden relative">
+            <div className="md:col-span-2 md:row-span-2 bg-white/[0.04] p-12 flex flex-col justify-between group overflow-hidden relative">
               <div className="relative z-10">
                 <Cpu size={20} className="text-white/20 mb-12 group-hover:text-white transition-colors duration-500" />
                 <h3 className="text-4xl font-light tracking-normal mb-6">Autonomous <br />Conflict Resolution</h3>
@@ -233,13 +233,13 @@ export default function LandingPage() {
                 </p>
               </div>
               <div className="mt-12 flex items-center gap-4">
-                <div className="h-[1px] flex-1 bg-white/10" />
+                <div className="h-[1px] flex-1 bg-white/[0.04]" />
                 <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">Module 01</span>
               </div>
             </div>
 
             {/* Real-time Block */}
-            <div className="md:col-span-2 bg-[#050505] p-12 flex flex-col justify-between group border-b border-white/10 md:border-b-0">
+            <div className="md:col-span-2 bg-white/[0.04] p-12 flex flex-col justify-between group border-b border-white/[0.04] md:border-b-0">
               <div className="flex justify-between items-start">
                 <h3 className="text-xl font-light tracking-tight">Latency: &lt;50ms</h3>
                 <Zap size={18} className="text-white/20" />
@@ -257,13 +257,13 @@ export default function LandingPage() {
             </div>
 
             {/* Analytics Block */}
-            <div className="md:col-span-1 bg-[#050505] p-10 flex flex-col justify-between group border-r border-white/10">
+            <div className="md:col-span-1 bg-white/[0.04] p-10 flex flex-col justify-between group border-r border-white/[0.04]">
               <BarChart3 size={18} className="text-white/20" />
               <h4 className="text-xs font-bold uppercase tracking-widest text-white/40">Cost Control</h4>
             </div>
 
             {/* Team Block */}
-            <div className="md:col-span-1 bg-[#050505] p-10 flex flex-col justify-between group">
+            <div className="md:col-span-1 bg-white/[0.04] p-10 flex flex-col justify-between group">
               <Users size={18} className="text-white/20" />
               <h4 className="text-xs font-bold uppercase tracking-widest text-white/40">Global Sync</h4>
             </div>
@@ -273,7 +273,7 @@ export default function LandingPage() {
       </section>
 
       {/* Technical Specification Section */}
-      <section className="relative py-32 overflow-hidden border-b border-white/[0.05]">
+      <section className="relative py-32 overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex flex-col md:flex-row gap-20 items-center">
             <div className="flex-1">
@@ -288,14 +288,14 @@ export default function LandingPage() {
                   { label: 'Real-time', val: 'Socket.io' },
                   { label: 'Auth', val: 'Clerk' }
                 ].map(spec => (
-                  <div key={spec.label} className="border-t border-white/10 pt-4">
+                  <div key={spec.label} className="border-t border-white/[0.04] pt-4">
                     <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 mb-1">{spec.label}</p>
                     <p className="text-sm font-medium">{spec.val}</p>
                   </div>
                 ))}
               </div>
             </div>
-            <div className="flex-1 w-full aspect-square border border-white/10 bg-white/[0.04] relative flex items-center justify-center">
+            <div className="flex-1 w-full aspect-square border border-white/[0.04] bg-white/[0.04] relative flex items-center justify-center">
               <div className="w-1/2 h-1/2 border border-white/20 rotate-45 animate-pulse" />
               <div className="absolute inset-0 flex items-center justify-center">
                 <Globe size={120} strokeWidth={0.5} className="text-white/10" />
@@ -306,7 +306,7 @@ export default function LandingPage() {
       </section>
 
       {/* Final Call to Action */}
-      <section className="py-48 relative z- text-white border-t border-white/[0.05]">
+      <section className="py-48 relative z- text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-6xl md:text-[100px] font-bold tracking-tight mb-16 leading-tight">READY TO <br />TRANSFORM?</h2>
           <div className="flex justify-center">
@@ -321,7 +321,7 @@ export default function LandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="py-20 relative text-center border-t border-white/5">
+      <footer className="py-20 relative text-center">
         <p className="text-[12px] font-bold uppercase tracking-[0.8em] text-white/40">
           ShiftSync &copy; {new Date().getFullYear()}
         </p>
