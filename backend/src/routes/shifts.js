@@ -2,6 +2,7 @@ const router = require("express").Router();
 const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
+const { body, param, validationResult } = require("express-validator");
 
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -55,7 +56,18 @@ router.get("/:id", requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
 
-router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) => {
+router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), [
+  body("title").isString().notEmpty().trim().escape(),
+  body("startTime").isISO8601(),
+  body("endTime").isISO8601(),
+  body("assigneeId").optional().isUUID(),
+  body("location").optional().isString().trim(),
+  body("notes").optional().isString().trim(),
+  body("color").optional().isString().trim(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const { title, startTime, endTime, location, notes, color, assigneeId } = req.body;
     if (assigneeId) {
@@ -89,7 +101,20 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) =
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to create shift" }); }
 });
 
-router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) => {
+router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
+  param("id").isUUID(),
+  body("title").optional().isString().trim().escape(),
+  body("startTime").optional().isISO8601(),
+  body("endTime").optional().isISO8601(),
+  body("assigneeId").optional().isUUID(),
+  body("status").optional().isIn(["OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED"]),
+  body("location").optional().isString().trim(),
+  body("notes").optional().isString().trim(),
+  body("color").optional().isString().trim(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const { title, startTime, endTime, location, notes, color, assigneeId, status } = req.body;
     const existing = await query(
@@ -166,7 +191,14 @@ router.delete("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, r
   } catch (err) { res.status(500).json({ error: "Failed to delete" }); }
 });
 
-router.post("/:id/swap", requireAuth, async (req, res) => {
+router.post("/:id/swap", requireAuth, [
+  param("id").isUUID(),
+  body("reason").optional().isString().trim(),
+  body("targetId").optional().isUUID(),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const { reason, targetId } = req.body;
     const shift = await query("SELECT * FROM shifts WHERE id=$1 AND assignee_id=$2", [req.params.id, req.member.id]);
@@ -188,7 +220,14 @@ router.post("/:id/swap", requireAuth, async (req, res) => {
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
 
-router.patch("/:id/swap/:swapId", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) => {
+router.patch("/:id/swap/:swapId", requireAuth, requireRole("ADMIN","MANAGER"), [
+  param("id").isUUID(),
+  param("swapId").isUUID(),
+  body("status").isIn(["APPROVED", "REJECTED"]),
+], async (req, res) => {
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
+
   try {
     const { status } = req.body;
     const result = await query("UPDATE swap_requests SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *", [status, req.params.swapId]);

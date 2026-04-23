@@ -4,7 +4,7 @@ A full-stack workforce management platform for frontline teams. Handles scheduli
 
 ---
 
-## 🎯 The Problem
+## The Problem
 
 Frontline teams — retail, logistics, healthcare, hospitality — run on shifts, not desks. Yet almost every workforce tool is built for office workers and bolted onto shift work as an afterthought.
 
@@ -19,7 +19,7 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 
 ---
 
-## 💡 What ShiftSync Solves
+## What ShiftSync Solves
 
 | Problem | ShiftSync Solution |
 |---|---|
@@ -32,7 +32,7 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 
 ---
 
-## 🛠 Tech Stack
+## Tech Stack
 
 | Layer | Technology |
 |---|---|
@@ -41,11 +41,15 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 | Auth | Clerk (multi-role: Admin, Manager, Employee) |
 | Database | PostgreSQL on Neon (serverless) |
 | Real-time | Socket.io (instant shift & message updates) |
+| Data Fetching | TanStack Query (caching, background refetch, loading states) |
 | Charts | Recharts |
+| Calendar | React Big Calendar |
+| Rate Limiting | express-rate-limit (1000 req/15min per IP) |
+| Validation | express-validator (sanitized, schema-validated inputs) |
 
 ---
 
-## ✨ Features
+## Features
 
 ### Scheduling
 - **Shift Management** — Create, assign, and track shifts with title, time, location, notes, and colour tags
@@ -106,7 +110,7 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 ### 1. Install Dependencies
 
@@ -158,7 +162,7 @@ Visit `http://localhost:3000`
 
 ---
 
-## 🔐 Role Permissions
+## Role Permissions
 
 | Feature | Admin | Manager | Employee |
 |---|---|---|---|
@@ -179,7 +183,7 @@ Visit `http://localhost:3000`
 
 ---
 
-## 📁 Project Structure
+## Project Structure
 
 ```
 shiftsync/
@@ -221,8 +225,9 @@ shiftsync/
         │   ├── audit/          # Audit log with filters + pagination
         │   ├── invite/         # Organisation info + share ID
         │   └── onboarding/     # Create or join organisation
-        ├── components/layout/
-        │   └── Sidebar.tsx     # Navigation sidebar
+        ├── components/
+        │   ├── auth/           # Auth-related components
+        │   └── layout/         # Layout components (sidebar, etc.)
         ├── hooks/
         │   ├── useApi.ts       # Axios instance with Clerk token injection
         │   └── useSocket.ts    # Socket.io connection scoped per org/user
@@ -233,7 +238,13 @@ shiftsync/
 
 ---
 
-## 🌍 Deploy
+## Landing Page
+
+The landing page features a futuristic WebGL hero with animated canvas effects, momentum scrolling, and a Bento-style feature grid. It contrasts ShiftSync's architecture against legacy workforce tools, highlighting advantages in SQL-level conflict resolution, real-time sync, and immutable audit logging.
+
+---
+
+## Deploy
 
 ### Backend → Railway
 1. Push backend to GitHub
@@ -247,7 +258,9 @@ shiftsync/
 
 ---
 
-## 💡 Architecture Notes
+## Architecture Notes
+
+**Data fetching** — TanStack Query wraps all API calls, handling caching, background refetching, and loading/error states so components stay fast and responsive without manual boilerplate.
 
 **Real-time rooms** — Socket.io uses two room types: `org:${id}` for org-wide broadcasts (shift updates, announcements, swap requests) and `user:${id}` for private notifications (messages, shift assignments).
 

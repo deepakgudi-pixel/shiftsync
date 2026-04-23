@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
+const rateLimit = require("express-rate-limit");
 const { Server } = require("socket.io");
 const { initSocket } = require("./socket");
 
@@ -10,6 +11,15 @@ const server = http.createServer(app);
 const io = new Server(server, {
   cors: { origin: process.env.FRONTEND_URL || "http://localhost:3000", credentials: true },
 });
+
+// Global rate limiting - 1000 requests per 15 minutes per IP
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+app.use("/api", apiLimiter);
 
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000", credentials: true }));
 app.use(express.json());

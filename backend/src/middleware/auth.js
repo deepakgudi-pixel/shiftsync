@@ -1,18 +1,46 @@
 const Clerk = require("@clerk/backend");
 const { query } = require("../db/client");
+const { logAudit } = require("../lib/audit");
 
 const requireAuth = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader?.startsWith("Bearer ")) {
+      await logAudit({
+        organisationId: null,
+        memberId: null,
+        clerkUserId: null,
+        action: "AUTH_FAILED",
+        entityType: "MEMBER",
+        entityId: null,
+        oldValues: null,
+        newValues: { reason: "missing_token", ip: req.ip },
+        req,
+      }).catch(() => {});
       return res.status(401).json({ error: "No token" });
     }
     const token = authHeader.split(" ")[1];
 
     const { verifyToken } = Clerk;
-    const payload = await verifyToken(token, {
-      jwtKey: process.env.CLERK_JWT_KEY,
-    });
+    let payload;
+    try {
+      payload = await verifyToken(token, {
+        jwtKey: process.env.CLERK_JWT_KEY,
+      });
+    } catch (verifyErr) {
+      await logAudit({
+        organisationId: null,
+        memberId: null,
+        clerkUserId: null,
+        action: "AUTH_FAILED",
+        entityType: "MEMBER",
+        entityId: null,
+        oldValues: null,
+        newValues: { reason: "invalid_token", ip: req.ip, error: verifyErr.message },
+        req,
+      }).catch(() => {});
+      return res.status(401).json({ error: "Invalid token" });
+    }
 
     const clerkUserId = payload.sub;
 
