@@ -127,7 +127,7 @@ export default function LandingPage() {
     const lerp = (start: number, end: number, factor: number) => start + (end - start) * factor;
 
     const update = () => {
-      current = lerp(current, target, 0.05); // Creamier lerp factor for "buttery" feel
+      current = lerp(current, target, 0.035); // Lower factor = higher "friction" / more viscous feel
       if (scrollContentRef.current) {
         scrollContentRef.current.style.transform = `translate3d(-${current}px, 0, 0)`;
       }
@@ -140,7 +140,7 @@ export default function LandingPage() {
     const handleWheel = (e: WheelEvent) => {
       if (window.innerWidth < 640) return; // Horizontal for iPads/Tabs (sm breakpoint)
       e.preventDefault();
-      target += e.deltaY * 1.1; // Balanced sensitivity
+      target += e.deltaY * 1.3; // Increased leverage to balance the higher friction
       if (scrollContentRef.current) {
         const maxScroll = scrollContentRef.current.scrollWidth - window.innerWidth;
         target = Math.max(0, Math.min(target, maxScroll));
@@ -308,7 +308,7 @@ export default function LandingPage() {
                 </div>
               </div>
               <div className="flex-1 w-full aspect-square border border-white/[0.04] bg-white/[0.04] relative flex items-center justify-center">
-                <div className="w-1/2 h-1/2 border border-white/20 rotate-45 animate-pulse" />
+                <div className="w-1/2 h-1/2 border border-white/30 rotate-45 animate-pulse" />
                 <div className="absolute inset-0 flex items-center justify-center">
                   <Globe size={120} strokeWidth={0.5} className="text-white/10" />
                 </div>
