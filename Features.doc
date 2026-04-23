@@ -1,0 +1,59 @@
+ShiftSync is a comprehensive workforce management platform designed specifically for frontline teams. It moves beyond static spreadsheets by integrating scheduling, attendance, payroll, and real-time communication into a single source of truth.
+
+Features
+
+1. User Onboarding & Identity Management
+The app uses Clerk for authentication, supporting a multi-tenant architecture where users belong to specific Organisations.
+
+Create or Join: New users either create a new organization (becoming the Admin) or join an existing one using a unique Organisation ID.
+Role-Based Access Control (RBAC): Permissions are strictly enforced both on the frontend (UI visibility) and backend (middleware).
+Admin: Full control over payroll, analytics, settings, and member roles.
+Manager: Can manage shifts, approve swaps, and view audit logs, but typically cannot process payroll or view high-level financial analytics unless permitted.
+Employee: Can view their schedule, clock in/out, request swaps, and message teammates.
+2. Scheduling & Shift Lifecycle
+Scheduling is the core of the app, managed via a Kanban-style interface.
+
+Shift Creation: Managers create shifts with titles, locations, and color tags. The backend performs SQL-level conflict detection to ensure an employee isn't double-booked.
+Status Workflow: Shifts move through a lifecycle: OPEN (unassigned) → ASSIGNED → IN_PROGRESS (currently clocked in) → COMPLETED.
+Real-time Updates: When a shift is created or updated, the change is broadcast via Socket.io to everyone in the organization, ensuring the roster is always up to date without page refreshes.
+3. Real-Time Attendance Tracking
+This feature connects the schedule to actual hours worked.
+
+Clock In/Out: Employees see their "Ready to Clock In" shifts on the Attendance page. When they clock in, a CLOCK_IN event is recorded with a timestamp.
+Live Attendance: Admins and Managers have a "Live Now" view. They can see exactly who is currently on shift, providing instant visibility into floor coverage.
+Timesheets: Once an employee clocks out, the system calculates the duration. Employees can view their personal timesheet for the month to track their earned hours.
+4. Shift Swapping Workflow
+To handle the common problem of last-minute changes, ShiftSync provides a formal swap request system.
+
+Requesting: An employee assigned to a shift can request a swap. They can either target a specific colleague or send the request to the "Open Pool."
+Manager Approval: Requests appear on the Manager’s dashboard. Managers see the reason for the swap and can "Approve" or "Reject" with one click.
+Auto-Update: Upon approval, the system automatically reassigns the shift to the new member and notifies both parties instantly.
+5. Payroll, Rates & Overtime
+Payroll is calculated automatically based on clock events, removing manual data entry.
+
+Pay Periods: Admins define cycles (e.g., Bi-weekly).
+Overtime Rules: The system applies daily (8h) and weekly (40h) thresholds. If an employee exceeds these, the "Overtime Multiplier" is applied to those specific hours.
+Employee Rates: Each member has an hourly rate. Admins can set "Effective Dates" for rate changes, ensuring historical payroll remains accurate even if a person gets a raise mid-period.
+Payslip Generation: Once a period is "Processed," the system generates a breakdown of base hours vs. OT hours. These are then available as downloadable PDFs.
+6. Organizational Communication
+Announcements: Admins can post "Global" or "Targeted" announcements.
+Priority Levels: NORMAL, HIGH, or URGENT (marked with high-contrast UI).
+Targeting: Announcements can be sent to the whole company or a specific individual (acting as a formal notification).
+Direct Messaging: A peer-to-peer chat system allows team members to coordinate. It includes real-time typing indicators and unread message tracking.
+7. Analytics & Business Intelligence
+Exclusively for Admins, the Analytics dashboard provides a high-level view of organizational health.
+
+Workforce Velocity: A bar chart comparing "Total Scheduled Shifts" vs. "Completed Shifts" to identify absenteeism or scheduling gaps.
+Coverage Rate: A line chart showing what percentage of the required labor was actually met throughout the week.
+Financial KPIs: Live tracking of Total Labor Cost and Total Hours Tracked for the current month.
+8. Audit Logging & Accountability
+Security and accountability are maintained through a detailed audit trail.
+
+Traceability: Every "write" operation (creating a shift, deleting a member, changing a pay rate) is logged.
+State Diffs: For updates, the system stores the "Before" and "After" JSON states, so Admins can see exactly what changed.
+Metadata: Logs include the IP address and User Agent of the person who performed the action to prevent unauthorized access disputes.
+9. The Real-Time Engine (Socket.io)
+Under the hood, the app uses a dual-room socket strategy:
+
+org:{id} Room: Used for broadcasts like new announcements, shift updates, and swap requests that the whole management team or staff needs to see.
+user:{id} Room: Used for private events, such as direct messages or notifications specifically for that user (e.g., "Your swap request was approved").
