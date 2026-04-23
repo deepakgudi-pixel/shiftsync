@@ -116,6 +116,7 @@ const WebGLHero = () => {
 export default function LandingPage() {
   const { isSignedIn } = useUser()
   const containerRef = useRef<HTMLDivElement>(null);
+  const scrollContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     // Momentum Scrolling Logic
@@ -126,9 +127,9 @@ export default function LandingPage() {
     const lerp = (start: number, end: number, factor: number) => start + (end - start) * factor;
 
     const update = () => {
-      current = lerp(current, target, 0.075); // Adjust 0.075 for "weight" (lower = smoother/slower)
-      if (containerRef.current) {
-        containerRef.current.scrollLeft = current;
+      current = lerp(current, target, 0.05); // Creamier lerp factor for "buttery" feel
+      if (scrollContentRef.current) {
+        scrollContentRef.current.style.transform = `translate3d(-${current}px, 0, 0)`;
       }
       
       if (Math.abs(target - current) > 0.1) {
@@ -137,11 +138,11 @@ export default function LandingPage() {
     };
 
     const handleWheel = (e: WheelEvent) => {
-      if (window.innerWidth < 768) return;
+      if (window.innerWidth < 640) return; // Horizontal for iPads/Tabs (sm breakpoint)
       e.preventDefault();
-      target += e.deltaY;
-      if (containerRef.current) {
-        const maxScroll = containerRef.current.scrollWidth - window.innerWidth;
+      target += e.deltaY * 1.1; // Balanced sensitivity
+      if (scrollContentRef.current) {
+        const maxScroll = scrollContentRef.current.scrollWidth - window.innerWidth;
         target = Math.max(0, Math.min(target, maxScroll));
       }
       cancelAnimationFrame(raf);
@@ -167,7 +168,7 @@ export default function LandingPage() {
   }, []);
 
   return (
-    <div className="min-h-screen md:h-screen bg-transparent text-white selection:bg-white selection:text-black overflow-x-hidden md:overflow-hidden font-sans">
+    <div className="min-h-screen sm:h-screen bg-transparent text-white selection:bg-white selection:text-black overflow-x-hidden sm:overflow-hidden font-sans">
       {/* Essential: Base background layer placed behind the WebGL canvas */}
       <div className="fixed inset-0 bg-[#050505] z-[-2]" />
 
@@ -190,7 +191,7 @@ export default function LandingPage() {
               </div>
               <span className="font-bold text-white text-sm tracking-[0.3em] uppercase">ShiftSync</span>
             </div>
-            <div className="hidden md:flex items-center gap-8">
+            <div className="hidden sm:flex items-center gap-8">
               <Link 
                 href={isSignedIn ? "/dashboard" : "/sign-up"} 
                 className="bg-white text-black px-6 py-2 rounded-none text-[9px] font-black uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95"
@@ -202,16 +203,17 @@ export default function LandingPage() {
         </div>
       </nav>
 
-      <div ref={containerRef} className="flex flex-col md:flex-row md:h-full md:w-full md:overflow-hidden">
+      <div ref={containerRef} className="sm:h-screen sm:w-screen sm:overflow-hidden">
+        <div ref={scrollContentRef} className="flex flex-col sm:flex-row sm:h-full will-change-transform">
         {/* Hero Section */}
-        <section className="relative w-full md:w-screen flex-shrink-0 min-h-screen md:h-full flex flex-col justify-center pt-32 pb-20 md:pt-60 md:pb-48 z-10 md:overflow-y-auto">
+        <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center pt-32 pb-20 sm:pt-60 sm:pb-48 z-10 sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left w-full">
             <h1 className="text-4xl sm:text-5xl md:text-[120px] font-bold leading-[1.1] text-white mb-12 tracking-[-0.02em] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
               THE FUTURE OF <br />
               MANAGEMENT<span className="text-white/20">.</span>
             </h1>
             
-            <div className="flex flex-col md:flex-row md:items-end justify-between gap-12 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
+            <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-12 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
               <p className="max-w-md text-sm md:text-base text-white/40 leading-relaxed font-light">
                 An autonomous orchestration layer for frontline teams. <br /> We solve the complexity of workforce scheduling with mathematical precision.
               </p>
@@ -229,7 +231,7 @@ export default function LandingPage() {
         </section>
 
         {/* Minimal Bento Grid */}
-        <section className="relative w-full md:w-screen flex-shrink-0 min-h-screen md:h-full flex flex-col justify-center py-16 md:py-24 z-10 md:overflow-y-auto">
+        <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center py-16 sm:py-24 z-10 sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-px bg-white/[0.04] border border-white/[0.04]">
               
@@ -260,7 +262,7 @@ export default function LandingPage() {
                   </p>
                   <div className="flex gap-1">
                     {[1, 2, 3, 4, 5, 6].map(i => (
-                      <div key={i} className="h-1 flex-1 bg-white/5 group-hover:bg-white/20 transition-all duration-700" style={{ transitionDelay: `${i * 100}ms` }} />
+                      <div key={i} className="h-1 flex-1 bg-white/5 group-hover:bg-white/80 transition-all duration-700" style={{ transitionDelay: `${i * 100}ms` }} />
                     ))}
                   </div>
                 </div>
@@ -283,7 +285,7 @@ export default function LandingPage() {
         </section>
 
         {/* Technical Specification Section */}
-        <section className="relative w-full md:w-screen flex-shrink-0 min-h-screen md:h-full flex flex-col justify-center py-20 md:py-32 md:overflow-hidden md:overflow-y-auto">
+        <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center py-20 sm:py-32 sm:overflow-hidden sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <div className="flex flex-col md:flex-row gap-20 items-center">
               <div className="flex-1">
@@ -316,7 +318,7 @@ export default function LandingPage() {
         </section>
 
         {/* Final Call to Action */}
-        <section className="relative w-full md:w-screen flex-shrink-0 min-h-screen md:h-full flex flex-col justify-center py-32 md:py-48 text-white md:overflow-y-auto">
+        <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center py-32 sm:py-48 text-white sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full">
             <h2 className="text-5xl md:text-[100px] font-bold tracking-tight mb-16 leading-tight">READY TO <br />TRANSFORM?</h2>
             <div className="flex justify-center">
@@ -329,6 +331,7 @@ export default function LandingPage() {
             </div>
           </div>
         </section>
+        </div>
       </div>
     </div>
   )
