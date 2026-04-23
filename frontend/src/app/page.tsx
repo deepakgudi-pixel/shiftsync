@@ -127,7 +127,7 @@ export default function LandingPage() {
     const lerp = (start: number, end: number, factor: number) => start + (end - start) * factor;
 
     const update = () => {
-      current = lerp(current, target, 0.035); // Lower factor = higher "friction" / more viscous feel
+      current = lerp(current, target, 0.1); // Increased for high responsiveness and "buttery" glide
       if (scrollContentRef.current) {
         scrollContentRef.current.style.transform = `translate3d(-${current}px, 0, 0)`;
       }
@@ -140,7 +140,7 @@ export default function LandingPage() {
     const handleWheel = (e: WheelEvent) => {
       if (window.innerWidth < 640) return; // Horizontal for iPads/Tabs (sm breakpoint)
       e.preventDefault();
-      target += e.deltaY * 1.3; // Increased leverage to balance the higher friction
+      target += e.deltaY; // Standard leverage for natural response
       if (scrollContentRef.current) {
         const maxScroll = scrollContentRef.current.scrollWidth - window.innerWidth;
         target = Math.max(0, Math.min(target, maxScroll));
