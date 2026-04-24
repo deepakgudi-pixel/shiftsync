@@ -2,17 +2,23 @@ const crypto = require('crypto');
 const ALGORITHM = 'aes-256-gcm';
 const IV_LENGTH = 12; // Standard for GCM
 
-const encrypt = (text) => {
-  if (!text) return text;
-  const keyStr = process.env.ENCRYPTION_KEY;
-  
-  // Safety check: key must be a 64-char hex string
-  if (!keyStr || keyStr.length !== 64) {
-    console.error("ShiftSync Crypto: ENCRYPTION_KEY missing or invalid length. Messaging will be plain-text.");
-    return text;
+const getEncryptionKey = () => {
+  const keyStr = process.env.ENCRYPTION_KEY?.trim();
+
+  if (!keyStr) {
+    throw new Error("ENCRYPTION_KEY is missing");
   }
 
-  const key = Buffer.from(keyStr, 'hex');
+  if (!/^[0-9a-fA-F]{64}$/.test(keyStr)) {
+    throw new Error("ENCRYPTION_KEY must be a 64-character hex string");
+  }
+
+  return Buffer.from(keyStr, 'hex');
+};
+
+const encrypt = (text) => {
+  if (!text) return text;
+  const key = getEncryptionKey();
   const iv = crypto.randomBytes(IV_LENGTH);
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv);
   
@@ -26,11 +32,11 @@ const encrypt = (text) => {
 
 const decrypt = (input) => {
   try {
-    const secret = Buffer.from(process.env.ENCRYPTION_KEY, 'hex');
     const segments = input.split(':');
 
     if (segments.length !== 3) return input;
 
+    const secret = getEncryptionKey();
     const [ivHex, tagHex, cipherHex] = segments;
 
     const decipher = crypto.createDecipheriv(ALGORITHM, secret, Buffer.from(ivHex, 'hex'));
