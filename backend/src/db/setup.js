@@ -98,7 +98,7 @@ const setup = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS audit_logs (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+        organisation_id TEXT REFERENCES organisations(id) ON DELETE SET NULL,
         member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
         clerk_user_id TEXT,
         action TEXT NOT NULL CHECK (action IN ('CREATE','UPDATE','DELETE','CLOCK_IN','CLOCK_OUT','APPROVE','REJECT','REQUEST')),
@@ -114,7 +114,7 @@ const setup = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS pay_periods (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+        organisation_id TEXT REFERENCES organisations(id) ON DELETE SET NULL,
         period_type TEXT NOT NULL CHECK (period_type IN ('WEEKLY','BIWEEKLY','SEMI_MONTHLY','MONTHLY')),
         start_date DATE NOT NULL, end_date DATE NOT NULL,
         status TEXT NOT NULL DEFAULT 'DRAFT' CHECK (status IN ('DRAFT','PROCESSED','PAID')),
@@ -125,7 +125,7 @@ const setup = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS overtime_rules (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+        organisation_id TEXT REFERENCES organisations(id) ON DELETE SET NULL,
         name TEXT NOT NULL DEFAULT 'Default Overtime Rule',
         daily_threshold_hours NUMERIC(4,2) DEFAULT 8,
         weekly_threshold_hours NUMERIC(4,2) DEFAULT 40,
@@ -167,7 +167,7 @@ const setup = async () => {
       CREATE TABLE IF NOT EXISTS events (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         seq BIGSERIAL,
-        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+        organisation_id TEXT REFERENCES organisations(id) ON DELETE SET NULL,
         member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
         event_type TEXT NOT NULL,
         entity_type TEXT NOT NULL,
