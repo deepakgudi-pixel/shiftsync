@@ -55,47 +55,68 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 - **Shift Management** — Create, assign, and track shifts with title, time, location, notes, and colour tags
 - **Conflict Detection** — SQL-level overlap check prevents double-booking the same employee
 - **Status Columns** — Shifts flow through: OPEN → ASSIGNED → IN_PROGRESS → COMPLETED
+- **Protected Shift Updates** — Once a shift has its first clock-in, time and assignee changes are locked to preserve attendance integrity
 - **Real-time Sync** — Shift changes broadcast instantly to all org members via Socket.io
-- **Shift Swapping** — Employees can request a swap on their assigned shifts; managers/admins approve or reject
+- **Shift Swapping** — Employees can request a swap on their assigned shifts, either to a specific teammate or the open pool; managers/admins approve or reject
+- **Assignment Notifications** — Assigned or cancelled shifts trigger user-specific notifications in real time
 
 ### Attendance
 - **Clock In/Out** — Employees clock into their assigned shifts; timestamps are tracked in the database
+- **Location Capture** — Clock events can store latitude/longitude for attendance verification
 - **Live Attendance View** — Managers and admins see who's currently clocked in, in real time
 - **My Timesheet** — Employees see their completed shifts and total hours for the current period
+- **Team Timesheets** — Admins and managers can review organisation-wide completed shifts, hours, and estimated earnings
 - **Overtime Alerts** — If a shift exceeds 8 hours, a notification is triggered
 
 ### Team Management
 - **Role-based Access** — Three roles (Admin, Manager, Employee) with escalating permissions
 - **Organisation Registry** — Each organisation has a unique ID for invite-based onboarding
+- **Multi-tenant Isolation** — All core queries are scoped to the signed-in member's organisation
 - **Manager Rate Permissions** — Admins can toggle whether managers can edit employee hourly rates
 - **Employee Rates** — Per-employee hourly rates with override support and effective-from dates
 - **Skills** — Members can have skills tags for filtering and shift matching
+- **Availability** — Members can store weekly availability by day and time window
+- **Self-service Profile Updates** — Members can update their own profile details, skills, phone, and hourly rate where allowed
 
 ### Payroll
 - **Pay Periods** — Create bi-weekly, weekly, semi-monthly or monthly pay periods
+- **Pay Period Timesheets** — Review employee-by-employee worked hours inside a pay period before processing
+- **Pay Period Summaries** — Live summary of employee count, base earnings, overtime earnings, and total labour cost
 - **Process Period** — Generate payslips for all employees based on clock events within the period date range
+- **Payroll Snapshots** — Processing freezes the active rates and overtime rules into snapshots for auditability
+- **Idempotent Processing** — Re-processing a completed period returns cached payroll results instead of duplicating records
+- **Reprocessing Support** — Admins can delete generated payslips/snapshots for a period and return it to DRAFT
 - **Overtime Rules** — Configurable daily threshold (default 8h) and weekly threshold (default 40h), with custom multipliers
 - **Employee Rate Overrides** — Set custom hourly rates per employee effective from a specific date
 - **Payslip Status** — DRAFT → PROCESSED → DOWNLOADED → PAID lifecycle
 - **PDF Payslips** — Downloadable official payslip documents with earnings breakdown
 - **Total Cost Summary** — Live total labour cost for the active pay period
+- **Organisation Currency** — Admins can configure the payroll currency used in payslips and totals
 
 ### Announcements
 - **Broadcast Messages** — Admins post announcements to the whole organisation
 - **Targeted Messages** — Send announcements to specific team members
 - **Priority Levels** — NORMAL, HIGH, or URGENT priority with visual distinction
 - **Real-time Delivery** — Socket.io pushes new announcements instantly to all members
+- **Announcement Notifications** — Targeted and organisation-wide announcements generate notification records
 
 ### Direct Messaging
 - **Peer-to-peer Chat** — Employees can message any team member
 - **Real-time** — Messages delivered instantly via Socket.io
 - **Unread Tracking** — Messages marked as read when conversation is opened
+- **Encrypted Storage** — Message content is encrypted at rest with AES-256-GCM when `ENCRYPTION_KEY` is configured
 
 ### Analytics (Admin Only)
 - **KPI Dashboard** — Total members, hours tracked, labour cost, efficiency score
 - **Weekly Distribution Chart** — Bar chart of total vs completed shifts by day
 - **Coverage Rate Chart** — Line chart showing shift completion percentage over the week
 - **Live Staff Count** — How many employees are currently on shift
+
+### Notifications & Event Feed
+- **In-app Notifications** — Shift assignments, cancellations, announcements, and overtime alerts are stored per user
+- **Read State** — Members can mark single notifications or all notifications as read
+- **Event Replay API** — Clients can fetch events since a timestamp to recover missed real-time updates after reconnects
+- **Typed Event History** — Organisation events are stored with event types for downstream UI refresh and audit workflows
 
 ### Audit Log (Admin/Manager)
 - **All Actions Tracked** — CREATE, UPDATE, DELETE, CLOCK_IN, CLOCK_OUT, APPROVE, REJECT, REQUEST
@@ -107,6 +128,18 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 ### Onboarding
 - **Create or Join** — New users create an organisation or join via an existing org ID
 - **Auto Role Assignment** — First member becomes Admin; subsequent members default to Employee
+
+### Security
+- **Clerk-backed Authentication** — API access requires verified Clerk JWTs for authenticated routes
+- **RBAC Enforcement** — Admin, Manager, and Employee permissions are enforced in backend middleware and route handlers
+- **Secure HTTP Headers** — Helmet config enables CSP, HSTS, clickjacking protection, MIME sniffing protection, and referrer policy controls
+- **CORS Restrictions** — API and Socket.io origins are restricted to the configured frontend URL
+- **Global Rate Limiting** — `/api` is protected with per-IP throttling to slow abuse
+- **Per-user Rate Limiting** — Sensitive route groups like shifts, attendance, payroll, and messages have member-scoped limits
+- **Input Validation** — Shift create/update and swap workflows validate and sanitize request payloads with `express-validator`
+- **Encrypted Messaging** — Direct message bodies can be encrypted using AES-256-GCM before storage
+- **Audit Trail for Auth Failures** — Missing or invalid bearer tokens are written to the audit log with request metadata
+- **Organisation-scoped Data Access** — Route queries and joins consistently restrict reads and writes to the caller's organisation
 
 ---
 
@@ -128,6 +161,8 @@ cd ../frontend && npm install
 ```env
 DATABASE_URL=postgresql://...
 CLERK_SECRET_KEY=sk_test_...
+CLERK_JWT_KEY=-----BEGIN PUBLIC KEY-----...
+ENCRYPTION_KEY=64_char_hex_key_for_aes_256_gcm
 PORT=4000
 FRONTEND_URL=http://localhost:3000
 ```
@@ -146,7 +181,7 @@ cd backend
 node src/db/setup.js
 ```
 
-This creates all tables: `organisations`, `members`, `shifts`, `clock_events`, `swap_requests`, `pay_periods`, `payslips`, `overtime_rules`, `employee_rates`, `announcements`, `messages`, `notifications`, `audit_logs`, and `availability`.
+This creates all tables: `organisations`, `members`, `shifts`, `clock_events`, `swap_requests`, `pay_periods`, `payslips`, `payroll_snapshots`, `overtime_rules`, `employee_rates`, `announcements`, `messages`, `notifications`, `audit_logs`, `events`, and `availability`.
 
 ### 4. Run the App
 
@@ -467,4 +502,3 @@ ALTER TABLE audit_logs ENABLE TRIGGER block_audit_update;
 | App tries to write to events/audit_logs | Works — INSERT is allowed, UPDATE/DELETE blocked by triggers |
 
 The audit system is your friend — it keeps your organisation's data honest and verifiable. Treat the triggers as a safety feature, not a limitation.
-
