@@ -5,12 +5,39 @@ const setup = async () => {
   try {
     await client.query("BEGIN");
 
-    // Add missing columns (safe to run even if column exists)
-    await client.query("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'");
-    await client.query("ALTER TABLE members ADD COLUMN IF NOT EXISTS phone TEXT");
-    await client.query("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1");
-    await client.query("ALTER TABLE events ADD COLUMN IF NOT EXISTS seq BIGSERIAL");
-    await client.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_member_id TEXT REFERENCES members(id) ON DELETE SET NULL");
+    // Fix existing FK constraints that use ON DELETE CASCADE — replace with SET NULL so
+    // the append-only trigger on audit_logs and events doesn't block org deletion.
+    // These are no-ops if the constraint name doesn't exist or already uses SET NULL.
+    await client.query(`
+      DO $$
+      BEGIN
+        -- audit_logs
+        ALTER TABLE audit_logs DROP CONSTRAINT IF EXISTS audit_logs_organisation_id_fkey;
+        ALTER TABLE audit_logs ADD CONSTRAINT audit_logs_organisation_id_fkey
+          FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE SET NULL;
+
+        -- events
+        ALTER TABLE events DROP CONSTRAINT IF EXISTS events_organisation_id_fkey;
+        ALTER TABLE events ADD CONSTRAINT events_organisation_id_fkey
+          FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE SET NULL;
+
+        -- pay_periods
+        ALTER TABLE pay_periods DROP CONSTRAINT IF EXISTS pay_periods_organisation_id_fkey;
+        ALTER TABLE pay_periods ADD CONSTRAINT pay_periods_organisation_id_fkey
+          FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE SET NULL;
+
+        -- overtime_rules
+        ALTER TABLE overtime_rules DROP CONSTRAINT IF EXISTS overtime_rules_organisation_id_fkey;
+        ALTER TABLE overtime_rules ADD CONSTRAINT overtime_rules_organisation_id_fkey
+          FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE SET NULL;
+
+        -- payroll_snapshots org FK
+        ALTER TABLE payroll_snapshots DROP CONSTRAINT IF EXISTS payroll_snapshots_organisation_id_fkey;
+        ALTER TABLE payroll_snapshots ADD CONSTRAINT payroll_snapshots_organisation_id_fkey
+          FOREIGN KEY (organisation_id) REFERENCES organisations(id) ON DELETE SET NULL;
+      END;
+      $$;
+    `);
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS organisations (
