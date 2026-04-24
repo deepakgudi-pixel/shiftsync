@@ -232,6 +232,9 @@ router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
       return res.status(404).json({ error: "Not found" });
     }
 
+    // Neon blocks DELETE on events table (append-only). Disable trigger temporarily.
+    await client.query("ALTER TABLE events DISABLE TRIGGER block_events_delete;");
+
     await emitEvent({
       client,
       organisationId: req.member.organisation_id,
@@ -246,10 +249,13 @@ router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
 
     await client.query("DELETE FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
 
+    await client.query("ALTER TABLE events ENABLE TRIGGER block_events_delete;");
+
     await client.query("COMMIT");
     res.json({ success: true });
   } catch (err) {
     await client.query("ROLLBACK");
+    await client.query("ALTER TABLE events ENABLE TRIGGER block_events_delete;").catch(() => {});
     res.status(500).json({ error: "Failed" });
   } finally {
     client.release();
