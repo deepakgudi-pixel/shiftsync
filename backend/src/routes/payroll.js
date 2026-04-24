@@ -1,7 +1,10 @@
 const router = require("express").Router();
+const { pool } = require("../db/client");
 const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
+const { emitEvent } = require("../lib/eventEmitter");
+const { EVENT_TYPES } = require("../lib/events");
 
 // Helper: calculate overtime components from a set of daily hours
 const calcOvertime = (dailyHours, rule) => {
@@ -211,25 +214,53 @@ router.get("/pay-periods/:id/summary", requireAuth, async (req, res) => {
 
 // Process pay period: lock and generate payslips
 router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const client = await pool.connect();
   try {
     const period = await query("SELECT * FROM pay_periods WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
     if (!period.rows.length) return res.status(404).json({ error: "Pay period not found" });
     if (period.rows[0].status !== "DRAFT") return res.status(400).json({ error: "Period already processed" });
 
-    // Idempotency: check if payslips already exist for this period
-    const existingPayslips = await query("SELECT COUNT(*) FROM payslips WHERE pay_period_id=$1", [req.params.id]);
-    if (parseInt(existingPayslips.rows[0].count) > 0) {
-      return res.status(409).json({ error: "Payslips already exist for this period. Delete them first to reprocess." });
+    // Idempotency: if snapshots already exist, return cached results
+    const existingSnapshots = await client.query(
+      "SELECT COUNT(*) FROM payroll_snapshots WHERE pay_period_id=$1",
+      [req.params.id]
+    );
+    if (parseInt(existingSnapshots.rows[0].count) > 0) {
+      const snapshots = await client.query(`
+        SELECT ps.*, m.name, m.avatar_url
+        FROM payroll_snapshots ps
+        JOIN members m ON ps.member_id = m.id
+        WHERE ps.pay_period_id = $1
+        ORDER BY m.name
+      `, [req.params.id]);
+
+      const payslips = await client.query(
+        "SELECT * FROM payslips WHERE pay_period_id=$1",
+        [req.params.id]
+      );
+
+      return res.json({
+        cached: true,
+        message: "Pay period was already processed",
+        snapshots: snapshots.rows,
+        payslips: payslips.rows,
+      });
     }
 
-    const org = await query("SELECT currency FROM organisations WHERE id=$1", [req.member.organisation_id]);
+    const org = await client.query("SELECT currency FROM organisations WHERE id=$1", [req.member.organisation_id]);
     const currency = org.rows[0]?.currency || "USD";
 
-    const rules = await query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
-    const rule = rules.rows[0] || { daily_threshold_hours: 8, weekly_threshold_hours: 40, daily_multiplier: 1.5 };
+    // Capture current rules and rates — frozen at processing time
+    const rules = await client.query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
+    const rule = rules.rows[0] || {
+      id: null,
+      daily_threshold_hours: 8,
+      weekly_threshold_hours: 40,
+      daily_multiplier: 1.5,
+      weekly_multiplier: 1.5,
+    };
 
-    // Single query: all employees with their effective rates
-    const empResult = await query(`
+    const empResult = await client.query(`
       SELECT m.id, m.name,
         er.hourly_rate as override_rate, m.hourly_rate,
         COALESCE(er.overtime_multiplier, $2) as ot_mult
@@ -238,14 +269,12 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
       WHERE m.organisation_id=$1 AND m.role='EMPLOYEE'
     `, [req.member.organisation_id, rule.daily_multiplier, period.rows[0].end_date]);
 
-    // Single query: ALL shifts for the period — no N+1
     const shiftRows = await fetchAllShiftsForPeriod(
       req.member.organisation_id,
       period.rows[0].start_date,
       period.rows[0].end_date
     );
 
-    // Group shifts by employee
     const shiftsByEmp = {};
     for (const row of shiftRows) {
       if (!row.assignee_id) continue;
@@ -270,7 +299,6 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
         continue;
       }
 
-      // Build daily hours map
       const byDay = {};
       for (const s of empShifts) {
         const h = Math.max(0, parseFloat(s.raw_hours) || 0);
@@ -285,7 +313,28 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
       const baseEarn = baseHours * hourlyRate;
       const otEarn = overtimeHours * hourlyRate * otMult;
 
-      const result = await query(
+      // Capture snapshot BEFORE payslip
+      await client.query(`
+        INSERT INTO payroll_snapshots (
+          pay_period_id, organisation_id, member_id,
+          hourly_rate, effective_rate_id, overtime_multiplier,
+          rule_id, rule_daily_threshold_hours, rule_weekly_threshold_hours,
+          rule_daily_multiplier, rule_weekly_multiplier,
+          total_hours, base_hours, overtime_hours,
+          base_earnings, overtime_earnings, total_earnings,
+          generated_by
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
+      `, [
+        req.params.id, req.member.organisation_id, emp.id,
+        hourlyRate, emp.override_rate ? emp.id : null, otMult,
+        rule.id || null, rule.daily_threshold_hours, rule.weekly_threshold_hours,
+        rule.daily_multiplier, rule.weekly_multiplier,
+        Math.round(totalHours * 100) / 100, Math.round(baseHours * 100) / 100, Math.round(overtimeHours * 100) / 100,
+        Math.round(baseEarn * 100) / 100, Math.round(otEarn * 100) / 100, Math.round((baseEarn + otEarn) * 100) / 100,
+        req.member.id,
+      ]);
+
+      const result = await client.query(
         `INSERT INTO payslips (member_id, pay_period_id, organisation_id, base_hours, overtime_hours, overtime_rate, base_earnings, overtime_earnings, total_earnings, currency, generated_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
         [emp.id, req.params.id, req.member.organisation_id,
@@ -296,7 +345,19 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
       generated.push({ id: result.rows[0].id, name: emp.name, totalEarn: Math.round((baseEarn + otEarn) * 100) / 100 });
     }
 
-    await query("UPDATE pay_periods SET status='PROCESSED', processed_at=NOW() WHERE id=$1", [req.params.id]);
+    await client.query("UPDATE pay_periods SET status='PROCESSED', processed_at=NOW() WHERE id=$1", [req.params.id]);
+
+    await emitEvent({
+      client,
+      organisationId: req.member.organisation_id,
+      memberId: req.member.id,
+      eventType: EVENT_TYPES.PAY_PERIOD_PROCESSED,
+      entityType: "pay_period",
+      entityId: req.params.id,
+      payload: { generated: generated.length, skipped: skipped.length },
+      req,
+    });
+
     await logAudit({
       organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId,
       action: "UPDATE", entityType: "pay_period", entityId: req.params.id,
@@ -309,7 +370,12 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
       generated,
       skipped,
     });
-  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to process period" }); }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Failed to process period" });
+  } finally {
+    client.release();
+  }
 });
 
 // Mark period as paid
@@ -324,10 +390,21 @@ router.post("/pay-periods/:id/paid", requireAuth, requireRole("ADMIN"), async (r
 // Delete payslips for a period (to allow reprocessing)
 router.delete("/pay-periods/:id/payslips", requireAuth, requireRole("ADMIN"), async (req, res) => {
   try {
-    const result = await query("DELETE FROM payslips WHERE pay_period_id=$1 AND organisation_id=$2 RETURNING id", [req.params.id, req.member.organisation_id]);
-    await query("UPDATE pay_periods SET status='DRAFT', processed_at=NULL WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "payslip_batch", entityId: req.params.id, oldValues: { count: result.rowCount }, req });
-    res.json({ success: true, deleted: result.rowCount });
+    const client = await pool.connect();
+    try {
+      await client.query("BEGIN");
+      await client.query("DELETE FROM payroll_snapshots WHERE pay_period_id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+      const result = await client.query("DELETE FROM payslips WHERE pay_period_id=$1 AND organisation_id=$2 RETURNING id", [req.params.id, req.member.organisation_id]);
+      await client.query("UPDATE pay_periods SET status='DRAFT', processed_at=NULL WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+      await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "payslip_batch", entityId: req.params.id, oldValues: { count: result.rowCount }, req });
+      await client.query("COMMIT");
+      res.json({ success: true, deleted: result.rowCount });
+    } catch (err) {
+      await client.query("ROLLBACK");
+      throw err;
+    } finally {
+      client.release();
+    }
   } catch (err) { res.status(500).json({ error: "Failed" }); }
 });
 

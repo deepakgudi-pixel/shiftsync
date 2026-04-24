@@ -2,6 +2,8 @@ const router = require("express").Router();
 const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
+const { emitEvent } = require("../lib/eventEmitter");
+const { EVENT_TYPES } = require("../lib/events");
 const { body, param, validationResult } = require("express-validator");
 
 router.get("/", requireAuth, async (req, res) => {
@@ -96,6 +98,7 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), [
       req.io.to(`user:${assigneeId}`).emit("notification", { type: "SHIFT_ASSIGNED", shift });
     }
     req.io.to(`org:${req.member.organisation_id}`).emit("shift:created", shift);
+    await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SHIFT_CREATED, entityType: "shift", entityId: shift.id, payload: shift, req });
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CREATE", entityType: "shift", entityId: shift.id, newValues: shift, req });
     res.status(201).json(shift);
   } catch (err) { console.error(err); res.status(500).json({ error: "Failed to create shift" }); }
@@ -135,11 +138,13 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       }
     }
 
+    const currentVersion = existing.rows[0].version;
+
     const result = await query(
       `UPDATE shifts SET title=COALESCE($1,title), start_time=COALESCE($2,start_time), end_time=COALESCE($3,end_time),
        location=$4, notes=$5, color=COALESCE($6,color), assignee_id=COALESCE($7,assignee_id),
-       status=COALESCE($8, CASE WHEN $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' WHEN $7 IS NULL THEN 'OPEN' ELSE status END), updated_at=NOW()
-       WHERE id=$9 RETURNING *`,
+       status=COALESCE($8, CASE WHEN $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' WHEN $7 IS NULL THEN 'OPEN' ELSE status END), updated_at=NOW(), version=version+1
+       WHERE id=$9 AND version=$10 RETURNING *`,
       [
         title !== undefined ? title : null,
         startTime ? new Date(startTime) : null,
@@ -149,9 +154,17 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
         color !== undefined ? color : null,
         assigneeId ? assigneeId : null,
         status !== undefined ? status : null,
-        req.params.id
+        req.params.id,
+        currentVersion,
       ]
     );
+
+    if (!result.rows.length) {
+      return res.status(409).json({
+        error: "Shift was modified by another user. Please refresh and try again.",
+        conflictType: "VERSION_MISMATCH",
+      });
+    }
     const shift = result.rows[0];
     if (assigneeId && assigneeId !== existing.rows[0].assignee_id) {
       await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','Shift Assigned',$2,$3)`,
@@ -159,6 +172,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       req.io.to(`user:${assigneeId}`).emit("notification", { type: "SHIFT_ASSIGNED", shift });
     }
     req.io.to(`org:${req.member.organisation_id}`).emit("shift:updated", shift);
+    await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SHIFT_UPDATED, entityType: "shift", entityId: req.params.id, payload: { before: existing.rows[0], after: shift }, req });
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "shift", entityId: req.params.id, oldValues: existing.rows[0], newValues: shift, req });
     res.json(shift);
   } catch (err) { res.status(500).json({ error: "Failed to update" }); }
@@ -179,6 +193,7 @@ router.delete("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, r
     }
 
     const shift = existing.rows[0];
+    await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SHIFT_DELETED, entityType: "shift", entityId: req.params.id, payload: shift, req });
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "shift", entityId: req.params.id, oldValues: shift, req });
     await query("DELETE FROM shifts WHERE id=$1", [req.params.id]);
     if (shift.assignee_id) {
@@ -215,6 +230,7 @@ router.post("/:id/swap", requireAuth, [
        WHERE sr.id = $1`, [result.rows[0].id]);
 
     req.io.to(`org:${req.member.organisation_id}`).emit("swap:requested", details.rows[0]);
+    await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SWAP_REQUESTED, entityType: "swap_request", entityId: result.rows[0].id, payload: details.rows[0], req });
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "REQUEST", entityType: "swap_request", entityId: result.rows[0].id, newValues: result.rows[0], req });
     res.status(201).json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed" }); }
@@ -239,8 +255,11 @@ router.patch("/:id/swap/:swapId", requireAuth, requireRole("ADMIN","MANAGER"), [
       
       const updatedShift = await query("SELECT s.*, m.name as assignee_name FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id WHERE s.id=$1", [swap.shift_id]);
       req.io.to(`org:${req.member.organisation_id}`).emit("shift:updated", updatedShift.rows[0]);
+      await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SHIFT_ASSIGNED, entityType: "shift", entityId: swap.shift_id, payload: updatedShift.rows[0], req });
     }
 
+    const eventType = status === 'APPROVED' ? EVENT_TYPES.SWAP_APPROVED : EVENT_TYPES.SWAP_REJECTED;
+    await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType, entityType: "swap_request", entityId: swap.id, payload: swap, req });
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: status === 'APPROVED' ? 'APPROVE' : 'REJECT', entityType: "swap_request", entityId: swap.id, oldValues: { status: 'PENDING' }, newValues: swap, req });
     await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,$2,$3,$4,$5)`,
       [swap.requester_id, `SWAP_${status}`, `Swap ${status}`, `Your swap request was ${status.toLowerCase()}`, JSON.stringify({ shiftId: swap.shift_id })]);

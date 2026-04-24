@@ -18,6 +18,9 @@ const initSocket = (io) => {
   });
 
   io.on("connection", (socket) => {
+    // Emit server time so clients can compute lastEventTimestamp gap on reconnect
+    socket.emit("connected", { serverTime: new Date().toISOString() });
+
     socket.on("join:org", async ({ organisationId, memberId }) => {
       try {
         // Verify memberId belongs to the authenticated user

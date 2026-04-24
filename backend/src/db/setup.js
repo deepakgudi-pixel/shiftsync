@@ -8,6 +8,7 @@ const setup = async () => {
     // Add missing columns (safe to run even if column exists)
     await client.query("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'");
     await client.query("ALTER TABLE members ADD COLUMN IF NOT EXISTS phone TEXT");
+    await client.query("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1");
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS organisations (
@@ -161,6 +162,50 @@ const setup = async () => {
       );
     `);
     await client.query(`
+      CREATE TABLE IF NOT EXISTS events (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+        member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
+        event_type TEXT NOT NULL,
+        entity_type TEXT NOT NULL,
+        entity_id TEXT,
+        payload JSONB NOT NULL DEFAULT '{}',
+        ip_address TEXT,
+        user_agent TEXT,
+        created_at TIMESTAMPTZ DEFAULT NOW()
+      );
+    `);
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS payroll_snapshots (
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        pay_period_id TEXT NOT NULL REFERENCES pay_periods(id) ON DELETE CASCADE,
+        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
+        member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+        hourly_rate NUMERIC(10,2) NOT NULL,
+        effective_rate_id TEXT,
+        overtime_multiplier NUMERIC(3,2) NOT NULL,
+        rule_id TEXT,
+        rule_daily_threshold_hours NUMERIC(4,2) NOT NULL,
+        rule_weekly_threshold_hours NUMERIC(4,2) NOT NULL,
+        rule_daily_multiplier NUMERIC(3,2) NOT NULL,
+        rule_weekly_multiplier NUMERIC(3,2) NOT NULL,
+        total_hours NUMERIC(8,2) NOT NULL,
+        base_hours NUMERIC(8,2) NOT NULL,
+        overtime_hours NUMERIC(8,2) NOT NULL,
+        base_earnings NUMERIC(12,2) NOT NULL,
+        overtime_earnings NUMERIC(12,2) NOT NULL,
+        total_earnings NUMERIC(12,2) NOT NULL,
+        generated_by TEXT REFERENCES members(id),
+        created_at TIMESTAMPTZ DEFAULT NOW(),
+        UNIQUE(pay_period_id, member_id)
+      );
+    `);
+    await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_events_org_type ON events(organisation_id, event_type);
+      CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id);
+      CREATE INDEX IF NOT EXISTS idx_events_member ON events(member_id);
+      CREATE INDEX IF NOT EXISTS idx_events_created ON events(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_payroll_snapshots_period ON payroll_snapshots(pay_period_id);
       CREATE INDEX IF NOT EXISTS idx_shifts_org_start ON shifts(organisation_id, start_time);
       CREATE INDEX IF NOT EXISTS idx_shifts_assignee ON shifts(assignee_id);
       CREATE INDEX IF NOT EXISTS idx_clock_events_shift_type ON clock_events(shift_id, type);
