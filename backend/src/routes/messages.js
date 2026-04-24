@@ -1,6 +1,9 @@
 const router = require("express").Router();
+const { pool } = require("../db/client");
 const { query } = require("../db/client");
 const { requireAuth } = require("../middleware/auth");
+const { emitEvent } = require("../lib/eventEmitter");
+const { EVENT_TYPES } = require("../lib/events");
 
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -18,16 +21,38 @@ router.get("/", requireAuth, async (req, res) => {
 });
 
 router.post("/", requireAuth, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { receiverId, content } = req.body;
-    const result = await query(
+
+    await client.query("BEGIN");
+
+    const result = await client.query(
       `INSERT INTO messages (sender_id,receiver_id,content) VALUES ($1,$2,$3)
        RETURNING *, (SELECT name FROM members WHERE id=$1) as sender_name`,
       [req.member.id, receiverId, content]
     );
+
+    await emitEvent({
+      client,
+      organisationId: req.member.organisation_id,
+      memberId: req.member.id,
+      eventType: EVENT_TYPES.MESSAGE_SENT,
+      entityType: "message",
+      entityId: result.rows[0].id,
+      payload: result.rows[0],
+    });
+
+    await client.query("COMMIT");
+
     req.io.to(`user:${receiverId}`).emit("message:new", result.rows[0]);
     res.status(201).json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed" });
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;

@@ -1,7 +1,10 @@
 const router = require("express").Router();
+const { pool } = require("../db/client");
 const { query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
+const { emitEvent } = require("../lib/eventEmitter");
+const { EVENT_TYPES } = require("../lib/events");
 
 router.get("/", requireAuth, async (req, res) => {
   try {
@@ -20,7 +23,7 @@ router.get("/", requireAuth, async (req, res) => {
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const [member, avail, notifs] = await Promise.all([
-      query(`SELECT m.*, o.name as org_name, o.allow_manager_rates 
+      query(`SELECT m.*, o.name as org_name, o.allow_manager_rates
              FROM members m JOIN organisations o ON m.organisation_id = o.id WHERE m.id = $1`, [req.member.id]),
       query("SELECT * FROM availability WHERE member_id = $1 ORDER BY day_of_week", [req.member.id]),
       query("SELECT * FROM notifications WHERE member_id = $1 AND read = FALSE ORDER BY created_at DESC LIMIT 10", [req.member.id]),
@@ -31,31 +34,68 @@ router.get("/me", requireAuth, async (req, res) => {
 });
 
 router.post("/onboard", async (req, res) => {
+  const client = await pool.connect();
   try {
     const { clerkUserId, email, name, organisationId, organisationName } = req.body;
     let orgId = organisationId;
+
+    await client.query("BEGIN");
+
     if (!orgId && organisationName) {
-      const slug = `${organisationName.toLowerCase().replace(/\s+/g,"-").replace(/[^a-z0-9-]/g,"")}-${Date.now()}`;
-      const org = await query("INSERT INTO organisations (name, slug) VALUES ($1,$2) RETURNING id", [organisationName, slug]);
+      const slug = `${organisationName.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}-${Date.now()}`;
+      const org = await client.query("INSERT INTO organisations (name, slug) VALUES ($1, $2) RETURNING *", [organisationName, slug]);
       orgId = org.rows[0].id;
     }
-    if (!orgId) return res.status(400).json({ error: "Organisation required" });
-    const existing = await query("SELECT * FROM members WHERE clerk_user_id = $1", [clerkUserId]);
-    if (existing.rows.length) return res.json(existing.rows[0]);
-    const count = await query("SELECT COUNT(*) FROM members WHERE organisation_id = $1", [orgId]);
+    if (!orgId) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({ error: "Organisation required" });
+    }
+
+    const existing = await client.query("SELECT * FROM members WHERE clerk_user_id = $1", [clerkUserId]);
+    if (existing.rows.length) {
+      await client.query("COMMIT");
+      return res.json(existing.rows[0]);
+    }
+
+    const count = await client.query("SELECT COUNT(*) FROM members WHERE organisation_id = $1", [orgId]);
     const isFirst = parseInt(count.rows[0].count) === 0;
-    const result = await query(
-      "INSERT INTO members (clerk_user_id, email, name, role, organisation_id) VALUES ($1,$2,$3,$4,$5) RETURNING *",
+
+    const result = await client.query(
+      "INSERT INTO members (clerk_user_id, email, name, role, organisation_id) VALUES ($1, $2, $3, $4, $5) RETURNING *",
       [clerkUserId, email, name, isFirst ? "ADMIN" : "EMPLOYEE", orgId]
     );
+
+    await emitEvent({
+      client,
+      organisationId: orgId,
+      memberId: result.rows[0].id,
+      eventType: EVENT_TYPES.MEMBER_JOINED,
+      entityType: "member",
+      entityId: result.rows[0].id,
+      payload: result.rows[0],
+    });
+
+    await client.query("COMMIT");
     res.status(201).json(result.rows[0]);
-  } catch (err) { console.error(err); res.status(500).json({ error: "Failed to onboard" }); }
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error(err);
+    res.status(500).json({ error: "Failed to onboard" });
+  } finally {
+    client.release();
+  }
 });
 
 router.put("/me", requireAuth, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { name, phone, skills, hourlyRate } = req.body;
-    const result = await query(
+
+    await client.query("BEGIN");
+
+    const existing = await client.query("SELECT * FROM members WHERE id = $1", [req.member.id]);
+
+    const result = await client.query(
       `UPDATE members SET name=COALESCE($1,name), phone=COALESCE($2,phone),
        skills=COALESCE($3,skills), hourly_rate=COALESCE($4,hourly_rate), updated_at=NOW()
        WHERE id=$5 RETURNING *`,
@@ -64,55 +104,111 @@ router.put("/me", requireAuth, async (req, res) => {
         phone !== undefined ? phone : null,
         skills !== undefined ? skills : null,
         hourlyRate !== undefined ? hourlyRate : null,
-        req.member.id
+        req.member.id,
       ]
     );
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "member", entityId: req.member.id, oldValues: result.rows[0], newValues: result.rows[0], req });
+
+    await emitEvent({
+      client,
+      organisationId: req.member.organisation_id,
+      memberId: req.member.id,
+      eventType: EVENT_TYPES.MEMBER_UPDATED,
+      entityType: "member",
+      entityId: req.member.id,
+      payload: { before: existing.rows[0], after: result.rows[0] },
+    });
+
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "member", entityId: req.member.id, oldValues: existing.rows[0], newValues: result.rows[0], req });
+
+    await client.query("COMMIT");
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: "Failed to update" }); }
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed to update" });
+  } finally {
+    client.release();
+  }
 });
 
 router.put("/me/availability", requireAuth, async (req, res) => {
+  const client = await pool.connect();
   try {
     const { availability } = req.body;
-    await query("DELETE FROM availability WHERE member_id = $1", [req.member.id]);
+
+    await client.query("BEGIN");
+    await client.query("DELETE FROM availability WHERE member_id = $1", [req.member.id]);
     for (const a of availability) {
-      await query("INSERT INTO availability (member_id,day_of_week,start_time,end_time) VALUES ($1,$2,$3,$4)",
-        [req.member.id, a.dayOfWeek, a.startTime, a.endTime]);
+      await client.query(
+        "INSERT INTO availability (member_id,day_of_week,start_time,end_time) VALUES ($1,$2,$3,$4)",
+        [req.member.id, a.dayOfWeek, a.startTime, a.endTime]
+      );
     }
+    await client.query("COMMIT");
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed" });
+  } finally {
+    client.release();
+  }
 });
 
 router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, res) => {
+  const client = await pool.connect();
   try {
     const { role, hourly_rate, can_manage_rates } = req.body;
 
     if (req.member.role === 'MANAGER') {
-      // Managers cannot change roles or permissions
       if (role !== undefined) return res.status(403).json({ error: "Managers cannot change member roles" });
       if (can_manage_rates !== undefined) return res.status(403).json({ error: "Managers cannot change permissions" });
-      
-      // Check if this specific manager has permission
-      if (!req.member.can_manage_rates) {
-        return res.status(403).json({ error: "Manager rate editing is disabled for this organisation" });
-      }
-
-      // Managers can only edit employees
-      const target = await query("SELECT role FROM members WHERE id=$1", [req.params.id]);
+      if (!req.member.can_manage_rates) return res.status(403).json({ error: "Manager rate editing is disabled for this organisation" });
+      const target = await client.query("SELECT role FROM members WHERE id=$1", [req.params.id]);
       if (target.rows[0]?.role !== 'EMPLOYEE') return res.status(403).json({ error: "Managers can only set rates for employees" });
     }
 
-    const result = await query(
-      `UPDATE members SET role=COALESCE($1,role), hourly_rate=COALESCE($2,hourly_rate), 
+    await client.query("BEGIN");
+
+    const existing = await client.query("SELECT * FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+    if (!existing.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Member not found" });
+    }
+
+    const result = await client.query(
+      `UPDATE members SET role=COALESCE($1,role), hourly_rate=COALESCE($2,hourly_rate),
        can_manage_rates=COALESCE($3,can_manage_rates), updated_at=NOW()
        WHERE id=$4 AND organisation_id=$5 RETURNING *`,
-      [role !== undefined ? role : null, hourly_rate !== undefined ? hourly_rate : null,
-       can_manage_rates !== undefined ? can_manage_rates : null, req.params.id, req.member.organisation_id]
+      [
+        role !== undefined ? role : null,
+        hourly_rate !== undefined ? hourly_rate : null,
+        can_manage_rates !== undefined ? can_manage_rates : null,
+        req.params.id,
+        req.member.organisation_id,
+      ]
     );
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "member", entityId: req.params.id, oldValues: result.rows[0], newValues: result.rows[0], req });
+
+    if (role && role !== existing.rows[0].role) {
+      await emitEvent({
+        client,
+        organisationId: req.member.organisation_id,
+        memberId: req.member.id,
+        eventType: EVENT_TYPES.MEMBER_ROLE_CHANGED,
+        entityType: "member",
+        entityId: req.params.id,
+        payload: { before: existing.rows[0], after: result.rows[0] },
+      });
+    }
+
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "member", entityId: req.params.id, oldValues: existing.rows[0], newValues: result.rows[0], req });
+
+    await client.query("COMMIT");
     res.json(result.rows[0]);
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed" });
+  } finally {
+    client.release();
+  }
 });
 
 router.patch("/organisation/settings", requireAuth, requireRole("ADMIN"), async (req, res) => {
@@ -124,14 +220,40 @@ router.patch("/organisation/settings", requireAuth, requireRole("ADMIN"), async 
 });
 
 router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const client = await pool.connect();
   try {
     if (req.params.id === req.member.id) return res.status(400).json({ error: "Cannot remove yourself" });
-    const existing = await query("SELECT * FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
-    if (!existing.rows.length) return res.status(404).json({ error: "Not found" });
+
+    await client.query("BEGIN");
+
+    const existing = await client.query("SELECT * FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+    if (!existing.rows.length) {
+      await client.query("ROLLBACK");
+      return res.status(404).json({ error: "Not found" });
+    }
+
+    await emitEvent({
+      client,
+      organisationId: req.member.organisation_id,
+      memberId: req.member.id,
+      eventType: EVENT_TYPES.MEMBER_DELETED,
+      entityType: "member",
+      entityId: req.params.id,
+      payload: existing.rows[0],
+    });
+
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "member", entityId: req.params.id, oldValues: existing.rows[0], req });
-    await query("DELETE FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+
+    await client.query("DELETE FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
+
+    await client.query("COMMIT");
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed" });
+  } finally {
+    client.release();
+  }
 });
 
 module.exports = router;

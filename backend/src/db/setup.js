@@ -9,6 +9,8 @@ const setup = async () => {
     await client.query("ALTER TABLE organisations ADD COLUMN IF NOT EXISTS currency TEXT DEFAULT 'USD'");
     await client.query("ALTER TABLE members ADD COLUMN IF NOT EXISTS phone TEXT");
     await client.query("ALTER TABLE shifts ADD COLUMN IF NOT EXISTS version INTEGER NOT NULL DEFAULT 1");
+    await client.query("ALTER TABLE events ADD COLUMN IF NOT EXISTS seq BIGSERIAL");
+    await client.query("ALTER TABLE announcements ADD COLUMN IF NOT EXISTS target_member_id TEXT REFERENCES members(id) ON DELETE SET NULL");
 
     await client.query(`
       CREATE TABLE IF NOT EXISTS organisations (
@@ -164,6 +166,7 @@ const setup = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS events (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+        seq BIGSERIAL,
         organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
         member_id TEXT REFERENCES members(id) ON DELETE SET NULL,
         event_type TEXT NOT NULL,
@@ -201,6 +204,7 @@ const setup = async () => {
       );
     `);
     await client.query(`
+      CREATE INDEX IF NOT EXISTS idx_events_org_seq ON events(organisation_id, seq DESC);
       CREATE INDEX IF NOT EXISTS idx_events_org_type ON events(organisation_id, event_type);
       CREATE INDEX IF NOT EXISTS idx_events_entity ON events(entity_type, entity_id);
       CREATE INDEX IF NOT EXISTS idx_events_member ON events(member_id);
@@ -224,6 +228,51 @@ const setup = async () => {
       CREATE INDEX IF NOT EXISTS idx_payslips_member_period ON payslips(member_id, pay_period_id);
       CREATE INDEX IF NOT EXISTS idx_employee_rates_effective ON employee_rates(member_id, effective_from DESC);
     `);
+
+    // Event immutability trigger — prevents UPDATE or DELETE on events
+    await client.query(`
+      CREATE OR REPLACE FUNCTION block_events_modification()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        RAISE EXCEPTION 'events table is append-only: UPDATE and DELETE are not permitted';
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    await client.query(`
+      DROP TRIGGER IF EXISTS block_events_update ON events;
+      CREATE TRIGGER block_events_update
+        BEFORE UPDATE ON events
+        FOR EACH ROW EXECUTE FUNCTION block_events_modification();
+    `);
+    await client.query(`
+      DROP TRIGGER IF EXISTS block_events_delete ON events;
+      CREATE TRIGGER block_events_delete
+        BEFORE DELETE ON events
+        FOR EACH ROW EXECUTE FUNCTION block_events_modification();
+    `);
+
+    // Audit log immutability trigger — prevents UPDATE or DELETE on audit_logs
+    await client.query(`
+      CREATE OR REPLACE FUNCTION block_audit_modification()
+      RETURNS TRIGGER AS $$
+      BEGIN
+        RAISE EXCEPTION 'audit_logs table is append-only: UPDATE and DELETE are not permitted';
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+    await client.query(`
+      DROP TRIGGER IF EXISTS block_audit_update ON audit_logs;
+      CREATE TRIGGER block_audit_update
+        BEFORE UPDATE ON audit_logs
+        FOR EACH ROW EXECUTE FUNCTION block_audit_modification();
+    `);
+    await client.query(`
+      DROP TRIGGER IF EXISTS block_audit_delete ON audit_logs;
+      CREATE TRIGGER block_audit_delete
+        BEFORE DELETE ON audit_logs
+        FOR EACH ROW EXECUTE FUNCTION block_audit_modification();
+    `);
+
     await client.query("COMMIT");
     console.log("Database setup complete");
   } catch (err) {

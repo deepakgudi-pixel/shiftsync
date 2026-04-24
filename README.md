@@ -315,20 +315,38 @@ ShiftSync is a **multi-tenant, event-driven workforce state machine with financi
 - **ADMIN bypass** — global IP rate limiter skips ADMIN role
 - **Middleware chain order** — helmet → cors → express.json({ limit: '1mb' }) → userRateLimit → apiLimiter → routes
 
+#### Event Immutability
+- **DB-level triggers** — `block_events_modification()` and `block_audit_modification()` functions raise exceptions on UPDATE or DELETE for `events` and `audit_logs` tables; both tables are strictly append-only
+- **`events.seq` BIGSERIAL** — monotonic ordering column on events table for cursor-based pagination; indexed `(organisation_id, seq DESC)`
+
 #### State Reconciliation
 - **`/api/events/since?since=<ISO>`** — event feed endpoint; returns up to 500 events after given timestamp; `hasMore` flag when results are capped
 - **`connected` socket event** — server emits `{ serverTime }` on every socket connect; clients use this to compute the `lastEventTimestamp` gap for rehydration
 - **Client reconnect protocol** — on reconnect: rejoin org room, fetch `/api/events/since?since={localStorage.lastEventTimestamp}`, replay events into local store, update baseline timestamp
+
+#### Event Emission (All Routes)
+All write operations emit events inside DB transactions. No route mutates state without emitting an event via `emitEvent({ client, ... })`:
+
+| Route | Events Emitted |
+|---|---|
+| `shifts.js` | `shift.created`, `shift.updated`, `shift.deleted`, `shift.assigned`, `shift.clock_in`, `shift.clock_out` |
+| `attendance.js` | `attendance.clock_in`, `attendance.clock_out`, `shift.clock_in`, `shift.clock_out` |
+| `payroll.js` | `pay_period.processed` |
+| `members.js` | `member.joined`, `member.updated`, `member.role_changed`, `member.deleted` |
+| `organisations.js` | `announcement.created`, `announcement.deleted` |
+| `overtime.js` | `overtime_rule.created`, `overtime_rule.updated`, `overtime_rule.deleted` |
+| `messages.js` | `message.sent` |
+
+#### Shift Lock After Clock-In
+- **Lock enforcement** — after first `CLOCK_IN` event exists for a shift, PUT rejects changes to `startTime`, `endTime`, and `assigneeId` with `409 SHIFT_LOCKED_AFTER_CLOCK_IN`
+- **Locked fields reported** — response includes `{ lockedFields: ["startTime", "endTime"] }` so clients can highlight what needs unlocking
 
 ### Remaining
 
 | Area | Gap | Priority |
 |---|---|---|
 | **Frontend reconnect** | `useSocket.ts` hook needs to implement full reconnection protocol with event replay on socket `connect` | High |
-| **Event sourcing rollout** | Remaining routes (members, organisations, overtime, announcements, messages) not yet emitting events transactionally | High |
 | **Payroll recompute path** | No explicit "recompute with current rules" override for cases where rule change legitimately should apply retroactively | Medium |
-| **Shift lock after clock-in** | After first clock-in, shift time edits should be disallowed or force a version snapshot (no auto-lock exists yet) | Medium |
-| **Audit/event immutability** | No DB-level constraint preventing UPDATE/DELETE on `audit_logs` or `events` tables | Medium |
 | **Sentry integration** | No error tracking for unhandled exceptions in Express handlers | Medium |
 | **Request ID tracing** | No `X-Request-ID` header propagated through the call chain for log correlation | Medium |
 | **Cursor-based pagination** | Audit log and event feed use offset pagination; degrades at large offsets | Low |

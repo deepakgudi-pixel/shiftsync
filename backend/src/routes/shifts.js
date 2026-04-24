@@ -128,6 +128,25 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
     );
     if (!existing.rows.length) return res.status(404).json({ error: "Not found" });
 
+    // Shift lock after clock-in — reject time or assignee changes once clocked in
+    const hasClockIn = await query(
+      `SELECT id FROM clock_events WHERE shift_id=$1 AND type='CLOCK_IN' LIMIT 1`,
+      [req.params.id]
+    );
+    if (hasClockIn.rows.length) {
+      const lockedFields = [];
+      if (startTime !== undefined) lockedFields.push("startTime");
+      if (endTime !== undefined) lockedFields.push("endTime");
+      if (assigneeId !== undefined) lockedFields.push("assigneeId");
+      if (lockedFields.length) {
+        return res.status(409).json({
+          error: "SHIFT_LOCKED_AFTER_CLOCK_IN",
+          message: "Shift time and assignee cannot be changed after the first clock-in.",
+          lockedFields,
+        });
+      }
+    }
+
     if (req.member.role === 'MANAGER') {
       if (existing.rows[0].assignee_id && existing.rows[0].assignee_id !== req.member.id && existing.rows[0].assignee_role !== 'EMPLOYEE') {
         return res.status(403).json({ error: "Cannot modify non-employee shifts" });

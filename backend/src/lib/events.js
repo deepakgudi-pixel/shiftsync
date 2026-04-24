@@ -23,6 +23,7 @@ const EVENT_TYPES = Object.freeze({
   MEMBER_JOINED: "member.joined",
   MEMBER_ROLE_CHANGED: "member.role_changed",
   MEMBER_UPDATED: "member.updated",
+  MEMBER_DELETED: "member.deleted",
 
   // Overtime rule events
   OVERTIME_RULE_CREATED: "overtime_rule.created",
@@ -36,6 +37,9 @@ const EVENT_TYPES = Object.freeze({
   // Announcement events
   ANNOUNCEMENT_CREATED: "announcement.created",
   ANNOUNCEMENT_DELETED: "announcement.deleted",
+
+  // Message events
+  MESSAGE_SENT: "message.sent",
 });
 
 module.exports = { EVENT_TYPES };
