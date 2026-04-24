@@ -355,3 +355,116 @@ All write operations emit events inside DB transactions. No route mutates state 
 
 ---
 
+## Database Management (For Database Owners)
+
+### How the Audit System Works
+
+ShiftSync records every action that changes data in your organisation. Every create, update, delete, clock-in, clock-out, approval, or rejection is logged with:
+
+- **Who** did it (member name)
+- **What** action was taken (CREATE, UPDATE, DELETE, etc.)
+- **Which** record was affected (entity type + ID)
+- **When** it happened (timestamp)
+- **Before/After state** (for updates and deletes — shows exactly what changed)
+- **Where** it came from (IP address, browser user agent)
+
+This is called an **immutable audit log** — once a record is written, it cannot be altered or deleted. This is critical for:
+
+- **Compliance** — proving data integrity to regulators, auditors, or legal proceedings
+- **Debugging** — tracing exactly what happened when something goes wrong
+- **Accountability** — knowing who changed what and when
+- **Financial reconciliation** — payroll decisions can be verified against the audit trail
+
+### Why the Triggers Exist
+
+ShiftSync uses PostgreSQL triggers to enforce **append-only** behavior on two tables:
+
+- `events` — the canonical event log
+- `audit_logs` — the audit trail
+
+The triggers block any UPDATE or DELETE on these tables:
+
+```
+RAISE EXCEPTION 'events table is append-only: UPDATE and DELETE are not permitted';
+```
+
+This means:
+- You can **INSERT** new records (adding to the log)
+- You cannot **UPDATE** existing records (cannot alter history)
+- You cannot **DELETE** records (cannot erase history)
+
+This is the same approach used by financial institutions, healthcare systems, and government databases where data integrity is legally required.
+
+### Normal App Usage — No Action Needed
+
+Everything in the ShiftSync app works normally. The triggers only block direct database edits — they do not affect the application.
+
+### When You Need to Delete Data Directly in Neon
+
+If you need to delete records directly from the Neon database editor (e.g., to clean up test data or remove a specific record), you must temporarily disable the triggers.
+
+**Follow these steps exactly — in order — or you may leave the database in a broken state.**
+
+#### Step 1 — Disable the triggers
+
+Run this in Neon's SQL editor:
+
+```sql
+ALTER TABLE events DISABLE TRIGGER block_events_delete;
+ALTER TABLE events DISABLE TRIGGER block_events_update;
+ALTER TABLE audit_logs DISABLE TRIGGER block_audit_delete;
+ALTER TABLE audit_logs DISABLE TRIGGER block_audit_update;
+```
+
+#### Step 2 — Delete what you need
+
+```sql
+-- Delete an organisation (cascades to all child records)
+DELETE FROM organisations WHERE id = 'your-org-id-here';
+
+-- Delete a specific member
+DELETE FROM members WHERE id = 'your-member-id-here';
+
+-- Delete a specific shift
+DELETE FROM shifts WHERE id = 'your-shift-id-here';
+```
+
+#### Step 3 — Re-enable the triggers
+
+```sql
+ALTER TABLE events ENABLE TRIGGER block_events_delete;
+ALTER TABLE events ENABLE TRIGGER block_events_update;
+ALTER TABLE audit_logs ENABLE TRIGGER block_audit_delete;
+ALTER TABLE audit_logs ENABLE TRIGGER block_audit_update;
+```
+
+### Why This Workflow Exists
+
+The trigger is designed to block accidental or unauthorized deletions. The SQL editor workaround exists so that **you** (the database owner) can still manage your data when needed, while keeping the audit trail protected from tampering.
+
+### What Happens If You Skip Step 3?
+
+If you delete records but forget to re-enable the triggers, the next time the app tries to write an audit log entry, it will fail silently (the app logs this as non-blocking) and the triggers will remain disabled until you run the Step 3 commands.
+
+### Emergency: Re-enable Everything at Once
+
+If something goes wrong, run this to restore all triggers:
+
+```sql
+ALTER TABLE events ENABLE TRIGGER block_events_delete;
+ALTER TABLE events ENABLE TRIGGER block_events_update;
+ALTER TABLE audit_logs ENABLE TRIGGER block_audit_delete;
+ALTER TABLE audit_logs ENABLE TRIGGER block_audit_update;
+```
+
+### Quick Reference
+
+| Scenario | What happens |
+|----------|--------------|
+| Using ShiftSync app | Everything works normally — triggers never interfere |
+| Deleting via Neon SQL editor without workaround | Error — triggers block the delete |
+| Deleting via Neon SQL editor WITH triggers disabled | Works — follows the 3-step workflow above |
+| App tries to write to events/audit_logs | Works — INSERT is allowed, UPDATE/DELETE blocked by triggers |
+
+The audit system is your friend — it keeps your organisation's data honest and verifiable. Treat the triggers as a safety feature, not a limitation.
+
