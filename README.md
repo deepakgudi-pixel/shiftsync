@@ -337,4 +337,3 @@ ShiftSync is a **multi-tenant, event-driven workforce state machine with financi
 
 ---
 
-## Deploy
