@@ -300,6 +300,40 @@ const setup = async () => {
         FOR EACH ROW EXECUTE FUNCTION block_audit_modification();
     `);
 
+    // Safe org deletion — disables immutability triggers, deletes in constraint-safe order, re-enables triggers
+    await client.query(`
+      CREATE OR REPLACE FUNCTION delete_organisation(org_id TEXT)
+      RETURNS void AS $$
+      BEGIN
+        ALTER TABLE audit_logs DISABLE TRIGGER block_audit_update;
+        ALTER TABLE audit_logs DISABLE TRIGGER block_audit_delete;
+        ALTER TABLE events DISABLE TRIGGER block_events_update;
+        ALTER TABLE events DISABLE TRIGGER block_events_delete;
+
+        DELETE FROM clock_events WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = org_id);
+        DELETE FROM swap_requests WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = org_id);
+        DELETE FROM shifts WHERE organisation_id = org_id;
+        DELETE FROM payslips WHERE organisation_id = org_id;
+        DELETE FROM payroll_snapshots WHERE organisation_id = org_id;
+        DELETE FROM pay_periods WHERE organisation_id = org_id;
+        DELETE FROM overtime_rules WHERE organisation_id = org_id;
+        DELETE FROM messages WHERE sender_id IN (SELECT id FROM members WHERE organisation_id = org_id)
+           OR receiver_id IN (SELECT id FROM members WHERE organisation_id = org_id);
+        DELETE FROM notifications WHERE member_id IN (SELECT id FROM members WHERE organisation_id = org_id);
+        DELETE FROM employee_rates WHERE member_id IN (SELECT id FROM members WHERE organisation_id = org_id);
+        DELETE FROM availability WHERE member_id IN (SELECT id FROM members WHERE organisation_id = org_id);
+        DELETE FROM announcements WHERE organisation_id = org_id;
+        DELETE FROM members WHERE organisation_id = org_id;
+        DELETE FROM organisations WHERE id = org_id;
+
+        ALTER TABLE audit_logs ENABLE TRIGGER block_audit_update;
+        ALTER TABLE audit_logs ENABLE TRIGGER block_audit_delete;
+        ALTER TABLE events ENABLE TRIGGER block_events_update;
+        ALTER TABLE events ENABLE TRIGGER block_events_delete;
+      END;
+      $$ LANGUAGE plpgsql;
+    `);
+
     await client.query("COMMIT");
     console.log("Database setup complete");
   } catch (err) {
