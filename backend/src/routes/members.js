@@ -153,6 +153,33 @@ router.put("/me/availability", requireAuth, async (req, res) => {
   }
 });
 
+router.patch("/organisation/settings", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  const client = await pool.connect();
+  try {
+    const { allow_manager_rates } = req.body;
+
+    await client.query("BEGIN");
+
+    await client.query(
+      "UPDATE organisations SET updated_at=NOW() WHERE id=$1",
+      [req.member.organisation_id]
+    );
+
+    await client.query(
+      `UPDATE members SET can_manage_rates=$1, updated_at=NOW() WHERE organisation_id=$2 AND role='MANAGER'`,
+      [allow_manager_rates === true, req.member.organisation_id]
+    );
+
+    await client.query("COMMIT");
+    res.json({ success: true, allow_manager_rates });
+  } catch (err) {
+    await client.query("ROLLBACK");
+    res.status(500).json({ error: "Failed to update settings" });
+  } finally {
+    client.release();
+  }
+});
+
 router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, res) => {
   const client = await pool.connect();
   try {

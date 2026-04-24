@@ -98,11 +98,18 @@ export default function SchedulePage() {
     ev.preventDefault()
     setLoading(true)
     try {
+      const payload = {
+        ...form,
+        startTime: new Date(form.startTime).toISOString(),
+        endTime: new Date(form.endTime).toISOString(),
+        assigneeId: form.assigneeId === '' ? null : form.assigneeId
+      }
+
       if (selected) {
-        await api.put(`/api/shifts/${selected.id}`, { ...form, startTime: new Date(form.startTime).toISOString(), endTime: new Date(form.endTime).toISOString() })
+        await api.put(`/api/shifts/${selected.id}`, payload)
         toast.success('Shift updated')
       } else {
-        await api.post('/api/shifts', { ...form, startTime: new Date(form.startTime).toISOString(), endTime: new Date(form.endTime).toISOString() })
+        await api.post('/api/shifts', payload)
         toast.success('Shift created')
       }
       setShowModal(false)

@@ -73,6 +73,8 @@ router.post("/clock-in", requireAuth, async (req, res) => {
       shiftId,
     });
 
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CLOCK_IN", entityType: "clock_event", entityId: ceResult.rows[0].id, newValues: ceResult.rows[0], req });
+
     res.status(201).json(ceResult.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
@@ -154,6 +156,8 @@ router.post("/clock-out", requireAuth, async (req, res) => {
       shiftId,
       hoursWorked,
     });
+
+    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CLOCK_OUT", entityType: "clock_event", entityId: ceResult.rows[0].id, newValues: { ...ceResult.rows[0], hoursWorked }, req });
 
     res.json({ ...ceResult.rows[0], hoursWorked });
   } catch (err) {

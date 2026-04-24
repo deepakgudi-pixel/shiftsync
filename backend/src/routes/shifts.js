@@ -119,7 +119,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
   body("title").optional().isString().trim().escape(),
   body("startTime").optional().isISO8601(),
   body("endTime").optional().isISO8601(),
-  body("assigneeId").optional().isUUID(),
+  body("assigneeId").optional({ nullable: true }).isUUID(),
   body("status").optional().isIn(["OPEN", "ASSIGNED", "IN_PROGRESS", "COMPLETED"]),
   body("location").optional().isString().trim(),
   body("notes").optional().isString().trim(),
@@ -127,7 +127,6 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
 ], async (req, res) => {
   const errors = validationResult(req);
   if (!errors.isEmpty()) return res.status(400).json({ errors: errors.array() });
-
   try {
     const { title, startTime, endTime, location, notes, color, assigneeId, status } = req.body;
     const existing = await query(
@@ -167,59 +166,109 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       }
     }
 
-    const currentVersion = existing.rows[0].version;
+    const assigneeDefined = req.body.assigneeId !== undefined;
+    const finalAssigneeId = (assigneeId && assigneeId !== '') ? assigneeId : null;
+
+    // If changing time or assignee, check for conflicts
+    if (startTime || endTime || assigneeDefined) {
+      const targetAssignee = assigneeDefined ? finalAssigneeId : existing.rows[0].assignee_id;
+      const targetStart = startTime ? new Date(startTime) : existing.rows[0].start_time;
+      const targetEnd = endTime ? new Date(endTime) : existing.rows[0].end_time;
+
+      if (targetAssignee) {
+        const conflict = await query(
+          `SELECT id FROM shifts WHERE assignee_id=$1 AND status IN ('ASSIGNED','IN_PROGRESS') AND id != $4
+           AND ((start_time<=$2 AND end_time>$2) OR (start_time<$3 AND end_time>=$3) OR (start_time>=$2 AND end_time<=$3))`,
+          [targetAssignee, targetStart, targetEnd, req.params.id]
+        );
+        if (conflict.rows.length) return res.status(409).json({ error: "Schedule conflict detected for this employee" });
+      }
+    }
+
+    // Build dynamic UPDATE based on what was provided
+    const updates = [];
+    const params = [];
+    let paramIdx = 1;
+
+    if (title !== undefined) {
+      updates.push(`title = $${paramIdx++}`);
+      params.push(title || null);
+    }
+    if (startTime) {
+      updates.push(`start_time = $${paramIdx++}`);
+      params.push(new Date(startTime));
+    }
+    if (endTime) {
+      updates.push(`end_time = $${paramIdx++}`);
+      params.push(new Date(endTime));
+    }
+    if (location !== undefined) {
+      updates.push(`location = $${paramIdx++}`);
+      params.push(location || null);
+    }
+    if (notes !== undefined) {
+      updates.push(`notes = $${paramIdx++}`);
+      params.push(notes || null);
+    }
+    if (color !== undefined) {
+      updates.push(`color = $${paramIdx++}`);
+      params.push(color || null);
+    }
+    if (assigneeDefined) {
+      updates.push(`assignee_id = $${paramIdx++}`);
+      params.push(finalAssigneeId);
+      // Auto-update status when assignee changes
+      if (finalAssigneeId) {
+        updates.push(`status = 'ASSIGNED'`);
+      } else {
+        updates.push(`status = 'OPEN'`);
+      }
+    }
+    if (status !== undefined) {
+      updates.push(`status = $${paramIdx++}`);
+      params.push(status);
+    }
+
+    updates.push(`updated_at = NOW()`);
+    params.push(req.params.id);
+    params.push(req.member.organisation_id);
 
     const result = await query(
-      `UPDATE shifts SET 
-       title=COALESCE($1,title), 
-       start_time=COALESCE($2,start_time), 
-       end_time=COALESCE($3,end_time),
-       location=$4, notes=$5, color=COALESCE($6,color), 
-       assignee_id=CASE WHEN $11 THEN $7 ELSE assignee_id END,
-       status=CASE 
-         WHEN $8 IS NOT NULL AND ($8 != status OR NOT $11) THEN $8 
-         WHEN $11 AND $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' 
-         WHEN $11 AND $7 IS NULL THEN 'OPEN' 
-         ELSE status END,
-       updated_at=NOW(), version=version+1
-       WHERE id=$9 AND version=$10 RETURNING *`,
-      [
-        title !== undefined ? title : null,
-        startTime ? new Date(startTime) : null,
-        endTime ? new Date(endTime) : null,
-        location !== undefined ? location : null,
-        notes !== undefined ? notes : null,
-        color !== undefined ? color : null,
-        assigneeId || null,
-        status !== undefined ? status : null,
-        req.params.id,
-        currentVersion,
-        assigneeId !== undefined
-      ]
+      `UPDATE shifts SET ${updates.join(', ')} WHERE id = $${paramIdx++} AND organisation_id = $${paramIdx} RETURNING *`,
+      params
     );
 
-    if (!result.rows.length) {
-      return res.status(409).json({
-        error: "Shift was modified by another user. Please refresh and try again.",
-        conflictType: "VERSION_MISMATCH",
-      });
-    }
+    if (!result.rows.length) return res.status(404).json({ error: "Shift not found" });
+
     const updated = result.rows[0];
-    const fullShift = await query(`
-      SELECT s.*, m.name as assignee_name, m.avatar_url as assignee_avatar 
-      FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id 
-      WHERE s.id = $1`, [updated.id]);
-    const shift = fullShift.rows[0];
+    let shift;
+    try {
+      const fullShift = await query(`
+        SELECT s.*, m.name as assignee_name, m.avatar_url as assignee_avatar
+        FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id
+        WHERE s.id = $1`, [updated.id]);
+      shift = fullShift.rows[0];
+    } catch (e) {
+      console.error("Failed to fetch full shift:", e.message);
+      shift = updated;
+    }
     if (assigneeId && assigneeId !== existing.rows[0].assignee_id) {
       await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','Shift Assigned',$2,$3)`,
         [assigneeId, `You have been assigned: ${shift.title}`, JSON.stringify({ shiftId: shift.id })]);
       req.io.to(`user:${assigneeId}`).emit("notification", { type: "SHIFT_ASSIGNED", shift });
     }
     req.io.to(`org:${req.member.organisation_id}`).emit("shift:updated", shift);
-    await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SHIFT_UPDATED, entityType: "shift", entityId: req.params.id, payload: { before: existing.rows[0], after: shift }, req });
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "shift", entityId: req.params.id, oldValues: existing.rows[0], newValues: shift, req });
+    try {
+      await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SHIFT_UPDATED, entityType: "shift", entityId: req.params.id, payload: { before: existing.rows[0], after: shift }, req });
+    } catch (e) { console.error("emitEvent failed:", e.message); }
+    try {
+      await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "shift", entityId: req.params.id, oldValues: existing.rows[0], newValues: shift, req });
+    } catch (e) { console.error("logAudit failed:", e.message); }
     res.json(shift);
-  } catch (err) { res.status(500).json({ error: "Failed to update" }); }
+  } catch (err) {
+    console.error("Update shift error:", err);
+    res.status(500).json({ error: "Failed to update shift" });
+  }
 });
 
 router.delete("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, res) => {
