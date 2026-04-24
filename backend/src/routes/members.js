@@ -11,7 +11,7 @@ router.get("/", requireAuth, async (req, res) => {
     const result = await query(
       `SELECT m.id, m.name, m.email, m.role, m.phone, m.skills, m.avatar_url, m.organisation_id, m.can_manage_rates, m.created_at, m.updated_at,
        CASE WHEN $2 = 'ADMIN' OR m.id = $3 OR ($2 = 'MANAGER' AND m.role = 'EMPLOYEE') THEN m.hourly_rate ELSE NULL END as hourly_rate,
-       (SELECT COUNT(*) FROM shifts s WHERE s.assignee_id = m.id AND s.status IN ('ASSIGNED','IN_PROGRESS') AND s.organisation_id = $1) as active_shifts
+       (SELECT COUNT(*) FROM shifts s WHERE s.assignee_id = m.id AND s.status IN ('ASSIGNED','IN_PROGRESS') AND s.organisation_id = m.organisation_id) as active_shifts
        FROM members m
        WHERE m.organisation_id = $1 ORDER BY m.name`,
       [req.member.organisation_id, req.member.role, req.member.id]

@@ -176,7 +176,11 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
        end_time=COALESCE($3,end_time),
        location=$4, notes=$5, color=COALESCE($6,color), 
        assignee_id=CASE WHEN $11 THEN $7 ELSE assignee_id END,
-       status=COALESCE($8, CASE WHEN $11 AND $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' WHEN $11 AND $7 IS NULL THEN 'OPEN' ELSE status END), 
+       status=CASE 
+         WHEN $8 IS NOT NULL AND ($8 != status OR NOT $11) THEN $8 
+         WHEN $11 AND $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' 
+         WHEN $11 AND $7 IS NULL THEN 'OPEN' 
+         ELSE status END,
        updated_at=NOW(), version=version+1
        WHERE id=$9 AND version=$10 RETURNING *`,
       [
