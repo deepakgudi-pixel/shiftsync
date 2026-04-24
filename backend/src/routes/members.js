@@ -11,7 +11,7 @@ router.get("/", requireAuth, async (req, res) => {
     const result = await query(
       `SELECT m.id, m.name, m.email, m.role, m.phone, m.skills, m.avatar_url, m.organisation_id, m.can_manage_rates, m.created_at, m.updated_at,
        CASE WHEN $2 = 'ADMIN' OR m.id = $3 OR ($2 = 'MANAGER' AND m.role = 'EMPLOYEE') THEN m.hourly_rate ELSE NULL END as hourly_rate,
-       (SELECT COUNT(*) FROM shifts s WHERE s.assignee_id = m.id AND s.status IN ('ASSIGNED','IN_PROGRESS')) as active_shifts
+       (SELECT COUNT(*) FROM shifts s WHERE s.assignee_id = m.id AND s.status IN ('ASSIGNED','IN_PROGRESS') AND s.organisation_id = $1) as active_shifts
        FROM members m
        WHERE m.organisation_id = $1 ORDER BY m.name`,
       [req.member.organisation_id, req.member.role, req.member.id]
@@ -183,80 +183,37 @@ router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, r
         hourly_rate !== undefined ? hourly_rate : null,
         can_manage_rates !== undefined ? can_manage_rates : null,
         req.params.id,
-        req.member.organisation_id,
+        req.member.organisation_id
       ]
     );
-
-    if (role && role !== existing.rows[0].role) {
-      await emitEvent({
-        client,
-        organisationId: req.member.organisation_id,
-        memberId: req.member.id,
-        eventType: EVENT_TYPES.MEMBER_ROLE_CHANGED,
-        entityType: "member",
-        entityId: req.params.id,
-        payload: { before: existing.rows[0], after: result.rows[0] },
-      });
-    }
-
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "UPDATE", entityType: "member", entityId: req.params.id, oldValues: existing.rows[0], newValues: result.rows[0], req });
-
-    await client.query("COMMIT");
-    res.json(result.rows[0]);
-  } catch (err) {
-    await client.query("ROLLBACK");
-    res.status(500).json({ error: "Failed" });
-  } finally {
-    client.release();
-  }
-});
-
-router.patch("/organisation/settings", requireAuth, requireRole("ADMIN"), async (req, res) => {
-  try {
-    const { allow_manager_rates } = req.body;
-    await query("UPDATE organisations SET allow_manager_rates=$1 WHERE id=$2", [allow_manager_rates ?? false, req.member.organisation_id]);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: "Failed to update settings" }); }
-});
-
-router.delete("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
-  const client = await pool.connect();
-  try {
-    if (req.params.id === req.member.id) return res.status(400).json({ error: "Cannot remove yourself" });
-
-    await client.query("BEGIN");
-
-    const existing = await client.query("SELECT * FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
-    if (!existing.rows.length) {
-      await client.query("ROLLBACK");
-      return res.status(404).json({ error: "Not found" });
-    }
-
-    // Neon blocks DELETE on events table (append-only). Disable trigger temporarily.
-    await client.query("ALTER TABLE events DISABLE TRIGGER block_events_delete;");
 
     await emitEvent({
       client,
       organisationId: req.member.organisation_id,
       memberId: req.member.id,
-      eventType: EVENT_TYPES.MEMBER_DELETED,
+      eventType: EVENT_TYPES.MEMBER_UPDATED,
       entityType: "member",
       entityId: req.params.id,
-      payload: existing.rows[0],
+      payload: { before: existing.rows[0], after: result.rows[0] },
     });
 
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "member", entityId: req.params.id, oldValues: existing.rows[0], req });
-
-    await client.query("DELETE FROM members WHERE id=$1 AND organisation_id=$2", [req.params.id, req.member.organisation_id]);
-
-    await client.query("ALTER TABLE events ENABLE TRIGGER block_events_delete;");
+    await logAudit({
+      organisationId: req.member.organisation_id,
+      memberId: req.member.id,
+      clerkUserId: req.clerkUserId,
+      action: "UPDATE",
+      entityType: "member",
+      entityId: req.params.id,
+      oldValues: existing.rows[0],
+      newValues: result.rows[0],
+      req
+    });
 
     await client.query("COMMIT");
-    res.json({ success: true });
+    res.json(result.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
-    await client.query("ALTER TABLE events ENABLE TRIGGER block_events_delete;").catch(() => {});
-    res.status(500).json({ error: "Failed" });
+    res.status(500).json({ error: "Failed to update member" });
   } finally {
     client.release();
   }

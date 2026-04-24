@@ -17,7 +17,10 @@ router.get("/", requireAuth, async (req, res) => {
       params.push(req.member.id);
       sql += ` AND (m.role = 'EMPLOYEE' OR s.assignee_id IS NULL OR s.assignee_id = $${params.length})`;
     }
-    if (start && end) { params.push(new Date(start), new Date(end)); sql += ` AND s.start_time >= $${params.length-1} AND s.start_time <= $${params.length}`; }
+    if (start && end) { 
+      params.push(new Date(start), new Date(end)); 
+      sql += ` AND (s.start_time <= $${params.length} AND s.end_time >= $${params.length-1})`; 
+    }
     if (assigneeId) { params.push(assigneeId); sql += ` AND s.assignee_id = $${params.length}`; }
     sql += " ORDER BY s.start_time ASC";
     const result = await query(sql, params);
@@ -91,7 +94,14 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), [
       [title, new Date(startTime), new Date(endTime), location||null, notes||null,
        color||"#4f6eff", assigneeId?"ASSIGNED":"OPEN", req.member.organisation_id, assigneeId||null]
     );
-    const shift = result.rows[0];
+
+    const inserted = result.rows[0];
+    const fullShift = await query(`
+      SELECT s.*, m.name as assignee_name, m.avatar_url as assignee_avatar 
+      FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id 
+      WHERE s.id = $1`, [inserted.id]);
+    const shift = fullShift.rows[0];
+
     if (assigneeId) {
       await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','New Shift Assigned',$2,$3)`,
         [assigneeId, `You have been assigned: ${title}`, JSON.stringify({ shiftId: shift.id })]);
@@ -160,9 +170,14 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
     const currentVersion = existing.rows[0].version;
 
     const result = await query(
-      `UPDATE shifts SET title=COALESCE($1,title), start_time=COALESCE($2,start_time), end_time=COALESCE($3,end_time),
-       location=$4, notes=$5, color=COALESCE($6,color), assignee_id=COALESCE($7,assignee_id),
-       status=COALESCE($8, CASE WHEN $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' WHEN $7 IS NULL THEN 'OPEN' ELSE status END), updated_at=NOW(), version=version+1
+      `UPDATE shifts SET 
+       title=COALESCE($1,title), 
+       start_time=COALESCE($2,start_time), 
+       end_time=COALESCE($3,end_time),
+       location=$4, notes=$5, color=COALESCE($6,color), 
+       assignee_id=CASE WHEN $11 THEN $7 ELSE assignee_id END,
+       status=COALESCE($8, CASE WHEN $11 AND $7 IS NOT NULL AND status = 'OPEN' THEN 'ASSIGNED' WHEN $11 AND $7 IS NULL THEN 'OPEN' ELSE status END), 
+       updated_at=NOW(), version=version+1
        WHERE id=$9 AND version=$10 RETURNING *`,
       [
         title !== undefined ? title : null,
@@ -171,10 +186,11 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
         location !== undefined ? location : null,
         notes !== undefined ? notes : null,
         color !== undefined ? color : null,
-        assigneeId ? assigneeId : null,
+        assigneeId || null,
         status !== undefined ? status : null,
         req.params.id,
         currentVersion,
+        assigneeId !== undefined
       ]
     );
 
@@ -184,7 +200,12 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
         conflictType: "VERSION_MISMATCH",
       });
     }
-    const shift = result.rows[0];
+    const updated = result.rows[0];
+    const fullShift = await query(`
+      SELECT s.*, m.name as assignee_name, m.avatar_url as assignee_avatar 
+      FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id 
+      WHERE s.id = $1`, [updated.id]);
+    const shift = fullShift.rows[0];
     if (assigneeId && assigneeId !== existing.rows[0].assignee_id) {
       await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','Shift Assigned',$2,$3)`,
         [assigneeId, `You have been assigned: ${shift.title}`, JSON.stringify({ shiftId: shift.id })]);
@@ -279,14 +300,20 @@ router.patch("/:id/swap/:swapId", requireAuth, requireRole("ADMIN","MANAGER"), [
 
     const eventType = status === 'APPROVED' ? EVENT_TYPES.SWAP_APPROVED : EVENT_TYPES.SWAP_REJECTED;
     await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType, entityType: "swap_request", entityId: swap.id, payload: swap, req });
-    await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: status === 'APPROVED' ? 'APPROVE' : 'REJECT', entityType: "swap_request", entityId: swap.id, oldValues: { status: 'PENDING' }, newValues: swap, req });
-    await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,$2,$3,$4,$5)`,
-      [swap.requester_id, `SWAP_${status}`, `Swap ${status}`, `Your swap request was ${status.toLowerCase()}`, JSON.stringify({ shiftId: swap.shift_id })]);
-    req.io.to(`user:${swap.requester_id}`).emit("notification", { type: `SWAP_${status}`, swap });
-    req.io.to(`org:${req.member.organisation_id}`).emit("swap:processed", { id: swap.id, status });
-
+    await logAudit({ 
+      organisationId: req.member.organisation_id, 
+      memberId: req.member.id, 
+      clerkUserId: req.clerkUserId, 
+      action: "UPDATE", 
+      entityType: "swap_request", 
+      entityId: swap.id, 
+      newValues: swap, 
+      req 
+    });
     res.json(swap);
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) { 
+    res.status(500).json({ error: "Failed" }); 
+  }
 });
 
 module.exports = router;

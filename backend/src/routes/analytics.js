@@ -8,10 +8,11 @@ router.get("/overview", requireAuth, requireRole("ADMIN","MANAGER"), async (req,
     const now = new Date();
     const startOfWeek = new Date(now); startOfWeek.setDate(now.getDate() - now.getDay()); startOfWeek.setHours(0,0,0,0);
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-    const [members, weekShifts, openShifts, monthDone, activeNow, hoursResult, byDayResult] = await Promise.all([
+    const [members, weekShifts, openShifts, assignedShifts, monthDone, activeNow, hoursResult, byDayResult] = await Promise.all([
       query("SELECT COUNT(*) FROM members WHERE organisation_id=$1", [orgId]),
       query("SELECT COUNT(*) FROM shifts WHERE organisation_id=$1 AND start_time>=$2", [orgId, startOfWeek]),
       query("SELECT COUNT(*) FROM shifts WHERE organisation_id=$1 AND status='OPEN'", [orgId]),
+      query("SELECT COUNT(*) FROM shifts WHERE organisation_id=$1 AND status='ASSIGNED'", [orgId]),
       query("SELECT COUNT(*) FROM shifts WHERE organisation_id=$1 AND status='COMPLETED' AND start_time>=$2", [orgId, startOfMonth]),
       query("SELECT COUNT(*) FROM shifts WHERE organisation_id=$1 AND status='IN_PROGRESS'", [orgId]),
       query(`SELECT SUM(EXTRACT(EPOCH FROM (co.timestamp-ci.timestamp))/3600) as total_hours,
@@ -33,6 +34,7 @@ router.get("/overview", requireAuth, requireRole("ADMIN","MANAGER"), async (req,
       totalMembers: parseInt(members.rows[0].count),
       shiftsThisWeek: parseInt(weekShifts.rows[0].count),
       openShifts: parseInt(openShifts.rows[0].count),
+      assignedShifts: parseInt(assignedShifts.rows[0].count),
       completedThisMonth: parseInt(monthDone.rows[0].count),
       activeNow: parseInt(activeNow.rows[0].count),
       totalHours: Math.round((parseFloat(hoursResult.rows[0]?.total_hours)||0)*10)/10,
