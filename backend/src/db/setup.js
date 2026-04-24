@@ -181,9 +181,9 @@ const setup = async () => {
     await client.query(`
       CREATE TABLE IF NOT EXISTS payroll_snapshots (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        pay_period_id TEXT NOT NULL REFERENCES pay_periods(id) ON DELETE CASCADE,
-        organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
-        member_id TEXT NOT NULL REFERENCES members(id) ON DELETE CASCADE,
+        pay_period_id TEXT REFERENCES pay_periods(id) ON DELETE CASCADE,
+        organisation_id TEXT REFERENCES organisations(id) ON DELETE SET NULL,
+        member_id TEXT REFERENCES members(id) ON DELETE CASCADE,
         hourly_rate NUMERIC(10,2) NOT NULL,
         effective_rate_id TEXT,
         overtime_multiplier NUMERIC(3,2) NOT NULL,
