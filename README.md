@@ -116,6 +116,7 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 - **In-app Notifications** — Shift assignments, cancellations, announcements, and overtime alerts are stored per user
 - **Read State** — Members can mark single notifications or all notifications as read
 - **Event Replay API** — Clients can fetch events since a timestamp to recover missed real-time updates after reconnects
+- **Reconnect Recovery** — Socket clients rejoin organisation/user rooms after reconnect, replay missed events, and trigger page resync so dashboards do not stay stale after a temporary backend interruption
 - **Typed Event History** — Organisation events are stored with event types for downstream UI refresh and audit workflows
 
 ### Audit Log (Admin/Manager)
@@ -357,7 +358,7 @@ ShiftSync is a **multi-tenant, event-driven workforce state machine with financi
 #### State Reconciliation
 - **`/api/events/since?since=<ISO>`** — event feed endpoint; returns up to 500 events after given timestamp; `hasMore` flag when results are capped
 - **`connected` socket event** — server emits `{ serverTime }` on every socket connect; clients use this to compute the `lastEventTimestamp` gap for rehydration
-- **Client reconnect protocol** — on reconnect: rejoin org room, fetch `/api/events/since?since={localStorage.lastEventTimestamp}`, replay events into local store, update baseline timestamp
+- **Client reconnect protocol** — on reconnect: rejoin org/user rooms, fetch `/api/events/since?since={localStorage.lastEventTimestamp}`, refresh affected screens from authoritative API data, and update the sync baseline timestamp
 
 #### Event Emission (All Routes)
 All write operations emit events inside DB transactions. No route mutates state without emitting an event via `emitEvent({ client, ... })`:
@@ -386,6 +387,7 @@ ShiftSync has been exercised end-to-end across Admin, Manager, and Employee role
 - **Attendance** — employees clock in and out against assigned shifts
 - **Payroll** — create pay periods, process payroll, and generate payslips
 - **Payout proof** — payslip PDF download succeeds after payroll processing
+- **Reconnect recovery** — dashboard announcements were verified to continue updating after a local backend restart without requiring a page reload
 
 ### Future Improvements
 
@@ -394,7 +396,6 @@ ShiftSync has been exercised end-to-end across Admin, Manager, and Employee role
 | Area | Why It Matters |
 |---|---|
 | **Automated test suite** | Add unit and integration tests for payroll calculations, overtime rules, and shift conflict detection so the most business-critical logic has explicit coverage |
-| **Frontend reconnect** | Further harden socket reconnect + missed-event recovery so real-time UI state stays reliable after temporary connection drops |
 
 #### Good Later
 

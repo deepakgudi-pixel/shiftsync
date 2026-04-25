@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 
@@ -8,7 +8,7 @@ import { Users, Calendar, AlertCircle, TrendingUp, Clock, DollarSign, Activity, 
 
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
-import { useSocket } from '@/hooks/useSocket'
+import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { cn, fmtDateTime, fmtRelative } from '@/lib/utils'
 
 interface Analytics {
@@ -82,6 +82,72 @@ export default function DashboardPage() {
   const [swapForm, setSwapForm] = useState({ reason: '', targetId: '' })
   const [annLoading, setAnnLoading] = useState(false)
 
+  const loadDashboard = useCallback(async (showInitialLoader = false) => {
+    if (!isSignedIn) return
+
+    if (showInitialLoader) {
+      setLoading(true)
+    }
+
+    try {
+      const [meRes, annRes] = await Promise.all([
+        api.get('/api/members/me'),
+        api.get('/api/organisations/announcements'),
+      ])
+
+      const me = meRes.data
+      setMember(me)
+      setAnnouncements(annRes.data)
+
+      const weekParams = {
+        start: new Date().toISOString(),
+        end: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+      }
+
+      if (me.role === 'ADMIN') {
+        const [ana, sh, teamRes, swapRes] = await Promise.all([
+          api.get('/api/analytics/overview'),
+          api.get('/api/shifts', { params: weekParams }),
+          api.get('/api/members'),
+          api.get('/api/shifts/swaps/pending'),
+        ])
+        setAnalytics(ana.data)
+        setShifts(sh.data.slice(0, 5))
+        setTeam(teamRes.data)
+        setSwaps(swapRes.data)
+      } else if (me.role === 'MANAGER') {
+        const [sh, teamRes, swapRes] = await Promise.all([
+          api.get('/api/shifts', { params: weekParams }),
+          api.get('/api/members'),
+          api.get('/api/shifts/swaps/pending'),
+        ])
+        setShifts(sh.data.slice(0, 5))
+        setTeam(teamRes.data)
+        setSwaps(swapRes.data)
+        setAnalytics(null)
+      } else {
+        const [sh, teamRes] = await Promise.all([
+          api.get('/api/shifts', { params: { ...weekParams, assigneeId: me.id } }),
+          api.get('/api/members'),
+        ])
+        setShifts(sh.data)
+        setTeam(teamRes.data)
+        setAnalytics(null)
+        setSwaps([])
+      }
+    } catch (err: any) {
+      if (err.response?.status === 404) {
+        router.push('/onboarding')
+        return
+      }
+      console.error(err)
+    } finally {
+      if (showInitialLoader) {
+        setLoading(false)
+      }
+    }
+  }, [api, isSignedIn, router])
+
   useEffect(() => {
     if (!isLoaded) return
 
@@ -89,65 +155,8 @@ export default function DashboardPage() {
       router.push('/sign-in')
       return
     }
-
-    const load = async () => {
-      try {
-        const [meRes, annRes] = await Promise.all([
-          api.get('/api/members/me'),
-          api.get('/api/organisations/announcements'),
-        ])
-
-        const me = meRes.data;
-        setMember(me);
-        setAnnouncements(annRes.data);
-
-        const weekParams = {
-          start: new Date().toISOString(),
-          end: new Date(Date.now() + 7*24*60*60*1000).toISOString()
-        };
-
-        if (me.role === 'ADMIN') {
-          const [ana, sh, teamRes, swapRes] = await Promise.all([
-            api.get('/api/analytics/overview'),
-            api.get('/api/shifts', { params: weekParams }),
-            api.get('/api/members'),
-            api.get('/api/shifts/swaps/pending')
-          ])
-          setAnalytics(ana.data)
-          setShifts(sh.data.slice(0, 5))
-          setTeam(teamRes.data)
-          setSwaps(swapRes.data)
-        } else if (me.role === 'MANAGER') {
-          const [sh, teamRes, swapRes] = await Promise.all([
-            api.get('/api/shifts', { params: weekParams }),
-            api.get('/api/members'),
-            api.get('/api/shifts/swaps/pending')
-          ])
-          setShifts(sh.data.slice(0, 5))
-          setTeam(teamRes.data)
-          setSwaps(swapRes.data)
-          setAnalytics(null)
-        } else {
-          const [sh, teamRes] = await Promise.all([
-            api.get('/api/shifts', { params: { ...weekParams, assigneeId: me.id } }),
-            api.get('/api/members')
-          ])
-          setShifts(sh.data)
-          setTeam(teamRes.data)
-        }
-      } catch (err: any) {
-        if (err.response?.status === 404) {
-          router.push('/onboarding')
-          return
-        }
-        console.error(err)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    load()
-  }, [isLoaded, isSignedIn, api])
+    loadDashboard(true)
+  }, [isLoaded, isSignedIn, loadDashboard, router])
 
   useEffect(() => {
     if (!socket) return
@@ -182,6 +191,19 @@ export default function DashboardPage() {
       socket.off('shift:updated');
     }
   }, [socket, member])
+
+  useEffect(() => {
+    if (!member?.organisation_id) return
+
+    const handleResync = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.orgId !== member.organisation_id || detail?.memberId !== member.id) return
+      loadDashboard(false).catch(() => {})
+    }
+
+    window.addEventListener(SOCKET_RESYNC_EVENT, handleResync)
+    return () => window.removeEventListener(SOCKET_RESYNC_EVENT, handleResync)
+  }, [member, loadDashboard])
 
   const handlePostAnnouncement = async (e: React.FormEvent) => {
     e.preventDefault()

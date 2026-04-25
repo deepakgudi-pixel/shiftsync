@@ -1,7 +1,7 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useApi } from '@/hooks/useApi'
-import { useSocket } from '@/hooks/useSocket'
+import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { useRouter } from 'next/navigation'
 import { fmtDateTime, cn, getInitials, fmtTime } from '@/lib/utils'
 import { Clock, CheckCircle, LogIn, LogOut, MapPin, Activity, Calendar } from 'lucide-react'
@@ -23,7 +23,7 @@ export default function AttendancePage() {
   const [submittingShiftId, setSubmittingShiftId] = useState<string | null>(null)
   const socket = useSocket(member?.organisation_id, member?.id)
 
-  const loadShifts = async (memberId: string) => {
+  const loadShifts = useCallback(async (memberId: string) => {
     const sh = await api.get('/api/shifts', {
       params: {
         assigneeId: memberId,
@@ -33,13 +33,21 @@ export default function AttendancePage() {
     })
     setAssignedShifts(sh.data.filter((s: any) => s.status === 'ASSIGNED' || s.status === 'OPEN'))
     setInProgressShifts(sh.data.filter((s: any) => s.status === 'IN_PROGRESS'))
-  }
+  }, [api])
 
-  const refreshLiveAttendance = async (role?: string) => {
+  const refreshLiveAttendance = useCallback(async (role?: string) => {
     if (role === 'EMPLOYEE') return
     const live = await api.get('/api/attendance/live')
     setLiveAttendance(live.data)
-  }
+  }, [api])
+
+  const refreshAttendanceState = useCallback(async (currentMember: any) => {
+    await Promise.all([
+      loadShifts(currentMember.id),
+      api.get('/api/attendance/timesheet/me').then((response) => setTimesheet(response.data)),
+      refreshLiveAttendance(currentMember.role),
+    ])
+  }, [api, loadShifts, refreshLiveAttendance])
 
   useEffect(() => {
     const load = async () => {
@@ -67,7 +75,7 @@ export default function AttendancePage() {
       } finally { setLoading(false) }
     }
     load()
-  }, [api, router])
+  }, [api, router, loadShifts, refreshLiveAttendance])
 
   useEffect(() => {
     if (!socket) return
@@ -82,7 +90,20 @@ export default function AttendancePage() {
       if (member?.role !== 'EMPLOYEE') refreshLiveAttendance(member?.role).catch(() => {})
     })
     return () => { socket.off('attendance:clockIn'); socket.off('attendance:clockOut') }
-  }, [socket])
+  }, [socket, member, refreshLiveAttendance])
+
+  useEffect(() => {
+    if (!member?.organisation_id) return
+
+    const handleResync = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.orgId !== member.organisation_id || detail?.memberId !== member.id) return
+      refreshAttendanceState(member).catch(() => {})
+    }
+
+    window.addEventListener(SOCKET_RESYNC_EVENT, handleResync)
+    return () => window.removeEventListener(SOCKET_RESYNC_EVENT, handleResync)
+  }, [member, refreshAttendanceState])
 
   const clockIn = async (shiftId: string) => {
     try {
@@ -90,8 +111,7 @@ export default function AttendancePage() {
       await api.post('/api/attendance/clock-in', { shiftId })
       toast.success('Clocked in!')
       if (member) {
-        await loadShifts(member.id)
-        await refreshLiveAttendance(member.role)
+        await refreshAttendanceState(member)
       }
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
     finally { setSubmittingShiftId(null) }
@@ -103,10 +123,7 @@ export default function AttendancePage() {
       await api.post('/api/attendance/clock-out', { shiftId })
       toast.success('Clocked out! Timesheet updated.')
       if (member) {
-        await loadShifts(member.id)
-        const ts = await api.get('/api/attendance/timesheet/me')
-        setTimesheet(ts.data)
-        await refreshLiveAttendance(member.role)
+        await refreshAttendanceState(member)
       }
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
     finally { setSubmittingShiftId(null) }

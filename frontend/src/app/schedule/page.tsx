@@ -5,7 +5,7 @@ import { Plus, X, Clock, MapPin, User } from 'lucide-react'
 
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
-import { useSocket } from '@/hooks/useSocket'
+import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { cn, fmtTime, fmtDateTime, STATUS_COLORS } from '@/lib/utils'
 
 interface Shift {
@@ -92,6 +92,19 @@ export default function SchedulePage() {
     socket.on('shift:deleted', ({ id }: {id:string}) => setShifts(p => p.filter(x => x.id !== id)))
     return () => { socket.off('shift:created'); socket.off('shift:updated'); socket.off('shift:deleted') }
   }, [socket])
+
+  useEffect(() => {
+    if (!member?.organisation_id) return
+
+    const handleResync = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.orgId !== member.organisation_id || detail?.memberId !== member.id) return
+      loadShifts().catch(() => {})
+    }
+
+    window.addEventListener(SOCKET_RESYNC_EVENT, handleResync)
+    return () => window.removeEventListener(SOCKET_RESYNC_EVENT, handleResync)
+  }, [member, loadShifts])
 
   const handleEventClick = (s: Shift) => {
     const fmt = (d: string) => {
