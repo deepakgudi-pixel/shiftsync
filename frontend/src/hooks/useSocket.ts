@@ -7,22 +7,44 @@ export function useSocket(orgId?: string, memberId?: string) {
   const { getToken } = useAuth()
 
   useEffect(() => {
-    if (!orgId || !memberId) return
+    if (!orgId || !memberId) {
+      setSocket(null)
+      return
+    }
+
+    let active = true
+    let socketInstance: Socket | null = null
 
     const connect = async () => {
       const token = await getToken()
+      if (!token || !active) return
 
-      const socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000', {
+      socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000', {
         auth: { token },
-        query: { orgId, memberId }
+        query: { orgId, memberId },
+        transports: ['websocket', 'polling'],
+        reconnection: true,
+        reconnectionAttempts: 10,
+        reconnectionDelay: 1000,
       })
 
-      setSocket(socketInstance)
+      socketInstance.on('connect', () => {
+        socketInstance?.emit('join:org', { organisationId: orgId, memberId })
+      })
+
+      if (active) {
+        setSocket(socketInstance)
+      } else {
+        socketInstance.disconnect()
+      }
     }
 
     connect()
 
     return () => {
+      active = false
+      socketInstance?.removeAllListeners()
+      socketInstance?.disconnect()
       setSocket(null)
     }
   }, [orgId, memberId, getToken])

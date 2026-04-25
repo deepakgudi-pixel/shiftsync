@@ -20,6 +20,7 @@ export default function AttendancePage() {
   const [timesheet, setTimesheet] = useState<any>(null)
   const [member, setMember] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [submittingShiftId, setSubmittingShiftId] = useState<string | null>(null)
   const socket = useSocket(member?.organisation_id, member?.id)
 
   const loadShifts = async (memberId: string) => {
@@ -30,9 +31,14 @@ export default function AttendancePage() {
         end: new Date(Date.now() + 7*24*60*60*1000).toISOString()
       }
     })
-    // FIX: Include shifts that are OPEN but assigned to this user
     setAssignedShifts(sh.data.filter((s: any) => s.status === 'ASSIGNED' || s.status === 'OPEN'))
     setInProgressShifts(sh.data.filter((s: any) => s.status === 'IN_PROGRESS'))
+  }
+
+  const refreshLiveAttendance = async (role?: string) => {
+    if (role === 'EMPLOYEE') return
+    const live = await api.get('/api/attendance/live')
+    setLiveAttendance(live.data)
   }
 
   useEffect(() => {
@@ -50,12 +56,14 @@ export default function AttendancePage() {
         await loadShifts(me.id);
 
         if (me.role !== 'EMPLOYEE') {
-          const live = await api.get('/api/attendance/live')
-          setLiveAttendance(live.data)
+          await refreshLiveAttendance(me.role)
         }
       } catch (err: any) { 
         if (err.response?.status === 404) router.push('/onboarding')
-        else console.error(err) 
+        else {
+          console.error(err)
+          toast.error('Failed to load attendance data')
+        }
       } finally { setLoading(false) }
     }
     load()
@@ -64,32 +72,60 @@ export default function AttendancePage() {
   useEffect(() => {
     if (!socket) return
     socket.on('attendance:clockIn', (data: any) => {
-      toast.success(`${data.memberName} clocked in`)
+      toast.success(`${data.memberName || 'A team member'} clocked in`)
+      if (member?.role !== 'EMPLOYEE') refreshLiveAttendance(member?.role).catch(() => {})
     })
     socket.on('attendance:clockOut', (data: any) => {
-      toast(`${data.memberName} clocked out — ${data.hoursWorked?.toFixed(1)}h worked`)
+      const name = data.memberName || 'A team member'
+      const worked = typeof data.hoursWorked === 'number' ? ` - ${data.hoursWorked.toFixed(1)}h worked` : ''
+      toast(`${name} clocked out${worked}`)
+      if (member?.role !== 'EMPLOYEE') refreshLiveAttendance(member?.role).catch(() => {})
     })
     return () => { socket.off('attendance:clockIn'); socket.off('attendance:clockOut') }
   }, [socket])
 
   const clockIn = async (shiftId: string) => {
     try {
+      setSubmittingShiftId(shiftId)
       await api.post('/api/attendance/clock-in', { shiftId })
       toast.success('Clocked in!')
-      if (member) await loadShifts(member.id)
+      if (member) {
+        await loadShifts(member.id)
+        await refreshLiveAttendance(member.role)
+      }
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
+    finally { setSubmittingShiftId(null) }
   }
 
   const clockOut = async (shiftId: string) => {
     try {
+      setSubmittingShiftId(shiftId)
       await api.post('/api/attendance/clock-out', { shiftId })
       toast.success('Clocked out! Timesheet updated.')
       if (member) {
         await loadShifts(member.id)
         const ts = await api.get('/api/attendance/timesheet/me')
         setTimesheet(ts.data)
+        await refreshLiveAttendance(member.role)
       }
     } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
+    finally { setSubmittingShiftId(null) }
+  }
+
+  if (loading) {
+    return (
+      <div className="p-5 md:p-8 max-w-[1000px] mx-auto min-h-screen">
+        <div className="mb-10 border-b border-zinc-200 pb-8">
+          <Skeleton className="h-10 w-48 mb-3" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
+          <Skeleton className="h-28" />
+          <Skeleton className="h-28" />
+        </div>
+        <Skeleton className="h-64" />
+      </div>
+    )
   }
 
   return (
@@ -144,9 +180,10 @@ export default function AttendancePage() {
                 </div>
                 <button
                   onClick={() => clockOut(s.id)}
+                  disabled={submittingShiftId === s.id}
                   className="flex items-center gap-2 px-4 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95"
                 >
-                  <LogOut size={12} /> Clock Out
+                  <LogOut size={12} /> {submittingShiftId === s.id ? 'Saving...' : 'Clock Out'}
                 </button>
               </div>
             ))}
@@ -168,9 +205,10 @@ export default function AttendancePage() {
                 </div>
                 <button
                   onClick={() => clockIn(s.id)}
+                  disabled={submittingShiftId === s.id}
                   className="flex items-center gap-2 px-4 py-2 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95"
                 >
-                  <LogIn size={12} /> Clock In
+                  <LogIn size={12} /> {submittingShiftId === s.id ? 'Saving...' : 'Clock In'}
                 </button>
               </div>
             ))}
@@ -226,7 +264,7 @@ export default function AttendancePage() {
       {assignedShifts.length === 0 && inProgressShifts.length === 0 && (
         <div className="p-12 text-center bg-white border border-zinc-200">
           <Clock size={32} className="mx-auto mb-4 text-zinc-200" />
-          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">No upcoming units assigned</p>
+          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">No upcoming shifts assigned</p>
         </div>
       )}
     </div>

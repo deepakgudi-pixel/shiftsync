@@ -376,17 +376,40 @@ All write operations emit events inside DB transactions. No route mutates state 
 - **Lock enforcement** — after first `CLOCK_IN` event exists for a shift, PUT rejects changes to `startTime`, `endTime`, and `assigneeId` with `409 SHIFT_LOCKED_AFTER_CLOCK_IN`
 - **Locked fields reported** — response includes `{ lockedFields: ["startTime", "endTime"] }` so clients can highlight what needs unlocking
 
-### Remaining
+### Verified Core Workflow
 
-| Area | Gap | Priority |
-|---|---|---|
-| **Frontend reconnect** | `useSocket.ts` hook needs to implement full reconnection protocol with event replay on socket `connect` | High |
-| **Payroll recompute path** | No explicit "recompute with current rules" override for cases where rule change legitimately should apply retroactively | Medium |
-| **Sentry integration** | No error tracking for unhandled exceptions in Express handlers | Medium |
-| **Request ID tracing** | No `X-Request-ID` header propagated through the call chain for log correlation | Medium |
-| **Cursor-based pagination** | Audit log and event feed use offset pagination; degrades at large offsets | Low |
-| **Test suite** | Zero unit or integration tests; payroll calculation, overtime logic, shift conflict detection all untested | High |
-| **Redis adapter** | Socket.io fan-out for org-wide broadcasts won't scale past ~1000 concurrent without Redis pubsub | Low |
+ShiftSync has been exercised end-to-end across Admin, Manager, and Employee roles for the main operational path:
+
+- **Organisation setup** — create organisation and onboard members via the join flow
+- **Scheduling** — create, assign, and update shifts through the manager workflow
+- **Swap handling** — employees request swaps and managers approve them
+- **Attendance** — employees clock in and out against assigned shifts
+- **Payroll** — create pay periods, process payroll, and generate payslips
+- **Payout proof** — payslip PDF download succeeds after payroll processing
+
+### Future Improvements
+
+#### Showcase-Important
+
+| Area | Why It Matters |
+|---|---|
+| **Automated test suite** | Add unit and integration tests for payroll calculations, overtime rules, and shift conflict detection so the most business-critical logic has explicit coverage |
+| **Frontend reconnect** | Further harden socket reconnect + missed-event recovery so real-time UI state stays reliable after temporary connection drops |
+
+#### Good Later
+
+| Area | Why It Matters |
+|---|---|
+| **Payroll recompute path** | Add an explicit "recompute with current rules" override for cases where rule changes should apply retroactively |
+| **Sentry integration** | Add production error tracking for unhandled Express exceptions and frontend runtime failures |
+| **Request ID tracing** | Propagate `X-Request-ID` through API, logs, and downstream calls for easier correlation |
+
+#### Future Scale
+
+| Area | Why It Matters |
+|---|---|
+| **Cursor-based pagination** | Move audit log and event feed pagination away from offset-based queries for large datasets |
+| **Redis adapter** | Add Redis pub/sub for multi-instance Socket.io fan-out when scaling beyond a single node |
 
 ---
 

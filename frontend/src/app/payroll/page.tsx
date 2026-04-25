@@ -37,6 +37,8 @@ export default function PayrollPage() {
   const [member, setMember] = useState<any>(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [org, setOrg] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+  const [actionLoading, setActionLoading] = useState<string | null>(null)
 
   // Data states
   const [payPeriods, setPayPeriods] = useState<any[]>([])
@@ -67,14 +69,20 @@ export default function PayrollPage() {
 
   useEffect(() => {
     const load = async () => {
-      const me = await api.get('/api/members/me')
-      setMember(me.data)
-      await loadOrg()
-      await loadPayslips()
-      if (me.data.role !== 'EMPLOYEE') {
-        await loadOvertimeRules()
-        await loadPayPeriods()
-        await loadEmployeeRates()
+      try {
+        const me = await api.get('/api/members/me')
+        setMember(me.data)
+        await loadOrg()
+        await loadPayslips()
+        if (me.data.role !== 'EMPLOYEE') {
+          await loadOvertimeRules()
+          await loadPayPeriods()
+          await loadEmployeeRates()
+        }
+      } catch (err: any) {
+        toast.error(err.response?.data?.error || 'Failed to load payroll')
+      } finally {
+        setLoading(false)
       }
     }
     load()
@@ -123,14 +131,28 @@ export default function PayrollPage() {
       ])
       setTimesheetData(ts.data)
       setSummary(sm.data)
-    } catch (e) { /* period may have no data yet */ }
+    } catch (e) {
+      setTimesheetData({ employees: [] })
+      setSummary(null)
+    }
   }
 
   const saveOvertimeRule = async () => {
-    if (overtimeRules.find(r => r.is_active)) return alert('An active rule already exists. Edit or delete it first.')
-    await api.post('/api/overtime', otForm)
-    await loadOvertimeRules()
-    setShowModal(null)
+    if (overtimeRules.find(r => r.is_active)) {
+      toast.error('An active overtime rule already exists')
+      return
+    }
+    setActionLoading('overtime')
+    try {
+      await api.post('/api/overtime', otForm)
+      await loadOvertimeRules()
+      setShowModal(null)
+      toast.success('Overtime rule saved')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to save overtime rule')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const deleteOvertimeRule = async (id: string) => {
@@ -140,15 +162,31 @@ export default function PayrollPage() {
   }
 
   const createPayPeriod = async () => {
-    if (!periodForm.start_date || !periodForm.end_date) return alert('Fill all fields')
-    await api.post('/api/payroll/pay-periods', periodForm)
-    await loadPayPeriods()
-    setShowModal(null)
+    if (!periodForm.start_date || !periodForm.end_date) {
+      toast.error('Fill all pay period fields')
+      return
+    }
+    if (new Date(periodForm.end_date) < new Date(periodForm.start_date)) {
+      toast.error('End date must be on or after the start date')
+      return
+    }
+    setActionLoading('createPeriod')
+    try {
+      await api.post('/api/payroll/pay-periods', periodForm)
+      await loadPayPeriods()
+      setShowModal(null)
+      toast.success('Pay period created')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to create pay period')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const processPayPeriod = async (id: string) => {
     if (!confirm('Process this pay period? This will generate payslips for all employees.')) return
     try {
+      setActionLoading(`process:${id}`)
       const res = await api.post(`/api/payroll/pay-periods/${id}/process`)
       await loadPayPeriods()
       await loadPayslips()
@@ -162,36 +200,71 @@ export default function PayrollPage() {
       }
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to process')
+    } finally {
+      setActionLoading(null)
     }
   }
 
   const reprocessPayPeriod = async (id: string) => {
     if (!confirm('This will delete existing payslips and reset the period to DRAFT. Continue?')) return
     try {
+      setActionLoading(`reset:${id}`)
       await api.delete(`/api/payroll/pay-periods/${id}/payslips`)
       await loadPayPeriods()
+      if (selectedPeriodId === id) {
+        await loadPeriodData(id)
+      }
       toast.success('Period reset — you can now process again')
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to reset')
+    } finally {
+      setActionLoading(null)
     }
   }
 
   const markPaid = async (id: string) => {
-    await api.post(`/api/payroll/pay-periods/${id}/paid`)
-    await loadPayPeriods()
+    try {
+      setActionLoading(`paid:${id}`)
+      await api.post(`/api/payroll/pay-periods/${id}/paid`)
+      await loadPayPeriods()
+      toast.success('Pay period marked as paid')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to mark pay period as paid')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const saveCurrency = async () => {
-    await api.put('/api/organisations/currency', { currency: currencyForm.currency })
-    await loadOrg()
-    setShowModal(null)
+    setActionLoading('currency')
+    try {
+      await api.put('/api/organisations/currency', { currency: currencyForm.currency })
+      await loadOrg()
+      setShowModal(null)
+      toast.success('Currency updated')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to update currency')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const saveEmployeeRate = async () => {
-    if (!rateForm.member_id || !rateForm.hourly_rate || !rateForm.effective_from) return alert('Fill all fields')
-    await api.post('/api/payroll/employee-rates', rateForm)
-    await loadEmployeeRates()
-    setShowModal(null)
+    if (!rateForm.member_id || !rateForm.hourly_rate || !rateForm.effective_from) {
+      toast.error('Fill all rate fields')
+      return
+    }
+    setActionLoading('rate')
+    try {
+      await api.post('/api/payroll/employee-rates', rateForm)
+      await loadEmployeeRates()
+      setShowModal(null)
+      toast.success('Employee rate saved')
+    } catch (err: any) {
+      toast.error(err.response?.data?.error || 'Failed to save employee rate')
+    } finally {
+      setActionLoading(null)
+    }
   }
 
   const downloadPdf = async (payslipId: string) => {
@@ -224,6 +297,22 @@ export default function PayrollPage() {
       status === 'PROCESSED' ? 'bg-blue-100 text-blue-700' :
       'bg-yellow-100 text-yellow-700'
     return <span className={cn('text-[10px] font-bold px-2 py-0.5 rounded uppercase tracking-wider', cls)}>{status}</span>
+  }
+
+  if (loading) {
+    return (
+      <div className="p-4 md:p-6 lg:p-8 max-w-[1100px] mx-auto min-h-screen">
+        <div className="mb-6 border-b border-zinc-200 pb-5">
+          <div className="h-10 w-48 bg-zinc-100 animate-pulse mb-3" />
+          <div className="h-4 w-64 bg-zinc-100 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 md:gap-4">
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <div key={idx} className="h-24 bg-zinc-100 animate-pulse border border-zinc-200" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -486,27 +575,30 @@ export default function PayrollPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   {pp.status === 'DRAFT' && (
-                    <button
-                      onClick={() => processPayPeriod(pp.id)}
-                      className="text-[11px] font-bold bg-blue-600 text-white px-4 py-2 uppercase tracking-wider hover:bg-blue-700 transition-colors"
-                    >
-                      Process
-                    </button>
+                      <button
+                        onClick={() => processPayPeriod(pp.id)}
+                        disabled={actionLoading === `process:${pp.id}`}
+                        className="text-[11px] font-bold bg-blue-600 text-white px-4 py-2 uppercase tracking-wider hover:bg-blue-700 transition-colors"
+                      >
+                        {actionLoading === `process:${pp.id}` ? 'Processing...' : 'Process'}
+                      </button>
                   )}
                   {pp.status === 'PROCESSED' && (
                     <>
                       <button
                         onClick={() => markPaid(pp.id)}
+                        disabled={actionLoading === `paid:${pp.id}`}
                         className="text-[11px] font-bold bg-green-600 text-white px-4 py-2 uppercase tracking-wider hover:bg-green-700 transition-colors"
                       >
-                        Mark Paid
+                        {actionLoading === `paid:${pp.id}` ? 'Saving...' : 'Mark Paid'}
                       </button>
                       <button
                         onClick={() => reprocessPayPeriod(pp.id)}
+                        disabled={actionLoading === `reset:${pp.id}`}
                         className="text-[11px] font-bold text-zinc-500 border border-zinc-200 px-3 py-2 uppercase tracking-wider hover:bg-zinc-50 transition-colors"
                         title="Delete payslips and reset to DRAFT"
                       >
-                        Reset
+                        {actionLoading === `reset:${pp.id}` ? 'Resetting...' : 'Reset'}
                       </button>
                     </>
                   )}
@@ -777,7 +869,7 @@ export default function PayrollPage() {
                     <input className="w-full border border-zinc-200 px-3 py-2 text-sm" type="number" step="0.1" value={otForm.weekly_multiplier} onChange={e => setOtForm({ ...otForm, weekly_multiplier: parseFloat(e.target.value) })} />
                   </div>
                 </div>
-                <button onClick={saveOvertimeRule} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors">Save Rule</button>
+                <button onClick={saveOvertimeRule} disabled={actionLoading === 'overtime'} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors disabled:opacity-60">{actionLoading === 'overtime' ? 'Saving...' : 'Save Rule'}</button>
               </div>
             )}
 
@@ -800,7 +892,7 @@ export default function PayrollPage() {
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">End Date</label>
                   <input className="w-full border border-zinc-200 px-3 py-2 text-sm" type="date" value={periodForm.end_date} onChange={e => setPeriodForm({ ...periodForm, end_date: e.target.value })} />
                 </div>
-                <button onClick={createPayPeriod} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors">Create Period</button>
+                <button onClick={createPayPeriod} disabled={actionLoading === 'createPeriod'} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors disabled:opacity-60">{actionLoading === 'createPeriod' ? 'Creating...' : 'Create Period'}</button>
               </div>
             )}
 
@@ -814,7 +906,7 @@ export default function PayrollPage() {
                     ))}
                   </select>
                 </div>
-                <button onClick={saveCurrency} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors">Save Currency</button>
+                <button onClick={saveCurrency} disabled={actionLoading === 'currency'} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors disabled:opacity-60">{actionLoading === 'currency' ? 'Saving...' : 'Save Currency'}</button>
               </div>
             )}
 
@@ -828,7 +920,7 @@ export default function PayrollPage() {
                   <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest block mb-1">Effective From</label>
                   <input className="w-full border border-zinc-200 px-3 py-2 text-sm" type="date" value={rateForm.effective_from} onChange={e => setRateForm({ ...rateForm, effective_from: e.target.value })} />
                 </div>
-                <button onClick={saveEmployeeRate} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors">Save Rate</button>
+                <button onClick={saveEmployeeRate} disabled={actionLoading === 'rate'} className="w-full bg-black text-white py-3 text-[11px] font-bold uppercase tracking-wider hover:bg-zinc-800 transition-colors disabled:opacity-60">{actionLoading === 'rate' ? 'Saving...' : 'Save Rate'}</button>
               </div>
             )}
           </div>
