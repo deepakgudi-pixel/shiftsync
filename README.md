@@ -279,6 +279,41 @@ Accounts:
 - `EMPLOYEE` — `Nina Lopez` — `demo.nina.northstar+clerk_test@example.com`
 - `EMPLOYEE` — `Owen Patel` — `demo.owen.northstar+clerk_test@example.com`
 
+### 6. Seed Demo Scenario
+
+If you reset the database data and want the polished walkthrough state back:
+
+```bash
+cd backend
+npm run db:seed
+npm run db:seed:scenario
+```
+
+What this seeds:
+- 2 announcements
+- 4 completed shifts
+- 1 live in-progress shift
+- 1 pending swap request
+- 1 processed pay period with payslips
+- 1 current draft pay period
+- 2 direct messages
+
+### 7. Recommended Demo Flow
+
+Best visible login for employer walkthroughs:
+- `ADMIN` — `Ava Reynolds` — `demo.admin.northstar+clerk_test@example.com`
+
+Why use the admin account:
+- it can show analytics, announcements, schedule, live attendance, payroll, payslips, messages, and audit trails in one pass
+- the other seeded accounts already provide believable multi-user activity behind the scenes, so you do not need to keep switching Clerk sessions during the demo
+
+Suggested 2-minute walkthrough:
+1. **Dashboard** — show workforce KPIs, urgent announcement, pending swap, and upcoming shifts
+2. **Schedule** — show the OPEN / ASSIGNED / IN_PROGRESS / COMPLETED columns with seeded data
+3. **Attendance** — show Nina's live shift and the completed timesheet history
+4. **Payroll** — show the current draft period, the processed prior period, and the generated payslips
+5. **Messages or Audit** — finish with direct messages or the audit log to show system depth
+
 ---
 
 ## Role Permissions
