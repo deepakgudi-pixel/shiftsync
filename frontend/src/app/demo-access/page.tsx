@@ -10,14 +10,43 @@ type DemoUser = {
   email: string
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const getApiBase = () => {
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '')
+  if (configured) return configured
+
+  if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {
+    return 'http://localhost:4000'
+  }
+
+  return ''
+}
+
 const PENDING_DEMO_EMAIL_KEY = 'shiftsync-demo-email'
+
+const readJsonSafely = async (response: Response) => {
+  const raw = await response.text()
+
+  try {
+    return raw ? JSON.parse(raw) : {}
+  } catch {
+    if (!response.ok) {
+      throw new Error(
+        raw.startsWith('<')
+          ? 'Demo access is not configured on this deployment yet. Check the backend API URL and enable demo access on the backend.'
+          : raw || 'Unexpected response from demo access endpoint'
+      )
+    }
+
+    throw new Error('Unexpected non-JSON response from demo access endpoint')
+  }
+}
 
 export default function DemoAccessPage() {
   const router = useRouter()
   const { signOut } = useClerk()
   const { isLoaded, signIn, setActive } = useSignIn()
   const { isSignedIn, user } = useUser()
+  const apiBase = getApiBase()
   const [users, setUsers] = useState<DemoUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -27,8 +56,8 @@ export default function DemoAccessPage() {
   useEffect(() => {
     const loadUsers = async () => {
       try {
-        const response = await fetch(`${API_BASE}/api/dev/demo-users`)
-        const data = await response.json()
+        const response = await fetch(`${apiBase}/api/dev/demo-users`)
+        const data = await readJsonSafely(response)
 
         if (!response.ok) {
           throw new Error(data?.error || 'Failed to load demo accounts')
@@ -43,7 +72,7 @@ export default function DemoAccessPage() {
     }
 
     loadUsers()
-  }, [])
+  }, [apiBase])
 
   const activateDemoUser = useCallback((email: string) => {
     if (!isLoaded || !signIn || !setActive) return
@@ -53,13 +82,13 @@ export default function DemoAccessPage() {
 
     startTransition(async () => {
       try {
-        const ticketResponse = await fetch(`${API_BASE}/api/dev/demo-ticket`, {
+        const ticketResponse = await fetch(`${apiBase}/api/dev/demo-ticket`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ email }),
         })
 
-        const ticketData = await ticketResponse.json()
+        const ticketData = await readJsonSafely(ticketResponse)
 
         if (!ticketResponse.ok) {
           throw new Error(ticketData?.error || 'Failed to create demo access ticket')
@@ -81,7 +110,7 @@ export default function DemoAccessPage() {
         setPendingEmail(null)
       }
     })
-  }, [isLoaded, router, setActive, signIn])
+  }, [apiBase, isLoaded, router, setActive, signIn])
 
   useEffect(() => {
     if (!isLoaded || !signIn || !setActive || isSignedIn) return
@@ -119,7 +148,7 @@ export default function DemoAccessPage() {
 
       <div className="w-full max-w-3xl relative z-10 border border-white/10 bg-zinc-900/90 backdrop-blur-xl p-8 md:p-10">
         <div className="mb-8">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Local Demo Access</p>
+          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Demo Access</p>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">Open the seeded demo workspace directly</h1>
           <p className="text-sm text-white/60 max-w-2xl">
             Choose one of the prepared demo accounts below. If another account is already signed in, ShiftSync will switch sessions cleanly and take you straight to the dashboard.

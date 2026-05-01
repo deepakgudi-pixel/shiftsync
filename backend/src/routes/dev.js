@@ -4,13 +4,15 @@ const { query } = require("../db/client");
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
+const isDemoAccessEnabled = () => process.env.DEMO_ACCESS_ENABLED === "true";
+
 const isLocalDevelopment = (req) => {
   const host = (req.headers.host || "").toLowerCase();
   return process.env.NODE_ENV === "development" && (host.includes("localhost") || host.includes("127.0.0.1"));
 };
 
-const requireLocalDevelopment = (req, res, next) => {
-  if (!isLocalDevelopment(req)) {
+const requireDemoAccess = (req, res, next) => {
+  if (!isLocalDevelopment(req) && !isDemoAccessEnabled()) {
     return res.status(404).json({ error: "Not found" });
   }
   next();
@@ -24,7 +26,7 @@ const DEMO_EMAILS = [
   "demo.owen.northstar+clerk_test@example.com",
 ];
 
-router.get("/demo-users", requireLocalDevelopment, async (_req, res) => {
+router.get("/demo-users", requireDemoAccess, async (_req, res) => {
   try {
     const result = await query(
       `SELECT role, name, email
@@ -40,7 +42,7 @@ router.get("/demo-users", requireLocalDevelopment, async (_req, res) => {
   }
 });
 
-router.post("/demo-ticket", requireLocalDevelopment, async (req, res) => {
+router.post("/demo-ticket", requireDemoAccess, async (req, res) => {
   try {
     const { email } = req.body || {};
 
