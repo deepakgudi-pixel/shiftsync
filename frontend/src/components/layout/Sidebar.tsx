@@ -1,8 +1,8 @@
 'use client'
 import React from 'react'
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
-import { useUser, UserButton } from '@clerk/nextjs'
+import { usePathname, useRouter } from 'next/navigation'
+import { useClerk, useUser } from '@clerk/nextjs'
 import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, FileText, Send } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -25,7 +25,15 @@ const nav = [
 
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
+  const router = useRouter()
+  const { signOut } = useClerk()
   const { user } = useUser()
+
+  const handleDemoSignOut = async () => {
+    onClose?.()
+    router.replace('/demo-access?signing_out=1')
+    await signOut({ redirectUrl: '/demo-access' })
+  }
 
   return (
     <>
@@ -77,12 +85,30 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* User */}
       <div className="p-4 border-t border-white/5">
         <div className="flex items-center gap-3">
-          <UserButton afterSignOutUrl="/demo-access" appearance={{ elements: { avatarBox: 'w-8 h-8' } }} />
+          {user?.imageUrl ? (
+            <img
+              src={user.imageUrl}
+              alt={user.fullName || 'User'}
+              className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10"
+            />
+          ) : (
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-white text-[10px] font-bold text-black">
+              {(user?.firstName || user?.fullName || 'U').slice(0, 1)}
+            </div>
+          )}
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-white truncate">{user?.fullName || 'User'}</p>
             <p className="text-[10px] font-medium text-zinc-500 truncate">{user?.primaryEmailAddress?.emailAddress}</p>
           </div>
         </div>
+
+        <button
+          type="button"
+          onClick={handleDemoSignOut}
+          className="mt-3 w-full border border-white/10 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white"
+        >
+          Sign Out
+        </button>
       </div>
     </aside>
     </>
