@@ -193,12 +193,6 @@ export default function LandingPage() {
             </div>
             <div className="hidden sm:flex items-center gap-8">
               <Link 
-                href="/demo-access" 
-                className="text-white/60 hover:text-white text-[9px] font-black uppercase tracking-[0.2em] transition-colors"
-              >
-                View Demo
-              </Link>
-              <Link 
                 href={isSignedIn ? "/dashboard" : "/sign-up"} 
                 className="bg-white text-black px-6 py-2 rounded-none text-[9px] font-black uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all active:scale-95"
               >
