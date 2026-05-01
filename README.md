@@ -175,10 +175,11 @@ flowchart LR
 - **Encrypted Storage** — Message content is encrypted at rest with AES-256-GCM when `ENCRYPTION_KEY` is configured
 
 ### Analytics (Admin Only)
-- **KPI Dashboard** — Total members, hours tracked, labour cost, efficiency score
-- **Weekly Distribution Chart** — Bar chart of total vs completed shifts by day
-- **Coverage Rate Chart** — Line chart showing shift completion percentage over the week
-- **Live Staff Count** — How many employees are currently on shift
+- **KPI Dashboard** — Total members, hours tracked, labour cost, completed shifts, and live staff count for the signed-in organisation
+- **Rolling 30-Day Window** — Workforce analytics use a recent 30-day range instead of a fixed calendar month so charts stay populated and meaningful as time moves forward
+- **Shift Distribution Chart** — Bar chart of total vs completed shifts, grouped by weekday across the rolling analytics window
+- **Coverage Rate Chart** — Line chart showing completion percentage by weekday, derived from the same shift-distribution dataset
+- **Workforce Velocity Card** — The dashboard reuses the analytics shift-distribution feed so admins can see completion flow directly from the main landing surface
 
 ### Notifications & Event Feed
 - **In-app Notifications** — Shift assignments, cancellations, announcements, and overtime alerts are stored per user
@@ -297,6 +298,11 @@ What this seeds:
 - 1 processed pay period with payslips
 - 1 current draft pay period
 - 2 direct messages
+
+Why the admin analytics stay believable after seeding:
+- completed and in-progress shifts feed the dashboard KPI row, workforce velocity chart, and analytics charts
+- labour hours and labour cost are calculated from completed shifts plus clock-in / clock-out pairs, not hardcoded demo numbers
+- the analytics charts use a rolling 30-day window, so the demo does not go blank just because a calendar month changed
 
 ### 7. Recommended Demo Flow
 
@@ -424,6 +430,8 @@ The landing page features a futuristic WebGL hero with animated canvas effects, 
 **Auth flow** — Clerk handles the session on the frontend. On every API request, the backend verifies the Clerk JWT with `verifyToken` and syncs the user to the local `members` table on first sign-in via the `/onboard` endpoint.
 
 **Payroll logic** — Processing a pay period pulls all completed shifts whose clock_in falls within the period's `start_date` and `end_date`. Overtime is calculated against the configured rules (daily threshold 8h, weekly 40h default). Processing can happen at any time after the period ends — the date range is the source of truth, not the processing date.
+
+**Analytics logic** — Admin analytics are computed from real operational data, not mock constants. `shiftsThisWeek` uses the current calendar week, while shift distribution, coverage rate, completed shifts, hours tracked, and labour cost use a rolling 30-day window. Hours and labour cost come from completed shifts joined against clock events and employee hourly rates, which keeps the dashboard and analytics pages aligned with attendance and payroll behavior.
 
 **Audit logging** — Every write operation logs to `audit_logs` with old/new state diffs. Audit failures are caught silently (non-blocking) so they never break the main operation.
 
