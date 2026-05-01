@@ -23,16 +23,34 @@ const nav = [
   { href: '/invite', icon: Send, label: 'Invite' },
 ]
 
+const DEMO_EMAILS = new Set([
+  'demo.admin.northstar+clerk_test@example.com',
+  'demo.manager.northstar+clerk_test@example.com',
+  'demo.leah.northstar+clerk_test@example.com',
+  'demo.nina.northstar+clerk_test@example.com',
+  'demo.owen.northstar+clerk_test@example.com',
+])
+
 export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const pathname = usePathname()
   const router = useRouter()
   const { signOut } = useClerk()
   const { user } = useUser()
 
-  const handleDemoSignOut = async () => {
+  const userEmail = user?.primaryEmailAddress?.emailAddress || ''
+  const isDemoUser = DEMO_EMAILS.has(userEmail)
+
+  const handleSignOut = async () => {
     onClose?.()
-    router.replace('/demo-access?signing_out=1')
-    await signOut({ redirectUrl: '/demo-access' })
+
+    if (isDemoUser) {
+      router.replace('/demo-access?signing_out=1')
+      await signOut({ redirectUrl: '/demo-access' })
+      return
+    }
+
+    router.replace('/sign-in?signing_out=1')
+    await signOut({ redirectUrl: '/sign-in' })
   }
 
   return (
@@ -104,7 +122,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
         <button
           type="button"
-          onClick={handleDemoSignOut}
+          onClick={handleSignOut}
           className="mt-3 w-full border border-white/10 px-3 py-2 text-left text-[10px] font-bold uppercase tracking-widest text-zinc-400 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white"
         >
           Sign Out
