@@ -594,6 +594,33 @@ DELETE FROM members WHERE id = 'your-member-id-here';
 DELETE FROM shifts WHERE id = 'your-shift-id-here';
 ```
 
+#### Optional — Reset all app data but keep the tables
+
+If you want to wipe all rows for a fresh demo setup while keeping the schema intact, run this in the Neon SQL editor:
+
+```sql
+TRUNCATE TABLE
+  notifications,
+  messages,
+  announcements,
+  payslips,
+  payroll_snapshots,
+  pay_periods,
+  overtime_rules,
+  employee_rates,
+  availability,
+  swap_requests,
+  clock_events,
+  shifts,
+  audit_logs,
+  events,
+  members,
+  organisations
+RESTART IDENTITY CASCADE;
+```
+
+This clears the data only. It does **not** delete the tables, columns, indexes, or constraints.
+
 #### Step 3 — Re-enable the triggers
 
 ```sql
