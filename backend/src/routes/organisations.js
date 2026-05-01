@@ -6,6 +6,14 @@ const { logAudit } = require("../lib/audit");
 const { emitEvent } = require("../lib/eventEmitter");
 const { EVENT_TYPES } = require("../lib/events");
 
+const DEMO_EMAILS = new Set([
+  "demo.admin.northstar+clerk_test@example.com",
+  "demo.manager.northstar+clerk_test@example.com",
+  "demo.leah.northstar+clerk_test@example.com",
+  "demo.nina.northstar+clerk_test@example.com",
+  "demo.owen.northstar+clerk_test@example.com",
+]);
+
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const result = await query(
@@ -129,6 +137,34 @@ router.put("/currency", requireAuth, requireRole("ADMIN"), async (req, res) => {
     const result = await query("UPDATE organisations SET currency=$1, updated_at=NOW() WHERE id=$2 RETURNING *", [currency, req.member.organisation_id]);
     res.json(result.rows[0]);
   } catch (err) { res.status(500).json({ error: "Failed to update currency" }); }
+});
+
+router.delete("/me", requireAuth, requireRole("ADMIN"), async (req, res) => {
+  try {
+    if (DEMO_EMAILS.has(req.member.email)) {
+      return res.status(403).json({ error: "Demo workspaces cannot be deleted." });
+    }
+
+    const existing = await query(
+      "SELECT id, name FROM organisations WHERE id=$1 LIMIT 1",
+      [req.member.organisation_id],
+    );
+
+    if (!existing.rows.length) {
+      return res.status(404).json({ error: "Organisation not found" });
+    }
+
+    await query("SELECT delete_organisation($1)", [req.member.organisation_id]);
+
+    res.json({
+      success: true,
+      deletedOrganisationId: existing.rows[0].id,
+      deletedOrganisationName: existing.rows[0].name,
+    });
+  } catch (err) {
+    console.error("Failed to delete organisation", err);
+    res.status(500).json({ error: "Failed to delete organisation" });
+  }
 });
 
 module.exports = router;
