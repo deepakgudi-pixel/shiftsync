@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useState, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { useSignIn } from '@clerk/nextjs'
+import { useClerk, useSignIn, useUser } from '@clerk/nextjs'
 
 type DemoUser = {
   role: string
@@ -11,10 +11,13 @@ type DemoUser = {
 }
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+const PENDING_DEMO_EMAIL_KEY = 'shiftsync-demo-email'
 
 export default function DemoAccessPage() {
   const router = useRouter()
+  const { signOut } = useClerk()
   const { isLoaded, signIn, setActive } = useSignIn()
+  const { isSignedIn, user } = useUser()
   const [users, setUsers] = useState<DemoUser[]>([])
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -42,7 +45,7 @@ export default function DemoAccessPage() {
     loadUsers()
   }, [])
 
-  const signInWithDemoUser = (email: string) => {
+  const activateDemoUser = useCallback((email: string) => {
     if (!isLoaded || !signIn || !setActive) return
 
     setPendingEmail(email)
@@ -78,6 +81,33 @@ export default function DemoAccessPage() {
         setPendingEmail(null)
       }
     })
+  }, [isLoaded, router, setActive, signIn])
+
+  useEffect(() => {
+    if (!isLoaded || !signIn || !setActive || isSignedIn) return
+
+    const pendingEmail = window.sessionStorage.getItem(PENDING_DEMO_EMAIL_KEY)
+    if (!pendingEmail) return
+
+    window.sessionStorage.removeItem(PENDING_DEMO_EMAIL_KEY)
+    activateDemoUser(pendingEmail)
+  }, [activateDemoUser, isLoaded, isSignedIn, setActive, signIn])
+
+  const signInWithDemoUser = async (email: string) => {
+    if (!isLoaded) return
+
+    if (isSignedIn && user?.primaryEmailAddress?.emailAddress === email) {
+      router.push('/dashboard')
+      return
+    }
+
+    if (isSignedIn) {
+      window.sessionStorage.setItem(PENDING_DEMO_EMAIL_KEY, email)
+      await signOut({ redirectUrl: '/demo-access' })
+      return
+    }
+
+    activateDemoUser(email)
   }
 
   return (
@@ -90,9 +120,9 @@ export default function DemoAccessPage() {
       <div className="w-full max-w-3xl relative z-10 border border-white/10 bg-zinc-900/90 backdrop-blur-xl p-8 md:p-10">
         <div className="mb-8">
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Local Demo Access</p>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">Skip Clerk’s new-device prompt for local walkthroughs</h1>
+          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">Open the seeded demo workspace directly</h1>
           <p className="text-sm text-white/60 max-w-2xl">
-            This page is development-only. It creates a short-lived Clerk sign-in ticket for one of the seeded demo users and turns it into a real session in the browser.
+            Choose one of the prepared demo accounts below. If another account is already signed in, ShiftSync will switch sessions cleanly and take you straight to the dashboard.
           </p>
         </div>
 

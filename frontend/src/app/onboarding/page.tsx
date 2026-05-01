@@ -78,7 +78,6 @@ export default function OnboardingPage() {
             <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mt-0.5">Set up your workspace</p>
           </div>
         </div>
-
         <div className="flex bg-white/5 p-1 mb-8">
           {(['create', 'join'] as const).map(m => (
             <button key={m} type="button" onClick={() => setMode(m)}
