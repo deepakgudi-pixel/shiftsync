@@ -29,13 +29,25 @@ export default function OnboardingPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!user) return
+    const trimmedOrgName = orgName.trim()
+    const trimmedOrgId = orgId.trim()
+
+    if (mode === 'create' && !trimmedOrgName) {
+      toast.error('Organisation name is required')
+      return
+    }
+    if (mode === 'join' && !trimmedOrgId) {
+      toast.error('Organisation ID is required')
+      return
+    }
+
     setLoading(true)
     try {
       await api.post('/api/members/onboard', {
         clerkUserId: user.id,
         email: user.primaryEmailAddress?.emailAddress,
         name: user.fullName || user.firstName || 'User',
-        ...(mode === 'create' ? { organisationName: orgName } : { organisationId: orgId }),
+        ...(mode === 'create' ? { organisationName: trimmedOrgName } : { organisationId: trimmedOrgId }),
       })
       toast.success(mode === 'create' ? 'Organisation created!' : 'Joined organisation!')
       router.push('/dashboard')
@@ -69,7 +81,7 @@ export default function OnboardingPage() {
 
         <div className="flex bg-white/5 p-1 mb-8">
           {(['create', 'join'] as const).map(m => (
-            <button key={m} onClick={() => setMode(m)}
+            <button key={m} type="button" onClick={() => setMode(m)}
               className={`flex-1 py-2 text-[10px] font-black uppercase tracking-widest transition-all ${mode === m ? 'bg-white text-black' : 'text-white/40 hover:text-white/60'}`}>
               {m === 'create' ? 'Create Organisation' : 'Join Existing'}
             </button>
@@ -89,7 +101,7 @@ export default function OnboardingPage() {
               <p className="text-[10px] text-white/20 mt-3 leading-relaxed">Ask your admin for the organisation ID from their settings page.</p>
             </div>
           )}
-          <button type="submit" className="w-full h-12 bg-white text-black font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all mt-4" disabled={loading}>
+          <button type="submit" className="w-full h-12 bg-white text-black font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 active:scale-95 transition-all mt-4 disabled:opacity-60 disabled:cursor-not-allowed" disabled={loading}>
             {loading ? 'Setting up...' : mode === 'create' ? 'Create & Continue' : 'Join & Continue'}
           </button>
         </form>

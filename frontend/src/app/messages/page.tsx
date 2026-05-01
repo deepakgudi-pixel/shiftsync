@@ -1,7 +1,7 @@
 'use client'
-import { useEffect, useState, useRef } from 'react'
+import { useEffect, useState, useRef, useCallback } from 'react'
 import { useApi } from '@/hooks/useApi'
-import { useSocket } from '@/hooks/useSocket'
+import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { getInitials, fmtTime, cn } from '@/lib/utils'
 import { Send, ArrowLeft } from 'lucide-react'
 
@@ -15,6 +15,11 @@ export default function MessagesPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const socket = useSocket(me?.organisation_id, me?.id)
 
+  const loadConversation = useCallback(async (targetMemberId: string) => {
+    const response = await api.get('/api/messages', { params: { withMemberId: targetMemberId } })
+    setMessages(response.data)
+  }, [api])
+
   useEffect(() => {
     const load = async () => {
       const [meR, memR] = await Promise.all([api.get('/api/members/me'), api.get('/api/members')])
@@ -26,8 +31,8 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!active) return
-    api.get('/api/messages', { params: { withMemberId: active.id } }).then(r => setMessages(r.data))
-  }, [active])
+    loadConversation(active.id)
+  }, [active, loadConversation])
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -43,13 +48,25 @@ export default function MessagesPage() {
     return () => { socket.off('message:new') }
   }, [socket, active])
 
+  useEffect(() => {
+    if (!me?.organisation_id || !active?.id) return
+
+    const handleResync = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.orgId !== me.organisation_id || detail?.memberId !== me.id) return
+      loadConversation(active.id).catch(() => {})
+    }
+
+    window.addEventListener(SOCKET_RESYNC_EVENT, handleResync)
+    return () => window.removeEventListener(SOCKET_RESYNC_EVENT, handleResync)
+  }, [me, active, loadConversation])
+
   const send = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!text.trim() || !active) return
     await api.post('/api/messages', { receiverId: active.id, content: text })
     setText('')
-    const r = await api.get('/api/messages', { params: { withMemberId: active.id } })
-    setMessages(r.data)
+    await loadConversation(active.id)
   }
 
   return (

@@ -5,7 +5,7 @@ import { Plus, X, Clock, MapPin, User } from 'lucide-react'
 
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
-import { useSocket } from '@/hooks/useSocket'
+import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { cn, fmtTime, fmtDateTime, STATUS_COLORS } from '@/lib/utils'
 
 interface Shift {
@@ -36,7 +36,18 @@ export default function SchedulePage() {
   const [form, setForm] = useState({ title:'', startTime:'', endTime:'', location:'', notes:'', color:'#4f6eff', assigneeId:'' })
   const [activeTab, setActiveTab] = useState('OPEN')
   const [loading, setLoading] = useState(false)
+  const [pageLoading, setPageLoading] = useState(true)
   const socket = useSocket(member?.organisation_id, member?.id)
+
+  const resetForm = () => {
+    setSelected(null)
+    setForm({ title:'', startTime:'', endTime:'', location:'', notes:'', color:'#4f6eff', assigneeId:'' })
+  }
+
+  const closeModal = () => {
+    setShowModal(false)
+    resetForm()
+  }
 
   const loadShifts = useCallback(async (start?: Date, end?: Date) => {
     try {
@@ -44,7 +55,10 @@ export default function SchedulePage() {
       const e = end || new Date(Date.now() + 30*24*60*60*1000)
       const r = await api.get('/api/shifts', { params: { start: s.toISOString(), end: e.toISOString() } })
       setShifts(r.data)
-    } catch (err) { console.error(err) }
+    } catch (err) {
+      console.error(err)
+      toast.error('Failed to load shifts')
+    }
   }, [api])
 
   useEffect(() => {
@@ -63,6 +77,9 @@ export default function SchedulePage() {
         await loadShifts();
       } catch (err) {
         console.error('Error initializing schedule:', err)
+        toast.error('Failed to load the roster')
+      } finally {
+        setPageLoading(false)
       }
     }
     init()
@@ -75,6 +92,19 @@ export default function SchedulePage() {
     socket.on('shift:deleted', ({ id }: {id:string}) => setShifts(p => p.filter(x => x.id !== id)))
     return () => { socket.off('shift:created'); socket.off('shift:updated'); socket.off('shift:deleted') }
   }, [socket])
+
+  useEffect(() => {
+    if (!member?.organisation_id) return
+
+    const handleResync = (event: Event) => {
+      const detail = (event as CustomEvent).detail
+      if (detail?.orgId !== member.organisation_id || detail?.memberId !== member.id) return
+      loadShifts().catch(() => {})
+    }
+
+    window.addEventListener(SOCKET_RESYNC_EVENT, handleResync)
+    return () => window.removeEventListener(SOCKET_RESYNC_EVENT, handleResync)
+  }, [member, loadShifts])
 
   const handleEventClick = (s: Shift) => {
     const fmt = (d: string) => {
@@ -96,12 +126,31 @@ export default function SchedulePage() {
 
   const handleSubmit = async (ev: React.FormEvent) => {
     ev.preventDefault()
+    const start = new Date(form.startTime)
+    const end = new Date(form.endTime)
+
+    if (!form.title.trim()) {
+      toast.error('Shift title is required')
+      return
+    }
+    if (!form.startTime || !form.endTime || Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) {
+      toast.error('Enter a valid start and end time')
+      return
+    }
+    if (end <= start) {
+      toast.error('Shift end time must be after the start time')
+      return
+    }
+
     setLoading(true)
     try {
       const payload = {
         ...form,
-        startTime: new Date(form.startTime).toISOString(),
-        endTime: new Date(form.endTime).toISOString(),
+        title: form.title.trim(),
+        location: form.location.trim(),
+        notes: form.notes.trim(),
+        startTime: start.toISOString(),
+        endTime: end.toISOString(),
         assigneeId: form.assigneeId === '' ? null : form.assigneeId
       }
 
@@ -112,10 +161,17 @@ export default function SchedulePage() {
         await api.post('/api/shifts', payload)
         toast.success('Shift created')
       }
-      setShowModal(false)
+      closeModal()
       await loadShifts()
     } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed')
+      const message =
+        err.response?.data?.message ||
+        err.response?.data?.error ||
+        (err.response?.data?.lockedFields?.length
+          ? `Locked after clock-in: ${err.response.data.lockedFields.join(', ')}`
+          : null) ||
+        'Failed to save shift'
+      toast.error(message)
     } finally { setLoading(false) }
   }
 
@@ -124,7 +180,7 @@ export default function SchedulePage() {
     try {
       await api.delete(`/api/shifts/${selected.id}`)
       toast.success('Shift deleted')
-      setShowModal(false)
+      closeModal()
       await loadShifts()
     } catch { toast.error('Failed to delete') }
   }
@@ -140,13 +196,21 @@ export default function SchedulePage() {
         {(member?.role === 'ADMIN' || member?.role === 'MANAGER') && (
           <button 
             className="px-6 py-3 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95 flex items-center gap-2" 
-            onClick={() => { setSelected(null); setForm({title:'',startTime:'',endTime:'',location:'',notes:'',color:'#4f6eff',assigneeId:''}); setShowModal(true) }}
+            onClick={() => { resetForm(); setShowModal(true) }}
           >
             <Plus size={14} /> New Shift
           </button>
         )}
       </div>
 
+      {pageLoading && (
+        <div className="bg-white border border-zinc-200 p-8 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+          Loading roster...
+        </div>
+      )}
+
+      {!pageLoading && (
+      <>
       {/* Mobile Column Tabs */}
       <div className="md:hidden flex p-1 bg-zinc-100 mb-6">
         {COLUMNS.map(col => (
@@ -177,8 +241,15 @@ export default function SchedulePage() {
             </div>
             
             <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[400px]">
+              {shifts.filter(s => s.status === col.id).length === 0 && (
+                <div className="h-full min-h-[200px] border border-dashed border-zinc-200 bg-zinc-50/50 flex items-center justify-center p-6 text-center">
+                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+                    {col.id === 'OPEN' ? 'No open shifts' : `No ${col.label.toLowerCase()}`}
+                  </p>
+                </div>
+              )}
               {shifts.filter(s => s.status === col.id).map(s => (
-                <button key={s.id} onClick={() => handleEventClick(s)}
+                <button key={s.id} type="button" onClick={() => handleEventClick(s)}
                   className="w-full text-left bg-zinc-50 p-5 border border-zinc-100 hover:border-zinc-300 transition-all duration-300 group">
                   <div className="flex items-start justify-between gap-2 mb-4">
                     <h3 className="font-bold text-black text-[11px] uppercase tracking-widest leading-snug truncate">{s.title}</h3>
@@ -209,14 +280,16 @@ export default function SchedulePage() {
           </div>
         ))}
       </div>
+      </>
+      )}
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowModal(false)}>
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && closeModal()}>
           <div className="bg-white border border-zinc-200 w-full max-w-md animate-slide-up relative shadow-2xl flex flex-col">
             <div className="flex items-center justify-between p-5 border-b border-zinc-100">
               <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">{selected ? 'Shift Details' : 'New Shift'}</h2>
-              <button onClick={() => setShowModal(false)} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
+              <button onClick={closeModal} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
             </div>
 
             {selected && member?.role === 'EMPLOYEE' ? (
