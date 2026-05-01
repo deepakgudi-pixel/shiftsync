@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState, useTransition } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClerk, useSignIn, useUser } from '@clerk/nextjs'
 
@@ -51,7 +51,7 @@ export default function DemoAccessPage() {
   const [loadingUsers, setLoadingUsers] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [pendingEmail, setPendingEmail] = useState<string | null>(null)
-  const [isPending, startTransition] = useTransition()
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
   useEffect(() => {
     const loadUsers = async () => {
@@ -80,7 +80,9 @@ export default function DemoAccessPage() {
     setPendingEmail(email)
     setError(null)
 
-    startTransition(async () => {
+    setIsSubmitting(true)
+
+    ;(async () => {
       try {
         const ticketResponse = await fetch(`${apiBase}/api/dev/demo-ticket`, {
           method: 'POST',
@@ -104,13 +106,28 @@ export default function DemoAccessPage() {
         }
 
         await setActive({ session: result.createdSessionId })
-        router.push('/dashboard')
+        window.sessionStorage.removeItem(PENDING_DEMO_EMAIL_KEY)
+        window.location.replace('/dashboard')
       } catch (err: any) {
         setError(err?.errors?.[0]?.longMessage || err.message || 'Failed to sign in with demo account')
         setPendingEmail(null)
+        setIsSubmitting(false)
       }
-    })
+    })()
   }, [apiBase, isLoaded, router, setActive, signIn])
+
+  useEffect(() => {
+    const currentEmail = user?.primaryEmailAddress?.emailAddress
+    if (!isSignedIn || !currentEmail) return
+
+    const pendingDemoEmail = pendingEmail || window.sessionStorage.getItem(PENDING_DEMO_EMAIL_KEY)
+    if (!pendingDemoEmail) return
+
+    if (pendingDemoEmail === currentEmail) {
+      window.sessionStorage.removeItem(PENDING_DEMO_EMAIL_KEY)
+      window.location.replace('/dashboard')
+    }
+  }, [isSignedIn, pendingEmail, user])
 
   useEffect(() => {
     if (!isLoaded || !signIn || !setActive || isSignedIn) return
@@ -166,7 +183,7 @@ export default function DemoAccessPage() {
         ) : (
           <div className="grid gap-4 md:grid-cols-2">
             {users.map((user) => {
-              const active = pendingEmail === user.email && isPending
+              const active = pendingEmail === user.email && isSubmitting
               return (
                 <button
                   key={user.email}
