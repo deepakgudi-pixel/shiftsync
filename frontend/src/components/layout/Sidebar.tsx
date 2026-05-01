@@ -77,7 +77,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       {/* User */}
       <div className="p-4 border-t border-white/5">
         <div className="flex items-center gap-3">
-          <UserButton afterSignOutUrl="/sign-in" appearance={{ elements: { avatarBox: 'w-8 h-8' } }} />
+          <UserButton afterSignOutUrl="/demo-access" appearance={{ elements: { avatarBox: 'w-8 h-8' } }} />
           <div className="flex-1 min-w-0">
             <p className="text-xs font-bold text-white truncate">{user?.fullName || 'User'}</p>
             <p className="text-[10px] font-medium text-zinc-500 truncate">{user?.primaryEmailAddress?.emailAddress}</p>
