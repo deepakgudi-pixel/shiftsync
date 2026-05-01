@@ -225,12 +225,12 @@ export default function LandingPage() {
                 >
                   View Demo <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
-                <Link 
+                {/* <Link 
                   href={isSignedIn ? "/dashboard" : "/sign-up"} 
                   className="group flex items-center gap-4 bg-white text-black px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all"
                 >
                   Initialize <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
-                </Link>
+                </Link> */}
               </div>
             </div>
           </div>
