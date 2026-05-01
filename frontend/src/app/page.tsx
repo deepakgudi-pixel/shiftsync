@@ -221,7 +221,7 @@ export default function LandingPage() {
               <div className="flex flex-col sm:flex-row items-start gap-4">
                 <Link 
                   href="/demo-access" 
-                  className="group flex items-center gap-4 bg-white/10 text-white px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-white/15 transition-all"
+                  className="group flex items-center gap-4 bg-white text-black px-10 py-5 rounded-none font-bold text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-200 transition-all"
                 >
                   View Demo <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
                 </Link>
