@@ -44,6 +44,9 @@ export default function SignInPage() {
         <p className="text-center text-[10px] font-bold uppercase tracking-widest text-white/40 mt-8">
           Don&apos;t have an account? <a href="/sign-up" className="text-zinc-400 hover:text-black hover:bg-white px-1 transition-colors no-underline font-bold">Sign up here</a>
         </p>
+        <p className="text-center text-[10px] font-bold uppercase tracking-widest text-white/30 mt-3">
+          Local demo? <a href="/demo-access" className="text-zinc-400 hover:text-black hover:bg-white px-1 transition-colors no-underline font-bold">Use one-click demo access</a>
+        </p>
       </div>
     </div>
   )
