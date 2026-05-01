@@ -264,6 +264,21 @@ cd frontend && npm run dev
 
 Visit `http://localhost:3000`
 
+### 5. Demo Accounts
+
+Demo organisation:
+- `Northstar Logistics`
+
+Shared demo password:
+- `ShiftSync!234`
+
+Accounts:
+- `ADMIN` — `Ava Reynolds` — `demo.admin.northstar+clerk_test@example.com`
+- `MANAGER` — `Marco Diaz` — `demo.manager.northstar+clerk_test@example.com`
+- `EMPLOYEE` — `Leah Kim` — `demo.leah.northstar+clerk_test@example.com`
+- `EMPLOYEE` — `Nina Lopez` — `demo.nina.northstar+clerk_test@example.com`
+- `EMPLOYEE` — `Owen Patel` — `demo.owen.northstar+clerk_test@example.com`
+
 ---
 
 ## Role Permissions
@@ -593,6 +608,33 @@ DELETE FROM members WHERE id = 'your-member-id-here';
 -- Delete a specific shift
 DELETE FROM shifts WHERE id = 'your-shift-id-here';
 ```
+
+#### Optional — Reset all app data but keep the tables
+
+If you want to wipe all rows for a fresh demo setup while keeping the schema intact, run this in the Neon SQL editor:
+
+```sql
+TRUNCATE TABLE
+  notifications,
+  messages,
+  announcements,
+  payslips,
+  payroll_snapshots,
+  pay_periods,
+  overtime_rules,
+  employee_rates,
+  availability,
+  swap_requests,
+  clock_events,
+  shifts,
+  audit_logs,
+  events,
+  members,
+  organisations
+RESTART IDENTITY CASCADE;
+```
+
+This clears the data only. It does **not** delete the tables, columns, indexes, or constraints.
 
 #### Step 3 — Re-enable the triggers
 
