@@ -264,6 +264,21 @@ cd frontend && npm run dev
 
 Visit `http://localhost:3000`
 
+### 5. Demo Accounts
+
+Demo organisation:
+- `Northstar Logistics`
+
+Shared demo password:
+- `ShiftSync!234`
+
+Accounts:
+- `ADMIN` — `Ava Reynolds` — `demo.admin.northstar+clerk_test@example.com`
+- `MANAGER` — `Marco Diaz` — `demo.manager.northstar+clerk_test@example.com`
+- `EMPLOYEE` — `Leah Kim` — `demo.leah.northstar+clerk_test@example.com`
+- `EMPLOYEE` — `Nina Lopez` — `demo.nina.northstar+clerk_test@example.com`
+- `EMPLOYEE` — `Owen Patel` — `demo.owen.northstar+clerk_test@example.com`
+
 ---
 
 ## Role Permissions
