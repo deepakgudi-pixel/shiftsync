@@ -4,6 +4,16 @@ A full-stack workforce management platform for frontline teams. Handles scheduli
 
 ---
 
+## At a Glance
+
+- **Built for** — frontline teams in retail, logistics, healthcare, hospitality, and shift-based operations
+- **Primary users** — Admins, Managers, and Employees
+- **Core workflow** — onboarding → shift planning → attendance capture → payroll processing → payslips and audit trail
+- **Strongest product areas** — scheduling, attendance, payroll, real-time coordination, and auditability
+- **Technical focus** — multi-tenant full-stack architecture, role-based access, event-driven updates, and practical security hardening
+
+---
+
 ## The Problem
 
 Frontline teams — retail, logistics, healthcare, hospitality — run on shifts, not desks. Yet almost every workforce tool is built for office workers and bolted onto shift work as an afterthought.
@@ -32,6 +42,17 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 
 ---
 
+## How ShiftSync Works
+
+1. **Organisation setup** — an Admin creates an organisation, and other members join through the onboarding flow.
+2. **Team planning** — Managers and Admins create shifts, assign employees, and handle swaps when coverage changes.
+3. **Attendance capture** — employees clock in and out inside the shift context, optionally with location data.
+4. **Payroll preparation** — completed shifts flow into pay periods where worked hours, overtime, and earnings are reviewed.
+5. **Payroll processing** — the system freezes rates and overtime rules into payroll snapshots, generates payslips, and tracks status changes.
+6. **Operational visibility** — announcements, notifications, live attendance, and audit logs keep the organisation updated in real time.
+
+---
+
 ## Tech Stack
 
 | Layer | Technology |
@@ -46,6 +67,53 @@ Frontline teams — retail, logistics, healthcare, hospitality — run on shifts
 | Calendar | React Big Calendar |
 | Rate Limiting | express-rate-limit (1000 req/15min per IP) |
 | Validation | express-validator (sanitized, schema-validated inputs) |
+
+---
+
+## System Overview
+
+```mermaid
+flowchart LR
+    U[Users<br/>Admin • Manager • Employee]
+
+    subgraph FE[Frontend - Next.js]
+        UI[Dashboard and Product Flows]
+        AUTH[Clerk Session]
+        SOCKET[Socket.io Client]
+    end
+
+    subgraph BE[Backend - Express API]
+        RBAC[Auth and RBAC Middleware]
+        ROUTES[Scheduling • Attendance • Payroll • Messages]
+        EVENTS[Event Emitter]
+        AUDIT[Audit Logger]
+        WS[Socket.io Server]
+    end
+
+    subgraph DB[Neon PostgreSQL]
+        CORE[Core Tables<br/>members • shifts • clock_events • pay_periods • payslips]
+        SNAP[Payroll Snapshots]
+        EVT[events]
+        LOG[audit_logs]
+        NOTE[notifications • messages]
+    end
+
+    U --> UI
+    UI --> AUTH
+    UI --> ROUTES
+    SOCKET --> WS
+    AUTH --> RBAC
+    RBAC --> ROUTES
+    ROUTES --> CORE
+    ROUTES --> SNAP
+    ROUTES --> NOTE
+    ROUTES --> EVENTS
+    ROUTES --> AUDIT
+    EVENTS --> EVT
+    AUDIT --> LOG
+    WS --> SOCKET
+    EVT --> WS
+```
 
 ---
 
@@ -311,6 +379,42 @@ The landing page features a futuristic WebGL hero with animated canvas effects, 
 
 ---
 
+## FAQ
+
+### Why did you build ShiftSync?
+
+I wanted to build a workflow-heavy product that goes beyond a typical dashboard or CRUD app. The goal was to model a real operational system where scheduling, attendance, payroll, permissions, auditability, and real-time coordination all affect each other.
+
+### Why keep it as a monolith instead of microservices?
+
+I intentionally kept it as a modular monolith because the domain is still evolving and the current scale does not justify the operational overhead of microservices. This keeps local development, debugging, and deployment simpler while still leaving room to split services later if usage grows.
+
+### What part of the app was the most interesting to build?
+
+Payroll and attendance were the most interesting because they turn simple CRUD data into business logic. I had to think about effective-dated rates, overtime thresholds, rule freezing at processing time, payslip generation, and how to keep the system auditable.
+
+### How does the payroll logic work?
+
+Completed shifts are grouped inside a pay period using clock-in timestamps as the source of truth. The system calculates base hours, overtime hours, earnings, and totals using the active overtime rule and the latest effective employee rate for that period. When payroll is processed, it stores snapshots so the generated payroll can still be explained later even if rules change.
+
+### How did you approach real-time updates?
+
+Socket.io handles live updates for shifts, attendance, announcements, and messages. To avoid stale UI after a disconnect, the client rejoins organisation and user rooms on reconnect, fetches missed events from the event feed, and then refreshes affected screens from authoritative API data.
+
+### What did you focus on from a security perspective?
+
+I focused on practical product security rather than checkbox features: Clerk-based auth, backend RBAC, organisation-scoped queries, rate limiting, validation, audit logs for sensitive actions, secure headers through Helmet, CORS restrictions, and encrypted direct-message storage.
+
+### What would you improve next if you kept building it?
+
+The next high-value improvements would be a proper automated test suite for payroll and conflict logic, stronger payroll transaction guarantees, optional payroll recompute controls for retroactive rule changes, and production monitoring like Sentry.
+
+### What does this project say about your engineering style?
+
+It shows that I enjoy building real systems end to end, not just interfaces. I like products where data flow, user roles, business rules, reliability, and developer ergonomics all matter at once.
+
+---
+
 ## Security
 
 - **API Rate Limiting** — Global 1000 requests per 15 minutes per IP on all `/api` routes, plus per-user sliding-window limits on high-traffic routes (60/min shifts, 30/min payroll/attendance, 60/min messages); ADMIN role bypasses global limiter
@@ -402,6 +506,8 @@ ShiftSync has been exercised end-to-end across Admin, Manager, and Employee role
 | Area | Why It Matters |
 |---|---|
 | **Payroll recompute path** | Add an explicit "recompute with current rules" override for cases where rule changes should apply retroactively |
+| **Payroll transaction hardening** | Wrap payroll processing in a stricter transaction boundary so partial snapshots or payslips cannot be left behind on failure |
+| **Payroll edge-case coverage** | Expand support for more complex payroll rules such as overnight shifts, holiday logic, or richer overtime policy combinations |
 | **Sentry integration** | Add production error tracking for unhandled Express exceptions and frontend runtime failures |
 | **Request ID tracing** | Propagate `X-Request-ID` through API, logs, and downstream calls for easier correlation |
 
