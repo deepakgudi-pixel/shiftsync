@@ -103,7 +103,7 @@ export default function AnalyticsPage() {
           { icon: Users, label: 'Total Members', value: analytics.totalMembers },
           { icon: Clock, label: 'Hours Tracked', value: `${analytics.totalHours}h` },
           { icon: DollarSign, label: 'Labor Cost', value: `$${analytics.totalLaborCost.toLocaleString()}` },
-          { icon: TrendingUp, label: 'Efficiency', value: analytics.completedThisMonth },
+          { icon: TrendingUp, label: 'Completed Shifts', value: analytics.completedThisMonth },
         ].map(({ icon: Icon, label, value }) => (
           <div key={label} className="bg-white border border-zinc-200 p-6 rounded-none shadow-sm hover:shadow-md transition-all duration-300">
             <div className="flex items-center gap-3 mb-4">
@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Shifts by day */}
         <div className="bg-white border border-zinc-200 p-6 md:p-8 rounded-none shadow-sm">
-          <h2 className="text-lg font-bold text-black uppercase tracking-widest mb-8 border-l-2 border-black pl-3">Weekly Distribution</h2>
+          <h2 className="text-lg font-bold text-black uppercase tracking-widest mb-8 border-l-2 border-black pl-3">Shift Distribution</h2>
           <div className="h-[200px] md:h-[240px]">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={analytics.shiftsByDay} barSize={28}>

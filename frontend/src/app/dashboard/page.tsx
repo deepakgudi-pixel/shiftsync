@@ -287,7 +287,7 @@ export default function DashboardPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
                   <div>
                     <h2 className="text-lg font-bold text-black uppercase tracking-widest">Workforce Velocity</h2>
-                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Shift completion efficiency</p>
+                    <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">Recent shift distribution and completion flow</p>
                   </div>
                 </div>
                 <div className="h-[240px] md:h-[300px]">
