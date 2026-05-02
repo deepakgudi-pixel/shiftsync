@@ -265,7 +265,36 @@ cd frontend && npm run dev
 
 Visit `http://localhost:3000`
 
-### 5. Demo Accounts
+### 5. Run the Automated Tests
+
+```bash
+cd backend
+npm test
+```
+
+What the suite covers:
+- payroll calculations for base hours, overtime hours, and total earnings
+- overtime rule behavior, including default thresholds and multiplier handling
+- shift conflict detection on create and update so overlapping assignments are rejected
+
+How it works:
+- unit tests call the extracted business-rule helpers directly, which makes the core payroll and overlap logic fast to verify
+- integration tests invoke the Express route handlers with mocked auth, database, audit, and event dependencies so the real API behavior is exercised without needing a live Postgres or Clerk instance
+- the suite uses Node's built-in test runner via `node --test`, so there is no separate test framework to boot
+
+Why these tests are needed:
+- payroll is financial logic, so a small bug can create underpayment, overpayment, or audit disputes
+- overtime rules are easy to regress because daily and weekly thresholds interact in non-obvious ways
+- shift conflict detection protects the scheduling promise of the product, and regressions there create real operational failures
+- tests make refactoring safer because we can change route structure or helper code and quickly verify that business behavior stayed correct
+
+Do the tests run in the background while the app is running?
+- no, not in the current setup
+- `npm run dev` starts the backend server only
+- `npm test` runs the suite once and exits
+- if you want always-on testing later, we can add a watch mode or CI pipeline, but that is not part of the current setup
+
+### 6. Demo Accounts
 
 Demo organisation:
 - `Northstar Logistics`
@@ -280,7 +309,7 @@ Accounts:
 - `EMPLOYEE` — `Nina Lopez` — `demo.nina.northstar+clerk_test@example.com`
 - `EMPLOYEE` — `Owen Patel` — `demo.owen.northstar+clerk_test@example.com`
 
-### 6. Seed Demo Scenario
+### 7. Seed Demo Scenario
 
 If you reset the database data and want the polished walkthrough state back:
 
@@ -304,7 +333,7 @@ Why the admin analytics stay believable after seeding:
 - labour hours and labour cost are calculated from completed shifts plus clock-in / clock-out pairs, not hardcoded demo numbers
 - the analytics charts use a rolling 30-day window, so the demo does not go blank just because a calendar month changed
 
-### 7. Recommended Demo Flow
+### 8. Recommended Demo Flow
 
 Best visible login for employer walkthroughs:
 - `ADMIN` — `Ava Reynolds` — `demo.admin.northstar+clerk_test@example.com`
@@ -354,8 +383,10 @@ shiftsync/
 │       │   └── setup.js       # Schema creation script
 │       ├── lib/
 │       │   ├── audit.js        # Audit logging utility
+│       │   ├── payrollCalculations.js # Reusable payroll + overtime math
 │       │   ├── events.js       # Event type constants
-│       │   └── eventEmitter.js # Transactional event emission
+│       │   ├── eventEmitter.js # Transactional event emission
+│       │   └── shiftConflicts.js # Shared shift overlap rules
 │       ├── middleware/
 │       │   ├── auth.js         # Clerk JWT verification + role guards
 │       │   └── rateLimit.js    # Per-user sliding-window rate limiter
@@ -374,6 +405,12 @@ shiftsync/
 │       ├── socket/
 │       │   └── index.js        # Socket.io room management (org/user)
 │       └── index.js            # Express server entry point
+│   └── test/
+│       ├── helpers/
+│       │   ├── http.js         # In-process router test harness
+│       │   └── moduleMocks.js  # Lightweight dependency mocking for routes
+│       ├── payroll-calculations.test.js # Unit tests for payroll math
+│       └── routes.integration.test.js   # Integration tests for critical API behavior
 └── frontend/
     └── src/
         ├── app/                # Next.js App Router pages
@@ -465,7 +502,7 @@ I focused on practical product security rather than checkbox features: Clerk-bas
 
 ### What would you improve next if you kept building it?
 
-The next high-value improvements would be a proper automated test suite for payroll and conflict logic, stronger payroll transaction guarantees, optional payroll recompute controls for retroactive rule changes, and production monitoring like Sentry.
+The next high-value improvements would be broader edge-case coverage for payroll rules, stronger payroll transaction guarantees, optional payroll recompute controls for retroactive rule changes, and production monitoring like Sentry.
 
 ### What does this project say about your engineering style?
 
@@ -557,7 +594,7 @@ ShiftSync has been exercised end-to-end across Admin, Manager, and Employee role
 
 | Area | Why It Matters |
 |---|---|
-| **Automated test suite** | Add unit and integration tests for payroll calculations, overtime rules, and shift conflict detection so the most business-critical logic has explicit coverage |
+| **Payroll edge-case expansion** | Extend the current automated suite with overnight shifts, holiday policies, break deductions, and richer overtime combinations |
 
 #### Good Later
 

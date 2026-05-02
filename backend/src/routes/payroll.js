@@ -5,23 +5,11 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
 const { emitEvent } = require("../lib/eventEmitter");
 const { EVENT_TYPES } = require("../lib/events");
-
-// Helper: calculate overtime components from a set of daily hours
-const calcOvertime = (dailyHours, rule) => {
-  let dailyOT = 0, weeklyOT = 0;
-
-  for (const h of dailyHours) {
-    if (h > rule.daily_threshold_hours) {
-      dailyOT += h - rule.daily_threshold_hours;
-    }
-  }
-
-  const totalHours = dailyHours.reduce((s, h) => s + h, 0);
-  weeklyOT = Math.max(0, totalHours - rule.weekly_threshold_hours);
-
-  // Use whichever is larger — not both (prevents double-counting)
-  return { overtimeHours: Math.max(dailyOT, weeklyOT), totalHours };
-};
+const {
+  DEFAULT_OVERTIME_RULE,
+  calculatePayrollTotals,
+  normalizeOvertimeRule,
+} = require("../lib/payrollCalculations");
 
 // Helper: fetch all shifts with clock events for an org within a date range — single query
 const fetchAllShiftsForPeriod = async (orgId, startDate, endDate) => {
@@ -78,7 +66,7 @@ router.get("/pay-periods/:id/timesheet", requireAuth, async (req, res) => {
     if (!period.rows.length) return res.status(404).json({ error: "Pay period not found" });
 
     const rules = await query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
-    const rule = rules.rows[0] || { daily_threshold_hours: 8, weekly_threshold_hours: 40, daily_multiplier: 1.5, weekly_multiplier: 1.5 };
+    const rule = normalizeOvertimeRule(rules.rows[0] || DEFAULT_OVERTIME_RULE);
 
     // Single query: all employees with their rate overrides
     const empResult = await query(`
@@ -117,25 +105,25 @@ router.get("/pay-periods/:id/timesheet", requireAuth, async (req, res) => {
       }
 
       const dailyHours = Object.values(byDay);
-      const { overtimeHours, totalHours } = calcOvertime(dailyHours, rule);
-      const hourlyRate = parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0;
-      const otMult = parseFloat(emp.ot_multiplier) || parseFloat(rule.daily_multiplier);
-      const baseHours = Math.max(0, totalHours - overtimeHours);
-      const baseEarnings = baseHours * hourlyRate;
-      const otEarnings = overtimeHours * hourlyRate * otMult;
+      const payroll = calculatePayrollTotals({
+        dailyHours,
+        hourlyRate: parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0,
+        overtimeMultiplier: parseFloat(emp.ot_multiplier) || parseFloat(rule.daily_multiplier),
+        rule,
+      });
 
       return {
         employeeId: emp.id,
         name: emp.name,
         avatarUrl: emp.avatar_url,
-        hourlyRate,
+        hourlyRate: payroll.hourlyRate,
         shifts: empShifts.map(s => ({ date: s.shift_date, hours: Math.round((parseFloat(s.raw_hours) || 0) * 100) / 100 })),
-        totalHours: Math.round(totalHours * 100) / 100,
-        baseHours: Math.round(baseHours * 100) / 100,
-        overtimeHours: Math.round(overtimeHours * 100) / 100,
-        baseEarnings: Math.round(baseEarnings * 100) / 100,
-        overtimeEarnings: Math.round(otEarnings * 100) / 100,
-        totalEarnings: Math.round((baseEarnings + otEarnings) * 100) / 100,
+        totalHours: payroll.totalHours,
+        baseHours: payroll.baseHours,
+        overtimeHours: payroll.overtimeHours,
+        baseEarnings: payroll.baseEarnings,
+        overtimeEarnings: payroll.overtimeEarnings,
+        totalEarnings: payroll.totalEarnings,
       };
     });
 
@@ -150,7 +138,7 @@ router.get("/pay-periods/:id/summary", requireAuth, async (req, res) => {
     if (!period.rows.length) return res.status(404).json({ error: "Not found" });
 
     const rules = await query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
-    const rule = rules.rows[0] || { daily_threshold_hours: 8, weekly_threshold_hours: 40, daily_multiplier: 1.5 };
+    const rule = normalizeOvertimeRule(rules.rows[0] || DEFAULT_OVERTIME_RULE);
 
     // Single query: all employee rates
     const empResult = await query(`
@@ -186,18 +174,26 @@ router.get("/pay-periods/:id/summary", requireAuth, async (req, res) => {
       const dailyHours = Object.values(dailyMap);
       if (dailyHours.length === 0) continue;
 
-      const { overtimeHours, totalHours: empTotal } = calcOvertime(dailyHours, rule);
-      const rate = parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0;
-      const otMult = parseFloat(emp.ot_mult);
-      const baseHours = Math.max(0, empTotal - overtimeHours);
-      const baseEarn = baseHours * rate;
-      const otEarn = overtimeHours * rate * otMult;
+      const payroll = calculatePayrollTotals({
+        dailyHours,
+        hourlyRate: parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0,
+        overtimeMultiplier: parseFloat(emp.ot_mult),
+        rule,
+      });
 
-      totalBase += baseEarn;
-      totalOT += otEarn;
-      totalHours += empTotal;
+      totalBase += payroll.baseEarnings;
+      totalOT += payroll.overtimeEarnings;
+      totalHours += payroll.totalHours;
       empCount++;
-      summary.push({ empId: emp.id, name: emp.name, rate, totalHours: empTotal, overtimeHours, baseEarn, otEarn });
+      summary.push({
+        empId: emp.id,
+        name: emp.name,
+        rate: payroll.hourlyRate,
+        totalHours: payroll.totalHours,
+        overtimeHours: payroll.overtimeHours,
+        baseEarn: payroll.baseEarnings,
+        otEarn: payroll.overtimeEarnings,
+      });
     }
 
     res.json({
@@ -252,12 +248,9 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
 
     // Capture current rules and rates — frozen at processing time
     const rules = await client.query("SELECT * FROM overtime_rules WHERE organisation_id=$1 AND is_active=true LIMIT 1", [req.member.organisation_id]);
-    const rule = rules.rows[0] || {
-      id: null,
-      daily_threshold_hours: 8,
-      weekly_threshold_hours: 40,
-      daily_multiplier: 1.5,
-      weekly_multiplier: 1.5,
+    const rule = {
+      id: rules.rows[0]?.id || null,
+      ...normalizeOvertimeRule(rules.rows[0] || DEFAULT_OVERTIME_RULE),
     };
 
     const empResult = await client.query(`
@@ -307,11 +300,12 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
       }
 
       const dailyHours = Object.values(byDay);
-      const { overtimeHours, totalHours } = calcOvertime(dailyHours, rule);
-      const otMult = parseFloat(emp.ot_mult) || parseFloat(rule.daily_multiplier);
-      const baseHours = totalHours - overtimeHours;
-      const baseEarn = baseHours * hourlyRate;
-      const otEarn = overtimeHours * hourlyRate * otMult;
+      const payroll = calculatePayrollTotals({
+        dailyHours,
+        hourlyRate,
+        overtimeMultiplier: parseFloat(emp.ot_mult) || parseFloat(rule.daily_multiplier),
+        rule,
+      });
 
       // Capture snapshot BEFORE payslip
       await client.query(`
@@ -326,11 +320,11 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
         ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18)
       `, [
         req.params.id, req.member.organisation_id, emp.id,
-        hourlyRate, emp.override_rate ? emp.id : null, otMult,
+        hourlyRate, emp.override_rate ? emp.id : null, payroll.overtimeMultiplier,
         rule.id || null, rule.daily_threshold_hours, rule.weekly_threshold_hours,
         rule.daily_multiplier, rule.weekly_multiplier,
-        Math.round(totalHours * 100) / 100, Math.round(baseHours * 100) / 100, Math.round(overtimeHours * 100) / 100,
-        Math.round(baseEarn * 100) / 100, Math.round(otEarn * 100) / 100, Math.round((baseEarn + otEarn) * 100) / 100,
+        payroll.totalHours, payroll.baseHours, payroll.overtimeHours,
+        payroll.baseEarnings, payroll.overtimeEarnings, payroll.totalEarnings,
         req.member.id,
       ]);
 
@@ -338,11 +332,11 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
         `INSERT INTO payslips (member_id, pay_period_id, organisation_id, base_hours, overtime_hours, overtime_rate, base_earnings, overtime_earnings, total_earnings, currency, generated_by)
          VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11) RETURNING *`,
         [emp.id, req.params.id, req.member.organisation_id,
-         Math.round(baseHours * 100) / 100, Math.round(overtimeHours * 100) / 100, otMult,
-         Math.round(baseEarn * 100) / 100, Math.round(otEarn * 100) / 100,
-         Math.round((baseEarn + otEarn) * 100) / 100, currency, req.member.id]
+         payroll.baseHours, payroll.overtimeHours, payroll.overtimeMultiplier,
+         payroll.baseEarnings, payroll.overtimeEarnings,
+         payroll.totalEarnings, currency, req.member.id]
       );
-      generated.push({ id: result.rows[0].id, name: emp.name, totalEarn: Math.round((baseEarn + otEarn) * 100) / 100 });
+      generated.push({ id: result.rows[0].id, name: emp.name, totalEarn: payroll.totalEarnings });
     }
 
     await client.query("UPDATE pay_periods SET status='PROCESSED', processed_at=NOW() WHERE id=$1", [req.params.id]);

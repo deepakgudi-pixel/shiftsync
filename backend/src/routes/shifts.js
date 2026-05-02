@@ -4,6 +4,7 @@ const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
 const { emitEvent } = require("../lib/eventEmitter");
 const { EVENT_TYPES } = require("../lib/events");
+const { SHIFT_CONFLICT_WINDOW_SQL } = require("../lib/shiftConflicts");
 const { body, param, validationResult } = require("express-validator");
 
 router.get("/", requireAuth, async (req, res) => {
@@ -83,7 +84,7 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), [
 
       const conflict = await query(
         `SELECT id FROM shifts WHERE assignee_id=$1 AND status IN ('ASSIGNED','IN_PROGRESS')
-         AND ((start_time<=$2 AND end_time>$2) OR (start_time<$3 AND end_time>=$3) OR (start_time>=$2 AND end_time<=$3))`,
+         AND ${SHIFT_CONFLICT_WINDOW_SQL}`,
         [assigneeId, new Date(startTime), new Date(endTime)]
       );
       if (conflict.rows.length) return res.status(409).json({ error: "Schedule conflict detected" });
@@ -178,7 +179,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       if (targetAssignee) {
         const conflict = await query(
           `SELECT id FROM shifts WHERE assignee_id=$1 AND status IN ('ASSIGNED','IN_PROGRESS') AND id != $4
-           AND ((start_time<=$2 AND end_time>$2) OR (start_time<$3 AND end_time>=$3) OR (start_time>=$2 AND end_time<=$3))`,
+           AND ${SHIFT_CONFLICT_WINDOW_SQL}`,
           [targetAssignee, targetStart, targetEnd, req.params.id]
         );
         if (conflict.rows.length) return res.status(409).json({ error: "Schedule conflict detected for this employee" });

@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "nodemon src/index.js",
     "start": "node src/index.js",
+    "test": "node --test test/*.test.js",
     "db:setup": "node src/db/setup.js",
     "db:seed": "node src/db/seed.js",
     "db:seed:scenario": "node src/scripts/seed-demo-scenario.js"
