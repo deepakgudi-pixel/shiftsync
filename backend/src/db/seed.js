@@ -129,94 +129,100 @@ const upsertClerkUser = async (config) => {
   };
 };
 
-const main = async () => {
-  const output = {
-    organisation: DEMO_ORG_NAME,
-    password: DEMO_PASSWORD,
-    accounts: [],
-  };
+const seed = async () => {
+   const output = {
+     organisation: DEMO_ORG_NAME,
+     password: DEMO_PASSWORD,
+     accounts: [],
+   };
 
-  try {
-    const users = {};
-    for (const config of demoUsers) {
-      users[config.key] = await upsertClerkUser(config);
-    }
+   try {
+     const users = {};
+     for (const config of demoUsers) {
+       users[config.key] = await upsertClerkUser(config);
+     }
 
-    const admin = users.admin;
-    const adminMember = await request("/api/members/onboard", {
-      method: "POST",
-      body: JSON.stringify({
-        clerkUserId: admin.clerkUserId,
-        email: admin.email,
-        name: admin.displayName,
-        organisationName: DEMO_ORG_NAME,
-      }),
-    });
+     const admin = users.admin;
+     const adminMember = await request("/api/members/onboard", {
+       method: "POST",
+       body: JSON.stringify({
+         clerkUserId: admin.clerkUserId,
+         email: admin.email,
+         name: admin.displayName,
+         organisationName: DEMO_ORG_NAME,
+       }),
+     });
 
-    const organisationId = adminMember.organisation_id;
+     const organisationId = adminMember.organisation_id;
 
-    for (const user of Object.values(users)) {
-      if (user.key === "admin") continue;
+     for (const user of Object.values(users)) {
+       if (user.key === "admin") continue;
 
-      await request("/api/members/onboard", {
-        method: "POST",
-        body: JSON.stringify({
-          clerkUserId: user.clerkUserId,
-          email: user.email,
-          name: user.displayName,
-          organisationId,
-        }),
-      });
-    }
+       await request("/api/members/onboard", {
+         method: "POST",
+         body: JSON.stringify({
+           clerkUserId: user.clerkUserId,
+           email: user.email,
+           name: user.displayName,
+           organisationId,
+         }),
+       });
+     }
 
-    for (const user of Object.values(users)) {
-      const memberResult = await query(
-        "SELECT id, role FROM members WHERE clerk_user_id = $1",
-        [user.clerkUserId]
-      );
-      const member = memberResult.rows[0];
+     for (const user of Object.values(users)) {
+       const memberResult = await query(
+         "SELECT id, role FROM members WHERE clerk_user_id = $1",
+         [user.clerkUserId]
+       );
+       const member = memberResult.rows[0];
 
-      const patchBody = {};
-      if (user.role !== member.role) {
-        patchBody.role = user.role;
-      }
-      if (user.hourlyRate !== null) {
-        patchBody.hourly_rate = user.hourlyRate;
-      }
+       const patchBody = {};
+       if (user.role !== member.role) {
+         patchBody.role = user.role;
+       }
+       if (user.hourlyRate !== null) {
+         patchBody.hourly_rate = user.hourlyRate;
+       }
 
-      if (Object.keys(patchBody).length > 0) {
-        await request(`/api/members/${member.id}`, {
-          method: "PATCH",
-          clerkUserId: admin.clerkUserId,
-          body: JSON.stringify(patchBody),
-        });
-      }
+       if (Object.keys(patchBody).length > 0) {
+         await request(`/api/members/${member.id}`, {
+           method: "PATCH",
+           clerkUserId: admin.clerkUserId,
+           body: JSON.stringify(patchBody),
+         });
+       }
 
-      await query(
-        `UPDATE members
-         SET phone = $1, skills = $2, updated_at = NOW()
-         WHERE id = $3`,
-        [user.phone, user.skills, member.id]
-      );
+       await query(
+         `UPDATE members
+          SET phone = $1, skills = $2, updated_at = NOW()
+          WHERE id = $3`,
+         [user.phone, user.skills, member.id]
+       );
 
-      output.accounts.push({
-        role: user.role,
-        name: user.displayName,
-        email: user.email,
-      });
-    }
+       output.accounts.push({
+         role: user.role,
+         name: user.displayName,
+         email: user.email,
+       });
+     }
 
-    output.accounts.sort((a, b) => {
-      const order = { ADMIN: 0, MANAGER: 1, EMPLOYEE: 2 };
-      return (order[a.role] ?? 99) - (order[b.role] ?? 99) || a.name.localeCompare(b.name);
-    });
+     output.accounts.sort((a, b) => {
+       const order = { ADMIN: 0, MANAGER: 1, EMPLOYEE: 2 };
+       return (order[a.role] ?? 99) - (order[b.role] ?? 99) || a.name.localeCompare(b.name);
+     });
 
-    console.log(JSON.stringify(output, null, 2));
-  } catch (error) {
-    console.error("Failed to seed demo accounts");
-    console.error(error);
-    process.exit(1);
-  }
-};
+     return output;
+   } catch (error) {
+     console.error("Failed to seed demo accounts");
+     console.error(error);
+     throw error;
+   }
+ };
 
-main();
+ if (require.main === module) {
+   seed().then(output => {
+     console.log(JSON.stringify(output, null, 2));
+   }).catch(() => process.exit(1));
+ }
+
+ module.exports = { seed };

@@ -119,38 +119,42 @@ export default function LandingPage() {
   const scrollContentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // Momentum Scrolling Logic
+    // Lenis-style Smooth Scroll - Custom Implementation
     let target = 0;
     let current = 0;
     let raf: number;
-
-    const lerp = (start: number, end: number, factor: number) => start + (end - start) * factor;
-
-    const update = () => {
-      current = lerp(current, target, 0.1); // Increased for high responsiveness and "buttery" glide
+    const ease = 0.08; // Authentic Lenis easing
+    
+    const animate = () => {
+      const diff = target - current;
+      current += diff * ease;
+      
       if (scrollContentRef.current) {
         scrollContentRef.current.style.transform = `translate3d(-${current}px, 0, 0)`;
       }
       
-      if (Math.abs(target - current) > 0.1) {
-        raf = requestAnimationFrame(update);
+      if (Math.abs(diff) > 0.1) {
+        raf = requestAnimationFrame(animate);
       }
     };
 
     const handleWheel = (e: WheelEvent) => {
-      if (window.innerWidth < 640) return; // Horizontal for iPads/Tabs (sm breakpoint)
+      if (window.innerWidth < 640) return;
       e.preventDefault();
-      target += e.deltaY; // Standard leverage for natural response
+      
+      // Lenis-style delta with natural multiplication
+      target += e.deltaY * 1.5;
+      
       if (scrollContentRef.current) {
         const maxScroll = scrollContentRef.current.scrollWidth - window.innerWidth;
         target = Math.max(0, Math.min(target, maxScroll));
       }
+      
       cancelAnimationFrame(raf);
-      raf = requestAnimationFrame(update);
+      raf = requestAnimationFrame(animate);
     };
 
-    // Sync positions if the user uses the scrollbar or touch
-    const syncPosition = () => {
+    const handleTouchStart = () => {
       if (containerRef.current) {
         target = containerRef.current.scrollLeft;
         current = containerRef.current.scrollLeft;
@@ -158,11 +162,11 @@ export default function LandingPage() {
     };
 
     window.addEventListener('wheel', handleWheel, { passive: false });
-    window.addEventListener('touchstart', syncPosition);
+    window.addEventListener('touchstart', handleTouchStart);
     
     return () => {
       window.removeEventListener('wheel', handleWheel);
-      window.removeEventListener('touchstart', syncPosition);
+      window.removeEventListener('touchstart', handleTouchStart);
       cancelAnimationFrame(raf);
     };
   }, []);
@@ -208,9 +212,9 @@ export default function LandingPage() {
         {/* Hero Section */}
         <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center pt-32 pb-20 sm:pt-60 sm:pb-48 z-10 sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-left w-full">
-            <h1 className="text-4xl sm:text-5xl md:text-[120px] font-bold leading-[1.1] text-white mb-12 tracking-[-0.02em] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
-              THE FUTURE OF <br />
-              MANAGEMENT
+            <h1 className="text-3xl sm:text-4xl md:text-6xl lg:text-[100px] font-bold leading-[1.1] text-white mb-12 tracking-[-0.02em] animate-in fade-in slide-in-from-bottom-8 duration-1000 delay-150">
+              ZERO CONFLICT <br />
+              SHIFT MANAGEMENT
             </h1>
             
             <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-12 animate-in fade-in slide-in-from-bottom-12 duration-1000 delay-300">
@@ -239,7 +243,7 @@ export default function LandingPage() {
         {/* Minimal Bento Grid */}
         <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center py-16 sm:py-24 z-10 sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-            <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 gap-px bg-white/[0.04] border border-white/[0.04]">
+             <div className="grid grid-cols-1 md:grid-cols-4 md:grid-rows-2 divide-x divide-y divide-white/10 border border-white/10">
               
               {/* Logic Block - Expands on Desktop */}
               <div className="md:col-span-2 md:row-span-2 bg-white/[0.04] p-12 flex flex-col justify-between group overflow-hidden relative">
@@ -299,14 +303,14 @@ export default function LandingPage() {
                   Core Infrastructure
                 </div>
                 <h2 className="text-4xl md:text-5xl font-light tracking-normal mb-8 leading-tight">Built on the <br />modern edge.</h2>
-                <div className="grid grid-cols-2 gap-8">
-                  {[
-                    { label: 'Frontend', val: 'Next.js 14' },
-                    { label: 'Database', val: 'PostgreSQL' },
-                    { label: 'Real-time', val: 'Socket.io' },
-                    { label: 'Auth', val: 'Clerk' }
-                  ].map(spec => (
-                    <div key={spec.label} className="border-t border-white/[0.04] pt-4">
+                <div className="grid grid-cols-2 divide-x divide-y divide-white/10 border border-white/10">
+                   {[
+                     { label: 'Frontend', val: 'Next.js 14' },
+                     { label: 'Database', val: 'PostgreSQL' },
+                     { label: 'Real-time', val: 'Socket.io' },
+                     { label: 'Auth', val: 'Clerk' }
+                   ].map(spec => (
+                     <div key={spec.label} className="p-4">
                       <p className="text-[9px] font-bold uppercase tracking-widest text-white/20 mb-1">{spec.label}</p>
                       <p className="text-sm font-medium">{spec.val}</p>
                     </div>
@@ -323,7 +327,47 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* Competitive Advantage / Comparison Section */}
+        {/* Industry Targeting Section */}
+        <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center py-20 sm:py-32 z-10 sm:overflow-y-auto">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+            <div className="mb-16">
+              <h2 className="text-4xl md:text-6xl font-bold tracking-tight mb-4">BUILT FOR FRONTLINE TEAMS</h2>
+              <p className="text-white/40 uppercase tracking-[0.3em] text-[10px] font-bold">Industries we serve</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-x divide-white/10 border border-white/10">
+              {[
+                { 
+                  industry: 'Retail', 
+                  icon: LayoutGrid, 
+                  useCase: 'Scale holiday shifts without overstaffing.'
+                },
+                { 
+                  industry: 'Healthcare', 
+                  icon: ShieldCheck, 
+                  useCase: 'Ensure 24/7 coverage with zero conflicts.'
+                },
+                { 
+                  industry: 'Logistics', 
+                  icon: Zap, 
+                  useCase: 'Coordinate warehouse and delivery schedules.'
+                }
+              ].map((item, i) => (
+                <div key={i} className="bg-white/[0.02] p-8 md:p-12 group">
+                  <item.icon size={20} className="text-white/20 mb-8 group-hover:text-white transition-colors duration-500" />
+                  <h3 className="text-white text-sm font-bold uppercase tracking-wider mb-4">{item.industry}</h3>
+                  <p className="text-white/60 text-xs leading-relaxed">{item.useCase}</p>
+                  <div className="mt-8 flex items-center gap-4">
+                    <div className="h-[1px] flex-1 bg-white/[0.04]" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-white/20">Industry {String(i + 1).padStart(2, '0')}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+         {/* Competitive Advantage / Comparison Section */}
         <section className="relative w-full sm:w-screen flex-shrink-0 min-h-screen sm:h-full flex flex-col justify-center py-20 sm:py-32 z-10 sm:overflow-y-auto">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
             <div className="mb-16">
@@ -331,7 +375,7 @@ export default function LandingPage() {
               <p className="text-white/40 uppercase tracking-[0.3em] text-[10px] font-bold">Designed for clarity. Built for control.</p>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-white/10 border border-white/10">
+             <div className="grid grid-cols-1 md:grid-cols-2 divide-x divide-white/10 border border-white/10">
               {/* Legacy Column */}
               <div className="bg-white/[0.02] p-8 md:p-12">
                 <h3 className="text-white text-[10px] font-bold uppercase tracking-widest mb-10">Traditional Workforce Software</h3>
@@ -354,7 +398,7 @@ export default function LandingPage() {
               </div>
 
               {/* ShiftSync Column */}
-              <div className="bg-white/[0.02] p-8 md:p-12 border-l border-white/10 relative overflow-hidden">
+               <div className="bg-white/[0.02] p-8 md:p-12 relative overflow-hidden">
                 <div className="absolute top-0 right-0 p-4 opacity-10">
                 </div>
                 <h3 className="text-white text-[10px] font-bold uppercase tracking-widest mb-10">ShiftSync Orchestration</h3>

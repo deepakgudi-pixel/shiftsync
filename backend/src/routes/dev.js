@@ -1,6 +1,8 @@
 const router = require("express").Router();
 const { createClerkClient } = require("@clerk/backend");
 const { query } = require("../db/client");
+const { seed } = require("../db/seed");
+const { seedDemoData } = require("../db/seedDemoData");
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
@@ -75,6 +77,52 @@ router.post("/demo-ticket", requireDemoAccess, async (req, res) => {
   } catch (error) {
     console.error("Failed to create demo sign-in ticket", error);
     res.status(500).json({ error: "Failed to create demo access ticket" });
+  }
+});
+
+router.post("/seed-demo-data", requireDemoAccess, async (req, res) => {
+  try {
+    await seedDemoData();
+    res.json({ message: "Demo data seeded successfully" });
+  } catch (error) {
+    console.error("Failed to seed demo data", error);
+    res.status(500).json({ error: "Failed to seed demo data" });
+  }
+});
+
+router.post("/reset-demo", requireDemoAccess, async (req, res) => {
+  try {
+    const orgResult = await query(
+      "SELECT id FROM organisations WHERE name = $1 LIMIT 1",
+      ["Northstar Logistics"]
+    );
+    const organisationId = orgResult.rows[0]?.id;
+
+    if (organisationId) {
+      // Delete swap_requests via shift relationship
+      await query("DELETE FROM swap_requests WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = $1)", [organisationId]);
+      // Delete clock_events via shift relationship
+      await query("DELETE FROM clock_events WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = $1)", [organisationId]);
+      // Delete payslips via pay_periods relationship
+      await query("DELETE FROM payslips WHERE pay_period_id IN (SELECT id FROM pay_periods WHERE organisation_id = $1)", [organisationId]);
+      // Delete messages via members relationship
+      await query("DELETE FROM messages WHERE sender_id IN (SELECT id FROM members WHERE organisation_id = $1)", [organisationId]);
+      // Delete notifications via members relationship
+      await query("DELETE FROM notifications WHERE member_id IN (SELECT id FROM members WHERE organisation_id = $1)", [organisationId]);
+      // Now delete main tables with organisation_id
+      await query("DELETE FROM shifts WHERE organisation_id = $1", [organisationId]);
+      await query("DELETE FROM pay_periods WHERE organisation_id = $1", [organisationId]);
+      await query("DELETE FROM announcements WHERE organisation_id = $1", [organisationId]);
+      await query("DELETE FROM overtime_rules WHERE organisation_id = $1", [organisationId]);
+    }
+
+    // Re-seed demo data
+    await seedDemoData();
+
+    res.json({ message: "Demo data reset successfully" });
+  } catch (error) {
+    console.error("Failed to reset demo data", error);
+    res.status(500).json({ error: "Failed to reset demo data" });
   }
 });
 

@@ -3,11 +3,18 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClerk, useSignIn, useUser } from '@clerk/nextjs'
+import { ArrowRight } from 'lucide-react'
 
 type DemoUser = {
   role: string
   name: string
   email: string
+}
+
+const ROLE_DESCRIPTIONS: Record<string, string> = {
+  'ADMIN': 'Full system access, org settings, audit logs',
+  'MANAGER': 'Schedule team, approve swaps, run payroll',
+  'EMPLOYEE': 'Clock in/out, request swaps, view payslips'
 }
 
 const getApiBase = () => {
@@ -156,33 +163,48 @@ export default function DemoAccessPage() {
     activateDemoUser(email)
   }
 
+  const resetDemo = async () => {
+    if (!confirm('Reset demo to original state? All changes will be lost.')) return
+    try {
+      const res = await fetch(`${apiBase}/api/dev/reset-demo`, { method: 'POST' })
+      const data = await readJsonSafely(res)
+      if (!res.ok) throw new Error(data?.error || 'Failed to reset demo')
+      alert('Demo reset successfully!')
+    } catch (err: any) {
+      setError(err.message || 'Failed to reset demo')
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4 relative overflow-hidden">
+      {/* Background grid */}
       <div
-        className="absolute inset-0 z-0 opacity-[0.03] pointer-events-none"
+        className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}
       />
 
-      <div className="w-full max-w-3xl relative z-10 border border-white/10 bg-zinc-900/90 backdrop-blur-xl p-8 md:p-10">
-        <div className="mb-8">
-          <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40 mb-3">Demo Access</p>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight mb-3">Open the seeded demo workspace directly</h1>
-          <p className="text-sm text-white/60 max-w-2xl">
-            Choose one of the prepared demo accounts below. If another account is already signed in, ShiftSync will switch sessions cleanly and take you straight to the dashboard.
-          </p>
+      <div className="w-full max-w-4xl relative z-10 border border-white/10 bg-zinc-900/50 backdrop-blur-xl">
+        <div className="p-8 md:p-12 border-b border-white/10">
+          <div className="mb-8">
+            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Demo Access</p>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Open the seeded demo workspace</h1>
+            <p className="text-sm text-white/60 max-w-2xl">
+              Choose one of the prepared demo accounts below. If another account is already signed in, ShiftSync will switch sessions cleanly and take you straight to the dashboard.
+            </p>
+          </div>
         </div>
 
         {error && (
-          <div className="mb-6 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="mx-8 md:mx-12 mt-8 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
             {error}
           </div>
         )}
 
         {loadingUsers ? (
-          <div className="text-[10px] font-bold uppercase tracking-widest text-white/40">Loading demo accounts...</div>
+          <div className="p-8 md:p-12 text-[10px] font-bold uppercase tracking-widest text-white/40">Loading demo accounts...</div>
         ) : (
-          <div className="grid gap-4 md:grid-cols-2">
-            {users.map((user) => {
+          <div className="divide-y divide-white/10">
+            {users.map((user, i) => {
               const active = pendingEmail === user.email && isSubmitting
               return (
                 <button
@@ -190,29 +212,40 @@ export default function DemoAccessPage() {
                   type="button"
                   onClick={() => signInWithDemoUser(user.email)}
                   disabled={!isLoaded || active}
-                  className="text-left border border-white/10 bg-white/[0.03] hover:bg-white/[0.07] transition-colors p-5 disabled:opacity-60"
+                  className="w-full text-left p-8 md:p-12 hover:bg-white/[0.03] transition-colors disabled:opacity-60 group flex items-center justify-between gap-6"
                 >
-                  <div className="flex items-center justify-between gap-3 mb-3">
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">{user.role}</span>
-                    <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-                      {active ? 'Signing in...' : 'Use account'}
-                    </span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-4 mb-3">
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Role {String(i + 1).padStart(2, '0')}</span>
+                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
+                        {active ? 'Signing in...' : 'Use account'}
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-bold text-white mb-1">{user.name}</h2>
+                    <p className="text-sm text-white/55 break-all mb-2">{user.email}</p>
+                    <p className="text-xs text-white/40">{ROLE_DESCRIPTIONS[user.role] || ''}</p>
                   </div>
-                  <h2 className="text-lg font-bold text-white mb-1">{user.name}</h2>
-                  <p className="text-sm text-white/55 break-all">{user.email}</p>
+                  <ArrowRight size={16} className="text-white/30 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
               )
             })}
           </div>
         )}
 
-        <div className="mt-8 pt-6 border-t border-white/10">
+        <div className="p-8 md:p-12 border-t border-white/10 flex items-center justify-between">
           <button
             type="button"
             onClick={() => router.push('/sign-in')}
             className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 hover:text-white transition-colors"
           >
             Back to regular sign-in
+          </button>
+          <button
+            type="button"
+            onClick={resetDemo}
+            className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors"
+          >
+            Reset demo data
           </button>
         </div>
       </div>
