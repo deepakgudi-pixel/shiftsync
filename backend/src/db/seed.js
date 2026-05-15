@@ -6,11 +6,6 @@ const { query } = require("./client");
 
 const BASE_URL = process.env.TEST_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
 const DEV_HEADER = "x-dev-clerk-user-id";
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
-if (!DEMO_PASSWORD) {
-  console.error("ERROR: DEMO_PASSWORD environment variable is required for seeding demo data.");
-  process.exit(1);
-}
 const DEMO_ORG_NAME = "Northstar Logistics";
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
@@ -102,8 +97,17 @@ const request = async (pathname, options = {}) => {
 
 const buildDemoEmail = (label) => `demo.${label}.northstar+clerk_test@example.com`;
 
+const getDemoPassword = () => {
+  const password = process.env.DEMO_PASSWORD;
+  if (!password) {
+    throw new Error("DEMO_PASSWORD environment variable is required for seeding demo data. Set it in backend/.env or pass it when running npm run db:seed.");
+  }
+  return password;
+};
+
 const upsertClerkUser = async (config) => {
   const email = buildDemoEmail(config.emailLabel);
+  const demoPassword = getDemoPassword();
   const existing = await clerk.users.getUserList({ emailAddress: [email], limit: 1 });
   let user = existing.data[0];
 
@@ -112,7 +116,7 @@ const upsertClerkUser = async (config) => {
       firstName: config.firstName,
       lastName: config.lastName,
       emailAddress: [email],
-      password: DEMO_PASSWORD,
+      password: demoPassword,
       skipPasswordChecks: true,
       skipLegalChecks: true,
     });
@@ -134,9 +138,10 @@ const upsertClerkUser = async (config) => {
 };
 
 const seed = async () => {
+   const demoPassword = getDemoPassword();
    const output = {
      organisation: DEMO_ORG_NAME,
-     password: DEMO_PASSWORD,
+     password: demoPassword,
      accounts: [],
    };
 
@@ -226,7 +231,10 @@ const seed = async () => {
  if (require.main === module) {
    seed().then(output => {
      console.log(JSON.stringify(output, null, 2));
-   }).catch(() => process.exit(1));
+   }).catch((error) => {
+     console.error(error.message);
+     process.exit(1);
+   });
  }
 
  module.exports = { seed };
