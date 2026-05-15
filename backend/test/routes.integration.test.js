@@ -360,3 +360,86 @@ test("PUT /api/shifts/:id returns 409 when an updated shift overlaps another ass
   assert.equal(response.status, 409);
   assert.deepEqual(response.body, { error: "Schedule conflict detected for this employee" });
 });
+
+test("POST /api/messages returns 403 when receiver is in a different organisation", async (t) => {
+  const harness = await loadRoute({
+    routeFile: "messages.js",
+    basePath: "/api/messages",
+    member: { id: "member-1", organisation_id: "org-a", role: "EMPLOYEE" },
+    queryImpl: async (sql) => {
+      if (sql.includes("FROM members WHERE id=$1")) {
+        return { rows: [{ id: "member-2", organisation_id: "org-b" }] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  t.after(async () => {
+    await harness.close();
+  });
+
+  const response = await harness.request("/", {
+    method: "POST",
+    body: { receiverId: "member-2", content: "Hello" },
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, "Cannot message members outside your organisation");
+});
+
+test("PATCH /api/shifts/:id/swap/:swapId returns 404 when swap belongs to different organisation", async (t) => {
+  const shiftId = "11111111-1111-4111-8111-111111111111";
+  const swapId = "22222222-2222-4222-8222-222222222222";
+  const harness = await loadRoute({
+    routeFile: "shifts.js",
+    basePath: "/api/shifts",
+    member: { id: "member-1", organisation_id: "org-a", role: "ADMIN" },
+    queryImpl: async (sql) => {
+      if (sql.includes("FROM swap_requests sr")) {
+        return { rows: [] };
+      }
+      if (sql.includes("FROM clock_events WHERE shift_id=$1")) {
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  t.after(async () => {
+    await harness.close();
+  });
+
+  const response = await harness.request(`/${shiftId}/swap/${swapId}`, {
+    method: "PATCH",
+    body: { status: "APPROVED" },
+  });
+
+  assert.equal(response.status, 404);
+});
+
+test("POST /api/payroll/employee-rates returns 404 when member is in a different organisation", async (t) => {
+  const harness = await loadRoute({
+    routeFile: "payroll.js",
+    basePath: "/api/payroll",
+    member: { id: "member-admin", organisation_id: "org-a", role: "ADMIN" },
+    queryImpl: async (sql) => {
+      if (sql.includes("FROM members WHERE id=$1 AND organisation_id=$2")) {
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  t.after(async () => {
+    await harness.close();
+  });
+
+  const response = await harness.request("/employee-rates", {
+    method: "POST",
+    body: { member_id: "member-other", hourly_rate: 25, effective_from: "2026-01-01" },
+  });
+
+  assert.equal(response.status, 404);
+  assert.equal(response.body.error, "Member not found in your organisation");
+});
+

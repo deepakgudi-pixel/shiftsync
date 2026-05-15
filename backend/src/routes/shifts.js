@@ -340,6 +340,16 @@ router.patch("/:id/swap/:swapId", requireAuth, requireRole("ADMIN","MANAGER"), [
 
   try {
     const { status } = req.body;
+
+    // Verify swap request belongs to the same organisation via the shift
+    const swapCheck = await query(
+      `SELECT sr.* FROM swap_requests sr
+       JOIN shifts s ON sr.shift_id = s.id
+       WHERE sr.id=$1 AND s.organisation_id=$2`,
+      [req.params.swapId, req.member.organisation_id]
+    );
+    if (!swapCheck.rows.length) return res.status(404).json({ error: "Swap request not found" });
+
     const result = await query("UPDATE swap_requests SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *", [status, req.params.swapId]);
     const swap = result.rows[0];
 

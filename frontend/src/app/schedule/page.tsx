@@ -7,14 +7,7 @@ import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { cn, fmtTime, fmtDateTime, STATUS_COLORS } from '@/lib/utils'
-
-interface Shift {
-  id: string; title: string; start_time: string; end_time: string
-  status: string; color: string; assignee_name?: string; assignee_id?: string
-  location?: string; notes?: string
-}
-
-interface Member { id: string; name: string; role: string }
+import type { Member, Shift } from '@/types'
 
 const COLORS = ['#4f6eff','#7c3aed','#059669','#dc2626','#d97706','#0891b2','#be185d']
 
@@ -30,7 +23,7 @@ export default function SchedulePage() {
   const api = useApi()
   const [shifts, setShifts] = useState<Shift[]>([])
   const [members, setMembers] = useState<Member[]>([])
-  const [member, setMember] = useState<any>(null)
+  const [member, setMember] = useState<Member | null>(null)
   const [showModal, setShowModal] = useState(false)
   const [selected, setSelected] = useState<Shift | null>(null)
   const [form, setForm] = useState({ title:'', startTime:'', endTime:'', location:'', notes:'', color:'#4f6eff', assigneeId:'' })

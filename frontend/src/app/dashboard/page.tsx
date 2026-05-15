@@ -10,8 +10,9 @@ import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { cn, fmtDateTime, fmtRelative } from '@/lib/utils'
+import type { Member, Shift, Announcement, SwapRequest, Analytics } from '@/types'
 
-interface Analytics {
+interface DashboardAnalytics {
   totalMembers: number
   shiftsThisWeek: number
   openShifts: number
@@ -22,16 +23,30 @@ interface Analytics {
   shiftsByDay: { day: string; total: number; completed: number }[]
 }
 
-interface Shift {
-  id: string; title: string; start_time: string; end_time: string; assignee_id?: string
-  status: string; color: string; assignee_name?: string; location?: string; organisation_id: string
+interface DashboardShift {
+  id: string
+  title: string
+  start_time: string
+  end_time: string
+  assignee_id?: string
+  status: string
+  color: string
+  assignee_name?: string
+  location?: string
+  organisation_id: string
 }
 
-interface Announcement {
-  id: string; title: string; content: string; priority: string; created_at: string; target_name?: string; target_member_id?: string
+interface DashboardAnnouncement {
+  id: string
+  title: string
+  content: string
+  priority: string
+  created_at: string
+  target_name?: string
+  target_member_id?: string
 }
 
-interface SwapRequest {
+interface DashboardSwapRequest {
   id: string
   shift_id: string
   shift_title: string
@@ -44,7 +59,15 @@ interface SwapRequest {
   created_at: string
 }
 
-const StatCard = ({ icon: Icon, label, value, sub, color }: any) => (
+interface StatCardProps {
+  icon: React.ElementType
+  label: string
+  value: string | number
+  sub?: string
+  color?: string
+}
+
+const StatCard = ({ icon: Icon, label, value, sub }: StatCardProps) => (
   <div className="bg-white border border-zinc-200 p-6 rounded-none shadow-sm hover:shadow-md transition-all duration-300">
     <div className="flex items-center gap-3 mb-4">
       <div className="p-2 bg-zinc-50 border border-zinc-100">
@@ -67,18 +90,18 @@ export default function DashboardPage() {
   const { user, isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const api = useApi()
-  const [analytics, setAnalytics] = useState<Analytics | null>(null)
-  const [shifts, setShifts] = useState<Shift[]>([])
-  const [announcements, setAnnouncements] = useState<Announcement[]>([])
-  const [swaps, setSwaps] = useState<SwapRequest[]>([])
-  const [member, setMember] = useState<any>(null)
-  const [team, setTeam] = useState<any[]>([])
+  const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null)
+  const [shifts, setShifts] = useState<DashboardShift[]>([])
+  const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([])
+  const [swaps, setSwaps] = useState<DashboardSwapRequest[]>([])
+  const [member, setMember] = useState<Member | null>(null)
+  const [team, setTeam] = useState<Member[]>([])
   const [loading, setLoading] = useState(true)
   const socket = useSocket(member?.organisation_id, member?.id)
   const [showAnnModal, setShowAnnModal] = useState(false)
   const [annForm, setAnnForm] = useState({ title: '', content: '', priority: 'NORMAL', targetMemberId: '' })
   const [showSwapModal, setShowSwapModal] = useState(false)
-  const [selectedShift, setSelectedShift] = useState<Shift | null>(null)
+  const [selectedShift, setSelectedShift] = useState<DashboardShift | null>(null)
   const [swapForm, setSwapForm] = useState({ reason: '', targetId: '' })
   const [annLoading, setAnnLoading] = useState(false)
 
@@ -161,24 +184,24 @@ export default function DashboardPage() {
   useEffect(() => {
     if (!socket) return
     socket.on('shift:created', () => toast.success('New shift created'))
-    socket.on('announcement:new', (ann: Announcement) => {
+    socket.on('announcement:new', (ann: DashboardAnnouncement) => {
       if (ann.target_member_id && ann.target_member_id !== member?.id && member?.role !== 'ADMIN') return
       setAnnouncements(prev => [ann, ...prev])
-      toast('📢 ' + ann.title)
+      toast('New announcement: ' + ann.title)
     })
     socket.on('announcement:deleted', ({ id }: { id: string }) => {
       setAnnouncements(prev => prev.filter(a => a.id !== id))
     })
-    socket.on('swap:requested', (swap: SwapRequest) => {
+    socket.on('swap:requested', (swap: DashboardSwapRequest) => {
       if (member?.role === 'ADMIN' || member?.role === 'MANAGER') {
         setSwaps(prev => [swap, ...prev])
       }
-      toast('🔄 New swap request: ' + swap.shift_title)
+      toast('New swap request: ' + swap.shift_title)
     })
     socket.on('swap:processed', ({ id }: { id: string }) => {
       setSwaps(prev => prev.filter(s => s.id !== id))
     })
-    socket.on('shift:updated', (updated: Shift) => {
+    socket.on('shift:updated', (updated: DashboardShift) => {
       setShifts(prev => prev.map(s => s.id === updated.id ? updated : s))
     })
 
@@ -417,16 +440,16 @@ export default function DashboardPage() {
 
       {/* Announcement Modal */}
       {showAnnModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowAnnModal(false)}>
-          <div className="bg-white border border-zinc-200 w-full max-w-md animate-slide-up relative shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowAnnModal(false)} onKeyDown={e => e.key === 'Escape' && setShowAnnModal(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="ann-modal-title" className="bg-white border border-zinc-200 w-full max-w-md animate-slide-up relative shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-zinc-100">
-              <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">New Announcement</h2>
-              <button onClick={() => setShowAnnModal(false)} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
+              <h2 id="ann-modal-title" className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">New Announcement</h2>
+              <button aria-label="Close announcement form" onClick={() => setShowAnnModal(false)} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
             </div>
             <form onSubmit={handlePostAnnouncement} className="p-5 space-y-4">
               <div>
-                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Subject</label>
-                <input className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="Announcement title..." value={annForm.title} onChange={e => setAnnForm(f => ({...f, title: e.target.value}))} required />
+                <label htmlFor="ann-title" className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Subject</label>
+                <input id="ann-title" className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="Announcement title..." value={annForm.title} onChange={e => setAnnForm(f => ({...f, title: e.target.value}))} required />
               </div>
               <div>
                 <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Priority</label>
@@ -471,21 +494,21 @@ export default function DashboardPage() {
 
       {/* Swap Request Modal */}
       {showSwapModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowSwapModal(false)}>
-          <div className="bg-white border border-zinc-200 w-full max-w-md animate-slide-up relative shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && setShowSwapModal(false)} onKeyDown={e => e.key === 'Escape' && setShowSwapModal(false)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="swap-modal-title" className="bg-white border border-zinc-200 w-full max-w-md animate-slide-up relative shadow-2xl">
             <div className="flex items-center justify-between p-5 border-b border-zinc-100">
               <div>
-                <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">Request Shift Swap</h2>
+                <h2 id="swap-modal-title" className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">Request Shift Swap</h2>
                 <p className="text-[9px] text-zinc-400 uppercase tracking-widest mt-1">{selectedShift?.title}</p>
               </div>
-              <button onClick={() => setShowSwapModal(false)} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
+              <button aria-label="Close swap request form" onClick={() => setShowSwapModal(false)} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
             </div>
             <form onSubmit={handleRequestSwap} className="p-5 space-y-4">
               <div>
-                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Colleague (Optional)</label>
-                <select 
-                  className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors appearance-none" 
-                  value={swapForm.targetId} 
+                <label htmlFor="swap-colleague" className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Colleague (Optional)</label>
+                <select id="swap-colleague"
+                  className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors appearance-none"
+                  value={swapForm.targetId}
                   onChange={e => setSwapForm(f => ({...f, targetId: e.target.value}))}
                 >
                   <option value="">Open Pool (Assign to anyone)</option>
@@ -495,8 +518,8 @@ export default function DashboardPage() {
                 </select>
               </div>
               <div>
-                <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Reason for Request</label>
-                <textarea className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors min-h-[80px]" placeholder="Explain why you need a swap..." value={swapForm.reason} onChange={e => setSwapForm(f => ({...f, reason: e.target.value}))} required />
+                <label htmlFor="swap-reason" className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Reason for Request</label>
+                <textarea id="swap-reason" className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors min-h-[80px]" placeholder="Explain why you need a swap..." value={swapForm.reason} onChange={e => setSwapForm(f => ({...f, reason: e.target.value}))} required />
               </div>
               <div className="pt-2">
                 <button type="submit" className="w-full py-4 bg-black text-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-zinc-800 transition-colors">

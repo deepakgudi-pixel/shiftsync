@@ -4,6 +4,7 @@ import { useApi } from '@/hooks/useApi'
 import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { getInitials, fmtTime, cn } from '@/lib/utils'
 import { Send, ArrowLeft } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 export default function MessagesPage() {
   const api = useApi()
@@ -27,7 +28,7 @@ export default function MessagesPage() {
       setMembers(memR.data.filter((m: any) => m.id !== meR.data.id))
     }
     load()
-  }, [])
+  }, [api])
 
   useEffect(() => {
     if (!active) return
@@ -64,9 +65,13 @@ export default function MessagesPage() {
   const send = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!text.trim() || !active) return
-    await api.post('/api/messages', { receiverId: active.id, content: text })
-    setText('')
-    await loadConversation(active.id)
+    try {
+      await api.post('/api/messages', { receiverId: active.id, content: text })
+      setText('')
+      await loadConversation(active.id)
+    } catch {
+      toast.error('Failed to send message')
+    }
   }
 
   return (

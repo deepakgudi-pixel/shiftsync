@@ -407,6 +407,11 @@ router.get("/employee-rates", requireAuth, requireRole("ADMIN", "MANAGER"), asyn
   try {
     const { memberId } = req.query;
     if (!memberId) return res.status(400).json({ error: "memberId required" });
+
+    // Verify member belongs to the same organisation
+    const memberCheck = await query("SELECT id FROM members WHERE id=$1 AND organisation_id=$2", [memberId, req.member.organisation_id]);
+    if (!memberCheck.rows.length) return res.status(404).json({ error: "Member not found in your organisation" });
+
     const result = await query("SELECT * FROM employee_rates WHERE member_id=$1 ORDER BY effective_from DESC LIMIT 1", [memberId]);
     res.json(result.rows[0] || {});
   } catch (err) { res.status(500).json({ error: "Failed" }); }
@@ -416,6 +421,11 @@ router.post("/employee-rates", requireAuth, requireRole("ADMIN"), async (req, re
   try {
     const { member_id, hourly_rate, overtime_multiplier, effective_from } = req.body;
     if (!member_id || !hourly_rate || !effective_from) return res.status(400).json({ error: "Missing fields" });
+
+    // Verify member belongs to the same organisation
+    const memberCheck = await query("SELECT id FROM members WHERE id=$1 AND organisation_id=$2", [member_id, req.member.organisation_id]);
+    if (!memberCheck.rows.length) return res.status(404).json({ error: "Member not found in your organisation" });
+
     const result = await query(
       `INSERT INTO employee_rates (member_id, hourly_rate, overtime_multiplier, effective_from) VALUES ($1,$2,$3,$4) RETURNING *`,
       [member_id, hourly_rate, overtime_multiplier || 1.5, effective_from]

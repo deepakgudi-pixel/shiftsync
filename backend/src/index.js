@@ -7,10 +7,13 @@ const rateLimit = require("express-rate-limit");
 const helmet = require("helmet");
 const { Server } = require("socket.io");
 const { initSocket } = require("./socket");
-const { userRateLimit } = require("./middleware/rateLimit");
 
 const app = express();
 const server = http.createServer(app);
+
+// Trust proxy for correct req.ip behind reverse proxies (Nginx, ALB, etc.)
+app.set('trust proxy', 1);
+
 const io = new Server(server, {
   cors: { origin: process.env.FRONTEND_URL || "http://localhost:3000", credentials: true },
 });
@@ -38,22 +41,6 @@ app.use(helmet({
 app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000", credentials: true }));
 app.use(express.json({ limit: "1mb" }));
 
-// Per-user rate limiting — keyed by member id, applied after auth
-app.use("/api/shifts", userRateLimit({ windowMs: 60 * 1000, max: 60, keyPrefix: "shifts" }));
-app.use("/api/attendance", userRateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: "attendance" }));
-app.use("/api/payroll", userRateLimit({ windowMs: 60 * 1000, max: 30, keyPrefix: "payroll" }));
-app.use("/api/messages", userRateLimit({ windowMs: 60 * 1000, max: 60, keyPrefix: "messages" }));
-
-// Global rate limiting — 1000 requests per 15 minutes per IP, admins bypass
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 1000,
-  standardHeaders: true,
-  legacyHeaders: false,
-  skip: (req) => req.member?.role === "ADMIN",
-});
-app.use("/api", apiLimiter);
-
 app.use((req, _, next) => { req.io = io; next(); });
 app.get("/health", (_, res) => res.json({ status: "ok", ts: new Date() }));
 app.use("/api/members", require("./routes/members"));
@@ -69,6 +56,22 @@ app.use("/api/payroll", require("./routes/payroll"));
 app.use("/api/payslips", require("./routes/payslips"));
 app.use("/api/events", require("./routes/events"));
 app.use("/api/dev", require("./routes/dev"));
+
+// Global rate limiting — placed after routes so auth middleware has populated req.member
+const apiLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 1000,
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: (req) => req.member?.role === "ADMIN",
+});
+app.use("/api", apiLimiter);
+
+// Global error handler — catches unhandled errors and prevents stack trace leaks
+app.use((err, req, res, _next) => {
+  console.error("Unhandled error:", err.message, err.stack);
+  res.status(500).json({ error: "Internal server error" });
+});
 initSocket(io);
 
 const PORT = process.env.PORT || 4000;

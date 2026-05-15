@@ -40,6 +40,13 @@ router.post("/", requireAuth, async (req, res) => {
     const { receiverId, content } = req.body;
     if (!receiverId || !content) return res.status(400).json({ error: "Missing receiverId or content" });
 
+    // Verify receiver belongs to the same organisation
+    const receiver = await query("SELECT id, organisation_id FROM members WHERE id=$1", [receiverId]);
+    if (!receiver.rows.length) return res.status(404).json({ error: "Receiver not found" });
+    if (receiver.rows[0].organisation_id !== req.member.organisation_id) {
+      return res.status(403).json({ error: "Cannot message members outside your organisation" });
+    }
+
     await client.query("BEGIN");
 
     const result = await client.query(

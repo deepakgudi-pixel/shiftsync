@@ -6,7 +6,11 @@ const { query } = require("./client");
 
 const BASE_URL = process.env.TEST_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
 const DEV_HEADER = "x-dev-clerk-user-id";
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD || "ShiftSync!234";
+const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
+if (!DEMO_PASSWORD) {
+  console.error("ERROR: DEMO_PASSWORD environment variable is required for seeding demo data.");
+  process.exit(1);
+}
 const DEMO_ORG_NAME = "Northstar Logistics";
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });

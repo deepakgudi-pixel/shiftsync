@@ -65,7 +65,7 @@ export default function AuditPage() {
     if (!member) return
     if (member.role !== 'ADMIN' && member.role !== 'MANAGER') return
     loadLogs(1)
-  }, [member])
+  }, [member, api])
 
   const loadLogs = async (page: number) => {
     setLoading(true)

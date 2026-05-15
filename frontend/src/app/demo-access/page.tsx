@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClerk, useSignIn, useUser } from '@clerk/nextjs'
 import { ArrowRight } from 'lucide-react'
+import toast from 'react-hot-toast'
 
 type DemoUser = {
   role: string
@@ -169,7 +170,7 @@ export default function DemoAccessPage() {
       const res = await fetch(`${apiBase}/api/dev/reset-demo`, { method: 'POST' })
       const data = await readJsonSafely(res)
       if (!res.ok) throw new Error(data?.error || 'Failed to reset demo')
-      alert('Demo reset successfully!')
+      toast.success('Demo reset successfully!')
     } catch (err: any) {
       setError(err.message || 'Failed to reset demo')
     }

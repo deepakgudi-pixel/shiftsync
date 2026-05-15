@@ -1,973 +1,525 @@
-# ShiftSync - Complete Application Documentation
+# ShiftSync — Developer & Technical Documentation
 
-## Table of Contents
-1. [Overview](#overview)
-2. [Technology Stack](#technology-stack)
-3. [Architecture](#architecture)
-4. [Database Schema](#database-schema)
-5. [Authentication & Authorization](#authentication--authorization)
-6. [Core Features](#core-features)
-7. [API Reference](#api-reference)
-8. [Real-time Communication](#real-time-communication)
-9. [Security](#security)
-10. [Deployment](#deployment)
+## System Architecture
 
----
-
-## Overview
-
-**ShiftSync** is a full-stack workforce management platform designed for frontline teams in retail, logistics, healthcare, and hospitality. It provides comprehensive tools for scheduling, attendance tracking, payroll processing, and team coordination.
-
-### Key Capabilities
-- **Smart Scheduling**: Create, assign, and track shifts with Kanban-style status columns
-- **Attendance Tracking**: Clock in/out with optional location data and live attendance views
-- **Shift Swapping**: Employees can request shift swaps with manager approval workflow
-- **Automated Payroll**: Calculate hours, overtime, and generate PDF payslips
-- **Real-time Updates**: Socket.io-powered instant updates across the organization
-- **Analytics Dashboard**: Workforce KPIs, shift distribution charts, coverage rates
-- **Audit Trail**: Immutable audit logs for compliance and transparency
-
----
-
-## Technology Stack
-
-### Frontend (`/frontend`)
-| Technology | Purpose | Version |
-|------------|---------|---------|
-| Next.js 14 (App Router) | React framework with SSR | ^14.x |
-| TypeScript | Type-safe development | ^5.x |
-| Tailwind CSS | Utility-first styling | ^3.x |
-| TanStack Query v5 | Data fetching and caching | ^5.x |
-| Socket.io-client | Real-time communication | ^4.x |
-| Recharts | Analytics charts | ^2.x |
-| React Big Calendar | Calendar views | ^1.x |
-| Axios | HTTP client | ^1.x |
-| Clerk (@clerk/nextjs) | Authentication | ^4.x |
-| react-hot-toast | Notifications | ^2.x |
-| lucide-react | Icon library | ^0.x |
-
-### Backend (`/backend`)
-| Technology | Purpose | Version |
-|------------|---------|---------|
-| Node.js + Express | Web server framework | ^20.x |
-| PostgreSQL (Neon) | Primary database | ^15.x |
-| Socket.io | Real-time communication | ^4.x |
-| Clerk (@clerk/backend) | JWT verification | ^1.x |
-| PDFKit | Payslip PDF generation | ^0.13 |
-| Helmet | Security headers | ^7.x |
-| express-rate-limit | API rate limiting | ^7.x |
-| express-validator | Input validation | ^7.x |
-| crypto (Node.js) | AES-256-GCM encryption | Built-in |
-| date-fns | Date formatting | ^3.x |
-
----
-
-## Architecture
-
-### High-Level Architecture
+ShiftSync is a multi-tenant, event-driven workforce management platform. Every mutation writes to a canonical event log; database state is derived from events; audit logs are event log queries; socket events are event broadcasts.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                        Frontend (Next.js)                    │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  App Router Pages  │  Components  │  Hooks/Utils     │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                            ↕                                │
-│                    Clerk Authentication                     │
-└─────────────────────────────────────────────────────────────┘
-                            ↕ HTTP/REST
-                            ↕ Socket.io
-┌─────────────────────────────────────────────────────────────┐
-│                        Backend (Express)                     │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Route Handlers  │  Middleware  │  Business Logic    │  │
-│  └──────────────────────────────────────────────────────┘  │
-│                            ↕                                │
-│                    Clerk JWT Verification                   │
-└─────────────────────────────────────────────────────────────┘
-                            ↕
-┌─────────────────────────────────────────────────────────────┐
-│                   PostgreSQL (Neon Serverless)               │
-│  ┌──────────────────────────────────────────────────────┐  │
-│  │  Core Tables  │  Audit Logs  │  Event Store        │  │
-│  └──────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────┐
+│  Frontend (Next.js 14 + TypeScript)                     │
+│  App Router pages • TanStack Query • Socket.io client   │
+│  Clerk auth • Tailwind CSS • Recharts                   │
+└──────────────────────┬──────────────────────────────────┘
+                       │ HTTP/REST + Socket.io
+┌──────────────────────▼──────────────────────────────────┐
+│  Backend (Node.js + Express)                            │
+│  Clerk JWT verification • RBAC middleware               │
+│  Route handlers • Event emitter • Audit logger          │
+│  Socket.io server • Rate limiting • Helmet              │
+└──────────────────────┬──────────────────────────────────┘
+                       │ pg connection pool
+┌──────────────────────▼──────────────────────────────────┐
+│  PostgreSQL (Neon serverless)                           │
+│  Core tables • events (append-only)                     │
+│  audit_logs (append-only) • payroll_snapshots           │
+│  DB triggers for immutability                           │
+└─────────────────────────────────────────────────────────┘
 ```
 
-### Project Structure
+## Project Structure
 
 ```
 shiftsync/
 ├── backend/
 │   ├── src/
-│   │   ├── index.js              # Express server entry point
+│   │   ├── index.js                  # Express server, middleware chain
 │   │   ├── db/
-│   │   │   ├── client.js         # PostgreSQL connection pool
-│   │   │   ├── setup.js         # Database schema creation
-│   │   │   └── seed.js          # Database seeding
-│   │   ├── routes/               # API route handlers
-│   │   │   ├── organisations.js
-│   │   │   ├── members.js
-│   │   │   ├── shifts.js
-│   │   │   ├── attendance.js
-│   │   │   ├── payroll.js
-│   │   │   ├── payslips.js
-│   │   │   ├── overtime.js
-│   │   │   ├── messages.js
-│   │   │   ├── notifications.js
-│   │   │   ├── analytics.js
-│   │   │   ├── audit.js
-│   │   │   ├── events.js
-│   │   │   └── dev.js
+│   │   │   ├── client.js             # PostgreSQL pool (max 20 connections)
+│   │   │   └── setup.js              # Schema creation + triggers
+│   │   ├── routes/
+│   │   │   ├── organisations.js      # Org settings, announcements, currency
+│   │   │   ├── members.js            # Team CRUD, onboarding, availability
+│   │   │   ├── shifts.js             # Shift CRUD + swap requests
+│   │   │   ├── attendance.js         # Clock in/out + timesheets
+│   │   │   ├── payroll.js            # Pay periods, processing, employee rates
+│   │   │   ├── payslips.js           # Payslip listing + PDF generation
+│   │   │   ├── overtime.js           # OT rule management
+│   │   │   ├── messages.js           # Direct messaging (AES-256-GCM)
+│   │   │   ├── notifications.js      # Per-user notifications
+│   │   │   ├── analytics.js          # Workforce KPIs
+│   │   │   ├── audit.js              # Audit log queries
+│   │   │   ├── events.js             # Event feed for reconnect recovery
+│   │   │   └── dev.js                # Demo access routes
 │   │   ├── middleware/
-│   │   │   ├── auth.js          # Clerk JWT verification + RBAC
-│   │   │   └── rateLimit.js     # Per-user rate limiter
+│   │   │   ├── auth.js               # Clerk JWT verification + role guards
+│   │   │   └── rateLimit.js          # Per-user sliding-window rate limiter
 │   │   ├── lib/
-│   │   │   ├── audit.js          # Audit logging utility
-│   │   │   ├── payrollCalculations.js
-│   │   │   ├── events.js         # Event type constants
-│   │   │   ├── eventEmitter.js   # Transactional event emission
-│   │   │   ├── shiftConflicts.js
-│   │   │   └── encryption.js     # AES-256-GCM encrypt/decrypt
-│   │   ├── socket/
-│   │   │   └── index.js         # Socket.io room management
-│   │   └── test/
-│   │       ├── helpers/
-│   │       ├── payroll-calculations.test.js
-│   │       └── routes.integration.test.js
-│   ├── .env                      # Backend environment variables
-│   ├── package.json
-│   └── vercel.json               # Railway deployment config
+│   │   │   ├── audit.js              # Audit logging utility
+│   │   │   ├── payrollCalculations.js # OT math (daily/weekly thresholds)
+│   │   │   ├── events.js             # Event type constants
+│   │   │   ├── eventEmitter.js       # Transactional event emission
+│   │   │   ├── shiftConflicts.js     # SQL overlap detection
+│   │   │   └── encryption.js         # AES-256-GCM encrypt/decrypt
+│   │   └── socket/
+│   │       └── index.js              # Socket.io room management (org/user)
+│   └── test/
+│       ├── helpers/
+│       │   ├── http.js               # In-process router test harness
+│       │   └── moduleMocks.js        # Dependency mocking for routes
+│       ├── payroll-calculations.test.js
+│       └── routes.integration.test.js
 │
-└── frontend/
-    ├── src/
-    │   ├── app/                  # Next.js App Router
-    │   │   ├── layout.tsx
-    │   │   ├── page.tsx          # Landing page
-    │   │   ├── (auth)/
-    │   │   ├── dashboard/
-    │   │   ├── schedule/
-    │   │   ├── team/
-    │   │   ├── attendance/
-    │   │   ├── payroll/
-    │   │   ├── messages/
-    │   │   ├── analytics/
-    │   │   ├── audit/
-    │   │   ├── onboarding/
-    │   │   ├── invite/
-    │   │   └── demo-access/
-    │   ├── components/
-    │   │   ├── auth/
-    │   │   └── layout/
-    │   │       └── Sidebar.tsx
-    │   ├── hooks/
-    │   │   ├── useApi.ts         # Axios instance with Clerk token
-    │   │   └── useSocket.ts      # Socket.io connection management
-    │   └── lib/
-    │       ├── utils.ts
-    │       └── api.ts
-    ├── .env.local
-    ├── package.json
-    ├── middleware.ts              # Clerk auth middleware
-    └── vercel.json                # Vercel deployment config
+├── frontend/
+│   ├── src/
+│   │   ├── app/
+│   │   │   ├── layout.tsx            # Root layout (ClerkProvider, Toaster)
+│   │   │   ├── page.tsx              # Landing page (WebGL hero)
+│   │   │   ├── error.tsx             # Global error boundary
+│   │   │   ├── (auth)/               # Sign-in, sign-up pages
+│   │   │   ├── dashboard/            # KPIs, announcements, upcoming shifts
+│   │   │   ├── schedule/             # Kanban board (OPEN/ASSIGNED/IN_PROGRESS/COMPLETED)
+│   │   │   ├── team/                 # Member management + role editing
+│   │   │   ├── attendance/           # Clock in/out + timesheets
+│   │   │   ├── payroll/              # Pay periods, processing, payslips
+│   │   │   ├── messages/             # Direct message conversations
+│   │   │   ├── analytics/            # Admin KPI dashboard + charts
+│   │   │   ├── audit/                # Audit log with filters + pagination
+│   │   │   ├── invite/               # Organisation registry + share ID
+│   │   │   ├── onboarding/           # Create or join organisation
+│   │   │   └── demo-access/          # Demo account selection
+│   │   ├── components/
+│   │   │   └── layout/
+│   │   │       ├── AppLayout.tsx     # Shared layout (sidebar + mobile header)
+│   │   │       └── Sidebar.tsx       # Navigation with role-based visibility
+│   │   ├── hooks/
+│   │   │   ├── useApi.ts             # Axios instance with Clerk token
+│   │   │   └── useSocket.ts          # Socket.io with reconnect recovery
+│   │   ├── types/
+│   │   │   └── index.ts              # Shared TypeScript interfaces
+│   │   └── lib/
+│   │       └── utils.ts              # Helpers (initials, formatters, colors)
+│   ├── middleware.ts                  # Clerk route protection
+│   └── tailwind.config.js
+│
+├── .github/workflows/ci.yml           # Lint, typecheck, test, build
+├── README.md
+├── APP_DOCUMENTATION.md
+└── DEVELOPER_CONCEPTS_GUIDE.md
 ```
-
----
 
 ## Database Schema
 
 ### Core Tables
 
-#### organisations
+**organisations**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| name | TEXT | Organisation name |
+| currency | TEXT | ISO 4217 code (default: USD) |
+| settings | JSONB | Org-level configuration |
+| created_at | TIMESTAMPTZ | |
+
+**members**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| organisation_id | UUID | FK → organisations |
+| clerk_user_id | TEXT | Unique Clerk identifier |
+| name | TEXT | Display name |
+| email | TEXT | |
+| role | TEXT | ADMIN, MANAGER, or EMPLOYEE |
+| hourly_rate | NUMERIC | Base hourly rate |
+| can_manage_rates | BOOLEAN | Manager rate editing permission |
+| created_at | TIMESTAMPTZ | |
+
+**shifts**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| organisation_id | UUID | FK → organisations |
+| title | TEXT | |
+| start_time | TIMESTAMPTZ | |
+| end_time | TIMESTAMPTZ | |
+| location | TEXT | |
+| notes | TEXT | |
+| color | TEXT | Hex colour tag |
+| status | TEXT | OPEN, ASSIGNED, IN_PROGRESS, COMPLETED |
+| assignee_id | UUID | FK → members (nullable) |
+| version | INTEGER | Optimistic locking |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+**clock_events**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| shift_id | UUID | FK → shifts |
+| member_id | UUID | FK → members |
+| type | TEXT | CLOCK_IN or CLOCK_OUT |
+| timestamp | TIMESTAMPTZ | |
+| latitude | NUMERIC | Optional location |
+| longitude | NUMERIC | Optional location |
+
+**swap_requests**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| shift_id | UUID | FK → shifts |
+| requester_id | UUID | FK → members |
+| target_id | UUID | FK → members (nullable) |
+| reason | TEXT | |
+| status | TEXT | PENDING, APPROVED, REJECTED |
+| created_at | TIMESTAMPTZ | |
+| updated_at | TIMESTAMPTZ | |
+
+**pay_periods**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| organisation_id | UUID | FK → organisations |
+| period_type | TEXT | WEEKLY, BIWEEKLY, SEMI_MONTHLY, MONTHLY |
+| start_date | DATE | |
+| end_date | DATE | |
+| status | TEXT | DRAFT, PROCESSED, PAID |
+| processed_at | TIMESTAMPTZ | |
+
+**payslips**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| member_id | UUID | FK → members |
+| pay_period_id | UUID | FK → pay_periods |
+| organisation_id | UUID | FK → organisations |
+| base_hours | NUMERIC | |
+| overtime_hours | NUMERIC | |
+| overtime_rate | NUMERIC | Multiplier applied |
+| base_earnings | NUMERIC | |
+| overtime_earnings | NUMERIC | |
+| total_earnings | NUMERIC | |
+| currency | TEXT | |
+| status | TEXT | DRAFT, PROCESSED, DOWNLOADED, PAID |
+| generated_by | UUID | FK → members |
+| created_at | TIMESTAMPTZ | |
+
+**payroll_snapshots**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| pay_period_id | UUID | FK → pay_periods |
+| organisation_id | UUID | FK → organisations |
+| member_id | UUID | FK → members |
+| hourly_rate | NUMERIC | Frozen at processing time |
+| effective_rate_id | UUID | FK → employee_rates (if override) |
+| overtime_multiplier | NUMERIC | Frozen at processing time |
+| rule_id | UUID | FK → overtime_rules |
+| rule_daily_threshold_hours | NUMERIC | Frozen |
+| rule_weekly_threshold_hours | NUMERIC | Frozen |
+| rule_daily_multiplier | NUMERIC | Frozen |
+| rule_weekly_multiplier | NUMERIC | Frozen |
+| total_hours | NUMERIC | |
+| base_hours | NUMERIC | |
+| overtime_hours | NUMERIC | |
+| base_earnings | NUMERIC | |
+| overtime_earnings | NUMERIC | |
+| total_earnings | NUMERIC | |
+| generated_by | UUID | FK → members |
+| created_at | TIMESTAMPTZ | |
+
+**overtime_rules**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| organisation_id | UUID | FK → organisations |
+| name | TEXT | |
+| daily_threshold_hours | NUMERIC | Default: 8 |
+| weekly_threshold_hours | NUMERIC | Default: 40 |
+| daily_multiplier | NUMERIC | Default: 1.5 |
+| weekly_multiplier | NUMERIC | Default: 1.5 |
+| is_active | BOOLEAN | |
+| created_at | TIMESTAMPTZ | |
+
+**employee_rates**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| member_id | UUID | FK → members |
+| hourly_rate | NUMERIC | |
+| overtime_multiplier | NUMERIC | |
+| effective_from | DATE | |
+| created_at | TIMESTAMPTZ | |
+
+**announcements**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| title | TEXT | |
+| content | TEXT | |
+| priority | TEXT | NORMAL, HIGH, URGENT |
+| organisation_id | UUID | FK → organisations |
+| author_id | UUID | FK → members |
+| target_member_id | UUID | FK → members (nullable) |
+| created_at | TIMESTAMPTZ | |
+
+**messages**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| sender_id | UUID | FK → members |
+| receiver_id | UUID | FK → members |
+| content | TEXT | AES-256-GCM encrypted |
+| read | BOOLEAN | |
+| created_at | TIMESTAMPTZ | |
+
+**notifications**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| member_id | UUID | FK → members |
+| type | TEXT | SHIFT_ASSIGNED, SHIFT_CANCELLED, etc. |
+| title | TEXT | |
+| body | TEXT | |
+| read | BOOLEAN | |
+| data | JSONB | |
+| created_at | TIMESTAMPTZ | |
+
+**audit_logs** (append-only via DB trigger)
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| organisation_id | UUID | |
+| member_id | UUID | FK → members |
+| clerk_user_id | TEXT | |
+| action | TEXT | CREATE, UPDATE, DELETE, CLOCK_IN, etc. |
+| entity_type | TEXT | shift, member, pay_period, etc. |
+| entity_id | UUID | |
+| old_values | JSONB | Before state (UPDATE/DELETE) |
+| new_values | JSONB | After state (CREATE/UPDATE) |
+| ip_address | TEXT | |
+| user_agent | TEXT | |
+| created_at | TIMESTAMPTZ | |
+
+**events** (append-only via DB trigger)
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| seq | BIGSERIAL | Monotonic ordering |
+| organisation_id | UUID | |
+| member_id | UUID | FK → members |
+| event_type | TEXT | shift.created, attendance.clock_in, etc. |
+| entity_type | TEXT | |
+| entity_id | UUID | |
+| payload | JSONB | |
+| ip_address | TEXT | |
+| user_agent | TEXT | |
+| created_at | TIMESTAMPTZ | |
+
+**availability**
+| Column | Type | Notes |
+|---|---|---|
+| id | UUID | Primary key |
+| member_id | UUID | FK → members |
+| day_of_week | INTEGER | 0-6 |
+| start_time | TIME | |
+| end_time | TIME | |
+
+### Append-only Triggers
+
 ```sql
-CREATE TABLE organisations (
-    id SERIAL PRIMARY KEY,
-    name TEXT NOT NULL,
-    settings JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### members
-```sql
-CREATE TABLE members (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    clerk_user_id TEXT UNIQUE NOT NULL,
-    name TEXT NOT NULL,
-    email TEXT,
-    role TEXT CHECK (role IN ('ADMIN', 'MANAGER', 'EMPLOYEE')) DEFAULT 'EMPLOYEE',
-    hourly_rate NUMERIC(10,2),
-    onboarded BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### shifts
-```sql
-CREATE TABLE shifts (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    title TEXT NOT NULL,
-    start_time TIMESTAMPTZ NOT NULL,
-    end_time TIMESTAMPTZ NOT NULL,
-    assigned_to INTEGER REFERENCES members(id),
-    status TEXT CHECK (status IN ('OPEN', 'ASSIGNED', 'IN_PROGRESS', 'COMPLETED')) DEFAULT 'OPEN',
-    created_by INTEGER REFERENCES members(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### clock_events
-```sql
-CREATE TABLE clock_events (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    member_id INTEGER REFERENCES members(id),
-    shift_id INTEGER REFERENCES shifts(id),
-    type TEXT CHECK (type IN ('CLOCK_IN', 'CLOCK_OUT')) NOT NULL,
-    timestamp TIMESTAMPTZ DEFAULT NOW(),
-    location JSONB,
-    note TEXT
-);
-```
-
-#### swap_requests
-```sql
-CREATE TABLE swap_requests (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    shift_id INTEGER REFERENCES shifts(id),
-    requester_id INTEGER REFERENCES members(id),
-    target_member_id INTEGER REFERENCES members(id),
-    status TEXT CHECK (status IN ('PENDING', 'APPROVED', 'REJECTED')) DEFAULT 'PENDING',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### pay_periods
-```sql
-CREATE TABLE pay_periods (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    start_date DATE NOT NULL,
-    end_date DATE NOT NULL,
-    status TEXT CHECK (status IN ('DRAFT', 'PROCESSING', 'COMPLETED', 'PAID')) DEFAULT 'DRAFT',
-    processed_at TIMESTAMPTZ,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### payslips
-```sql
-CREATE TABLE payslips (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    member_id INTEGER REFERENCES members(id),
-    pay_period_id INTEGER REFERENCES pay_periods(id),
-    base_hours NUMERIC(10,2),
-    overtime_hours NUMERIC(10,2),
-    base_pay NUMERIC(10,2),
-    overtime_pay NUMERIC(10,2),
-    total_pay NUMERIC(10,2),
-    pdf_url TEXT,
-    generated_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### payroll_snapshots
-```sql
-CREATE TABLE payroll_snapshots (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    pay_period_id INTEGER REFERENCES pay_periods(id),
-    member_id INTEGER REFERENCES members(id),
-    snapshot JSONB NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### overtime_rules
-```sql
-CREATE TABLE overtime_rules (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    daily_threshold NUMERIC(4,2) DEFAULT 8,
-    weekly_threshold NUMERIC(5,2) DEFAULT 40,
-    multiplier NUMERIC(3,2) DEFAULT 1.5,
-    effective_from DATE DEFAULT CURRENT_DATE,
-    effective_to DATE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### employee_rates
-```sql
-CREATE TABLE employee_rates (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    member_id INTEGER REFERENCES members(id),
-    hourly_rate NUMERIC(10,2) NOT NULL,
-    effective_from DATE DEFAULT CURRENT_DATE,
-    effective_to DATE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### announcements
-```sql
-CREATE TABLE announcements (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    author_id INTEGER REFERENCES members(id),
-    content TEXT NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### messages
-```sql
-CREATE TABLE messages (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    sender_id INTEGER REFERENCES members(id),
-    recipient_id INTEGER REFERENCES members(id),
-    encrypted_body TEXT NOT NULL,
-    iv TEXT NOT NULL,
-    sent_at TIMESTAMPTZ DEFAULT NOW(),
-    read_at TIMESTAMPTZ
-);
-```
-
-#### notifications
-```sql
-CREATE TABLE notifications (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    member_id INTEGER REFERENCES members(id),
-    type TEXT NOT NULL,
-    payload JSONB DEFAULT '{}',
-    read BOOLEAN DEFAULT FALSE,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### audit_logs
-```sql
-CREATE TABLE audit_logs (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    member_id INTEGER REFERENCES members(id),
-    action TEXT NOT NULL,
-    details JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### events
-```sql
-CREATE TABLE events (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    type TEXT NOT NULL,
-    payload JSONB DEFAULT '{}',
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-#### availability
-```sql
-CREATE TABLE availability (
-    id SERIAL PRIMARY KEY,
-    org_id INTEGER REFERENCES organisations(id),
-    member_id INTEGER REFERENCES members(id),
-    day_of_week INTEGER CHECK (day_of_week BETWEEN 0 AND 6),
-    start_time TIME,
-    end_time TIME,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-```
-
-### Immutable Triggers
-
-The `events` and `audit_logs` tables are protected by database triggers that prevent UPDATE and DELETE operations:
-
-```sql
+-- Blocks UPDATE and DELETE on events table
 CREATE OR REPLACE FUNCTION block_events_modification()
 RETURNS TRIGGER AS $$
 BEGIN
-    RAISE EXCEPTION 'events table is immutable - no modifications allowed';
+  RAISE EXCEPTION 'events table is append-only: UPDATE and DELETE are not permitted';
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE TRIGGER events_no_update
-BEFORE UPDATE OR DELETE ON events
-FOR EACH ROW EXECUTE FUNCTION block_events_modification();
+CREATE TRIGGER block_events_delete
+  BEFORE DELETE ON events
+  FOR EACH ROW EXECUTE FUNCTION block_events_modification();
+
+CREATE TRIGGER block_events_update
+  BEFORE UPDATE ON events
+  FOR EACH ROW EXECUTE FUNCTION block_events_modification();
+
+-- Same pattern for audit_logs
 ```
 
----
+## Authentication Flow
 
-## Authentication & Authorization
+1. **Frontend**: Clerk manages sessions via `@clerk/nextjs`
+2. **Route protection**: `middleware.ts` calls `auth().protect()` for non-public routes
+3. **API requests**: Clerk token sent as `Authorization: Bearer <token>`
+4. **Backend verification**: `requireAuth` middleware verifies JWT via `@clerk/backend`
+5. **Member sync**: On first sign-in, `/onboard` creates member record
+6. **Socket auth**: Token verified on handshake before room joins
 
-### Authentication Flow
+### Dev Auth Bypass
 
-1. **Frontend**: Clerk handles user sessions via `@clerk/nextjs`
-   - `frontend/src/app/layout.tsx` wraps the app with `ClerkProvider`
-   - Middleware (`frontend/middleware.ts`) protects routes
+In development (`NODE_ENV=development`), requests with `x-dev-clerk-user-id` header and `Host: localhost:*` skip JWT verification. Used for local testing and demo access.
 
-2. **Backend**: JWT verification via `backend/src/middleware/auth.js`
-   - `requireAuth` middleware extracts and verifies Clerk JWT
-   - Development mode supports bypass header `x-dev-user-id`
+## Middleware Chain (Backend)
 
-3. **Socket.io**: Token verification on handshake
-   - `backend/src/socket/index.js` verifies token during connection
-
-### Role-Based Access Control (RBAC)
-
-**Roles**: `ADMIN`, `MANAGER`, `EMPLOYEE`
-
-**Permission Matrix**:
-
-| Feature | Admin | Manager | Employee |
-|---------|-------|---------|----------|
-| Create/edit/delete shifts | ✅ | ✅ | ❌ |
-| Assign shifts | ✅ | ✅ | ❌ |
-| Clock in/out | ✅ | ✅ | ✅ |
-| Request shift swap | ✅ | ✅ | ✅ |
-| Approve/reject swaps | ✅ | ✅ | ❌ |
-| Process payroll | ✅ | ❌ | ❌ |
-| View all timesheets | ✅ | ✅ | ❌ |
-| View own timesheet | ✅ | ✅ | ✅ |
-| Post announcements | ✅ | ❌ | ❌ |
-| Manage team members | ✅ | ✅ | ❌ |
-| View audit logs | ✅ | ✅ | ❌ |
-| Configure overtime rules | ✅ | ❌ | ❌ |
-| Send messages | ✅ | ✅ | ✅ |
-| View analytics | ✅ | ✅ | ❌ |
-
-### requireRole Middleware
-
-```javascript
-const requireRole = (...roles) => (req, res, next) => {
-    if (!roles.includes(req.member?.role)) {
-        return res.status(403).json({ error: "Insufficient permissions" });
-    }
-    next();
-};
+```
+helmet (security headers)
+  → cors (origin restriction)
+  → express.json (1mb limit)
+  → io injection (req.io = socket server)
+  → routes (each route has requireAuth + requireRole)
+  → apiLimiter (global rate limit, admin bypass)
+  → error handler (catches unhandled errors)
 ```
 
----
+## API Endpoints
 
-## Core Features
+### Shifts
 
-### 1. Scheduling System
+| Method | Path | Access | Description |
+|---|---|---|---|
+| GET | `/api/shifts` | All | List shifts (org-scoped, optional date/assignee filters) |
+| GET | `/api/shifts/:id` | All | Get shift with clock events and swap requests |
+| POST | `/api/shifts` | Manager+ | Create shift (validates title, times, conflict check) |
+| PUT | `/api/shifts/:id` | Manager+ | Update shift (locks after clock-in, conflict check) |
+| DELETE | `/api/shifts/:id` | Manager+ | Delete shift (emits event, notifies assignee) |
+| POST | `/api/shifts/:id/swap` | All | Request shift swap |
+| PATCH | `/api/shifts/:id/swap/:swapId` | Manager+ | Approve/reject swap (org-scoped verification) |
+| GET | `/api/shifts/swaps/pending` | Manager+ | List pending swaps |
 
-**Shift Status Flow**: `OPEN` → `ASSIGNED` → `IN_PROGRESS` → `COMPLETED`
+### Attendance
 
-**Key Files**:
-- Backend: `backend/src/routes/shifts.js`
-- Frontend: `frontend/src/app/schedule/page.tsx`
+| Method | Path | Access | Description |
+|---|---|---|---|
+| POST | `/api/attendance/clock-in` | All | Clock into assigned shift (transaction with FOR UPDATE lock) |
+| POST | `/api/attendance/clock-out` | All | Clock out (triggers OT alert if >8h) |
+| GET | `/api/attendance/live` | Manager+ | Currently clocked-in members |
+| GET | `/api/attendance/timesheet/me` | All | Personal completed shifts + hours |
+| GET | `/api/attendance/timesheet` | Manager+ | Organisation-wide completed shifts |
 
-**Features**:
-- Create shifts with title, start/end times
-- Assign shifts to team members
-- Kanban board view with drag-and-drop status updates
-- Shift conflict detection (`backend/src/lib/shiftConflicts.js`)
-- Lock shift details after clock-in (prevents tampering)
+### Payroll
 
-**API Endpoints**:
-- `GET /api/shifts` - List shifts with filtering
-- `POST /api/shifts` - Create new shift
-- `PUT /api/shifts/:id` - Update shift
-- `DELETE /api/shifts/:id` - Delete shift
-- `POST /api/shifts/:id/swap` - Request shift swap
-- `PATCH /api/shifts/:id/swap/:swapId` - Approve/reject swap
+| Method | Path | Access | Description |
+|---|---|---|---|
+| GET | `/api/payroll/pay-periods` | Manager+ | List pay periods with cost summary |
+| POST | `/api/payroll/pay-periods` | Manager+ | Create pay period |
+| GET | `/api/payroll/pay-periods/:id/timesheet` | All | Employee-by-employee timesheet with OT calc |
+| GET | `/api/payroll/pay-periods/:id/summary` | All | Summary: employee count, base/OT earnings, total cost |
+| POST | `/api/payroll/pay-periods/:id/process` | Admin | Generate payslips + snapshots (idempotent) |
+| POST | `/api/payroll/pay-periods/:id/paid` | Admin | Mark period as paid |
+| DELETE | `/api/payroll/pay-periods/:id/payslips` | Admin | Delete payslips/snapshots, reset to DRAFT |
+| GET | `/api/payroll/employee-rates` | Manager+ | Get rate override for member (org-scoped) |
+| POST | `/api/payroll/employee-rates` | Admin | Set rate override (org-scoped) |
 
-### 2. Attendance Tracking
+### Other
 
-**Key Files**:
-- Backend: `backend/src/routes/attendance.js`
-- Frontend: `frontend/src/app/attendance/page.tsx`
+| Method | Path | Access | Description |
+|---|---|---|---|
+| GET | `/api/members` | All | List organisation members |
+| POST | `/api/members/onboard` | All | Create account + join/create org |
+| GET | `/api/members/me` | All | My profile |
+| PUT | `/api/members/me` | All | Update own profile |
+| PATCH | `/api/members/:id` | Admin | Update member role/rate |
+| DELETE | `/api/members/:id` | Admin | Remove member |
+| GET | `/api/organisations/me` | All | My org details |
+| GET | `/api/organisations/announcements` | All | List announcements |
+| POST | `/api/organisations/announcements` | Admin | Post announcement (broadcast or targeted) |
+| DELETE | `/api/organisations/announcements/:id` | Admin | Delete announcement |
+| PUT | `/api/organisations/currency` | Admin | Update org currency |
+| GET | `/api/messages` | All | Conversation with specific member |
+| POST | `/api/messages` | All | Send message (org-scoped, encrypted) |
+| GET | `/api/notifications` | All | My notifications |
+| PATCH | `/api/notifications/:id/read` | All | Mark as read |
+| POST | `/api/notifications/read-all` | All | Mark all as read |
+| GET | `/api/analytics` | Admin | Workforce KPIs + shift distribution |
+| GET | `/api/audit-logs` | Manager+ | Audit trail (filterable, paginated) |
+| GET | `/api/overtime` | Manager+ | List OT rules |
+| POST | `/api/overtime` | Manager+ | Create OT rule |
+| PUT | `/api/overtime/:id` | Manager+ | Update OT rule |
+| DELETE | `/api/overtime/:id` | Manager+ | Delete OT rule |
+| GET | `/api/events/since` | All | Event replay (cursor: ISO timestamp) |
+| GET | `/api/payslips` | All | My payslips |
+| GET | `/api/payslips/:id/pdf` | All | Download PDF payslip |
 
-**Features**:
-- Clock in/out with timestamp
-- Optional location data (latitude/longitude)
-- Optional notes on clock events
-- Live attendance view for managers
-- Timesheet generation (individual and team-wide)
-- Automatic break detection
+## Key Business Logic
 
-**API Endpoints**:
-- `POST /api/attendance/clock-in` - Clock in
-- `POST /api/attendance/clock-out` - Clock out
-- `GET /api/attendance/live` - Live attendance view
-- `GET /api/attendance/timesheet/me` - My timesheet
-- `GET /api/attendance/timesheet` - Team timesheet
+### Payroll Processing
 
-### 3. Payroll Processing
+1. Verify period is DRAFT (or return cached results if already processed)
+2. Fetch active overtime rule and employee rate overrides
+3. For each employee:
+   - Fetch completed shifts within period date range
+   - Calculate daily hours from clock-in/clock-out pairs
+   - Apply overtime: `max(dailyOT, weeklyOT)` where dailyOT = sum of hours exceeding daily threshold per day
+   - Calculate earnings: `baseHours * rate + overtimeHours * rate * multiplier`
+   - Insert `payroll_snapshot` (frozen rates, rules, calculations)
+   - Insert `payslip`
+4. Update period status to PROCESSED
+5. Emit `pay_period.processed` event
 
-**Key Files**:
-- Backend: `backend/src/routes/payroll.js`, `backend/src/lib/payrollCalculations.js`
-- Frontend: `frontend/src/app/payroll/page.tsx`
+### Shift Conflict Detection
 
-**Features**:
-- Configurable overtime rules (daily/weekly thresholds, multiplier)
-- Per-employee rate overrides
-- Automatic payroll calculations
-- Pay period management
-- PDF payslip generation using PDFKit
-- Idempotent processing (re-processing returns cached results)
-
-**Overtime Calculation** (`backend/src/lib/payrollCalculations.js`):
-- Default: 8 hours daily / 40 hours weekly threshold
-- Overtime multiplier: 1.5x (configurable)
-- Both daily and weekly overtime supported
-
-**API Endpoints**:
-- `GET /api/payroll/pay-periods` - List pay periods
-- `POST /api/payroll/pay-periods` - Create pay period
-- `POST /api/payroll/pay-periods/:id/process` - Process payroll
-- `GET /api/payslips` - List payslips
-- `GET /api/payslips/:id/pdf` - Download PDF
-
-### 4. Shift Swapping
-
-**Workflow**:
-1. Employee requests swap on a shift
-2. Target employee is specified
-3. Manager approves or rejects request
-4. On approval, shift is reassigned
-
-**API Endpoints**:
-- `POST /api/shifts/:id/swap` - Request swap
-- `PATCH /api/shifts/:id/swap/:swapId` - Approve/reject
-- `GET /api/shifts/swaps/pending` - List pending swaps
-
-### 5. Real-time Updates
-
-**Key Files**:
-- Backend: `backend/src/socket/index.js`
-- Frontend: `frontend/src/hooks/useSocket.ts`
-
-**Socket Rooms**:
-- `org:{orgId}` - Organization-wide updates
-- `user:{userId}` - User-specific notifications
-
-**Event Types** (`backend/src/lib/events.js`):
-- `SHIFT_CREATED`, `SHIFT_UPDATED`, `SHIFT_DELETED`
-- `CLOCK_IN`, `CLOCK_OUT`
-- `SWAP_REQUESTED`, `SWAP_APPROVED`, `SWAP_REJECTED`
-- `PAYROLL_PROCESSED`, `PAYSLIP_GENERATED`
-- `ANNOUNCEMENT_POSTED`
-- `MEMBER_ONBOARDED`
-
-**Reconnection Recovery**:
-- Frontend stores last event timestamp in localStorage
-- On reconnect, fetches missed events via `/api/events/since`
-- Replays events to resync UI state
-
-### 6. Analytics Dashboard
-
-**Key Files**:
-- Backend: `backend/src/routes/analytics.js`
-- Frontend: `frontend/src/app/analytics/page.tsx`
-
-**Metrics**:
-- Total shifts, completed shifts, completion rate
-- Total hours worked
-- Overtime hours
-- Shift distribution by day/week
-- Coverage rates
-- Employee productivity
-
-**Visualization**: Recharts library for bar charts, line charts, pie charts
-
-### 7. Audit Trail
-
-**Key Files**:
-- Backend: `backend/src/routes/audit.js`, `backend/src/lib/audit.js`
-
-**Features**:
-- Immutable audit logs (database triggers prevent modification)
-- All actions logged with: action type, member ID, timestamp, details
-- Queryable with filtering by action type, date range, member
-
-**Event Store** (`events` table):
-- Canonical event log for real-time reconnection
-- Also immutable (no UPDATE/DELETE allowed)
-
----
-
-## API Reference
-
-### Base URL
-- Development: `http://localhost:4000/api`
-- Production: Configured via `NEXT_PUBLIC_API_URL`
-
-### Authentication Header
-```
-Authorization: Bearer <Clerk JWT token>
+```sql
+SELECT id FROM shifts WHERE assignee_id = $1
+  AND status IN ('ASSIGNED', 'IN_PROGRESS')
+  AND (
+    (start_time <= $2 AND end_time > $2) OR
+    (start_time < $3 AND end_time >= $3) OR
+    (start_time >= $2 AND end_time <= $3)
+  )
 ```
 
-### Common Response Format
-```json
-{
-    "data": { ... },
-    "error": "Error message if applicable"
-}
-```
+Prevents double-booking at creation and update time.
 
-### Route Summary
+### Shift Lock After Clock-In
 
-#### Organisations
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/api/organisations/me` | Get my organization | All |
-| PUT | `/api/organisations/me` | Update organization | Admin |
-| GET | `/api/organisations/announcements` | List announcements | All |
-| POST | `/api/organisations/announcements` | Post announcement | Admin |
+Once a shift has a `CLOCK_IN` event, PUT requests reject changes to `startTime`, `endTime`, and `assigneeId` with `409 SHIFT_LOCKED_AFTER_CLOCK_IN`.
 
-#### Members
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| POST | `/api/members/onboard` | Create/join org | All |
-| GET | `/api/members/me` | Get my profile | All |
-| PUT | `/api/members/me` | Update my profile | All |
-| GET | `/api/members` | List team members | Manager+ |
-| GET | `/api/members/:id` | Get member details | Manager+ |
-| PUT | `/api/members/:id` | Update member | Admin |
-| DELETE | `/api/members/:id` | Remove member | Admin |
+### Event Emission
 
-#### Shifts
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/api/shifts` | List shifts | All |
-| GET | `/api/shifts/:id` | Get shift details | All |
-| POST | `/api/shifts` | Create shift | Manager+ |
-| PUT | `/api/shifts/:id` | Update shift | Manager+ |
-| DELETE | `/api/shifts/:id` | Delete shift | Manager+ |
-| POST | `/api/shifts/:id/swap` | Request swap | Employee+ |
-| PATCH | `/api/shifts/:id/swap/:swapId` | Approve/reject swap | Manager+ |
-| GET | `/api/shifts/swaps/pending` | Pending swaps | Manager+ |
+All write operations emit events. When inside a transaction, `emitEvent({ client, ... })` writes the event within the same transaction for atomicity.
 
-#### Attendance
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| POST | `/api/attendance/clock-in` | Clock in | All |
-| POST | `/api/attendance/clock-out` | Clock out | All |
-| GET | `/api/attendance/live` | Live attendance | Manager+ |
-| GET | `/api/attendance/timesheet/me` | My timesheet | All |
-| GET | `/api/attendance/timesheet` | Team timesheet | Manager+ |
+Event types: `shift.created/updated/deleted/assigned`, `attendance.clock_in/clock_out`, `swap.requested/approved/rejected`, `pay_period.created/processed/paid`, `member.joined/role_changed`, `overtime_rule.created/updated/deleted`, `message.sent`, `announcement.created/deleted`
 
-#### Payroll
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/api/payroll/pay-periods` | List pay periods | Manager+ |
-| POST | `/api/payroll/pay-periods` | Create period | Manager+ |
-| GET | `/api/payroll/pay-periods/:id/timesheet` | Period timesheet | Manager+ |
-| GET | `/api/payroll/pay-periods/:id/summary` | Period summary | Manager+ |
-| POST | `/api/payroll/pay-periods/:id/process` | Process payroll | Admin |
-| POST | `/api/payroll/pay-periods/:id/paid` | Mark as paid | Admin |
-| DELETE | `/api/payroll/pay-periods/:id/payslips` | Reset period | Admin |
+## Real-time Architecture
 
-#### Messages
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/api/messages` | List messages | All |
-| POST | `/api/messages` | Send message | All |
-| PATCH | `/api/messages/:id/read` | Mark as read | All |
+### Socket.io Rooms
 
-#### Notifications
-| Method | Endpoint | Description | Access |
-|--------|----------|-------------|--------|
-| GET | `/api/notifications` | List notifications | All |
-| PATCH | `/api/notifications/:id/read` | Mark as read | All |
-| POST | `/api/notifications/read-all` | Mark all as read | All |
+- `org:${organisationId}` — org-wide broadcasts (shift updates, announcements, swap requests)
+- `user:${memberId}` — private notifications (messages, shift assignments)
 
----
+### Reconnect Recovery
 
-## Real-time Communication
-
-### Socket.io Setup
-
-**Backend** (`backend/src/socket/index.js`):
-```javascript
-io.on('connection', (socket) => {
-    const { orgId, userId } = verifyToken(socket.handshake.auth.token);
-    
-    socket.join(`org:${orgId}`);
-    socket.join(`user:${userId}`);
-    
-    // Broadcast online status
-    socket.to(`org:${orgId}`).emit('member:online', { userId });
-});
-```
-
-**Frontend** (`frontend/src/hooks/useSocket.ts`):
-```typescript
-const useSocket = () => {
-    const { getToken } = useAuth();
-    const [socket, setSocket] = useState<Socket | null>(null);
-    
-    useEffect(() => {
-        const token = await getToken();
-        const s = io(SOCKET_URL, { auth: { token } });
-        
-        s.on('connect', () => {
-            // Fetch missed events on reconnect
-            const lastEventTime = localStorage.getItem('lastEventTime');
-            if (lastEventTime) {
-                fetchMissedEvents(lastEventTime);
-            }
-        });
-        
-        setSocket(s);
-        return () => s.disconnect();
-    }, []);
-    
-    return socket;
-};
-```
-
-### Event Flow Example (Shift Created)
-
-1. Manager creates shift via API
-2. Backend saves shift to database
-3. Backend emits `SHIFT_CREATED` event to `org:{orgId}` room
-4. All connected clients receive the event
-5. Frontend updates UI (adds shift to schedule)
-
----
+1. Client stores `lastEventTimestamp` in localStorage on every non-system event
+2. On reconnect: rejoin org/user rooms, emit `connected` to get server time
+3. Fetch `/api/events/since?since=lastEventTimestamp` for missed events
+4. Dispatch `SOCKET_RESYNC_EVENT` custom event to trigger page refresh
+5. Update `lastEventTimestamp` baseline
 
 ## Security
 
-### Security Measures
+| Layer | Implementation |
+|---|---|
+| Authentication | Clerk JWT verification on every API request and socket handshake |
+| Authorization | RBAC middleware (`requireAuth`, `requireRole`) on all protected routes |
+| Multi-tenant | Every query filtered by `organisation_id` |
+| Headers | Helmet.js: CSP, HSTS (1yr), frame-ancestors: none, XSS filter, strict referrer |
+| CORS | Restricted to `FRONTEND_URL` origin |
+| Rate limiting | Global 1000 req/15min per IP (admin bypass) + per-user sliding window on sensitive routes |
+| Input validation | express-validator on POST/PUT/PATCH (trim, escape, UUID check, enum check) |
+| SQL injection | Parameterized queries only |
+| Encryption | AES-256-GCM for message content at rest |
+| Audit | All write operations logged; events and audit_logs are append-only via DB triggers |
+| Proxy support | `trust proxy` enabled for correct client IP behind reverse proxies |
 
-1. **Helmet.js** - Security headers (CSP, HSTS, etc.)
-   - Location: `backend/src/index.js` lines 19-36
+## Testing
 
-2. **Rate Limiting**
-   - Global: 1000 requests per 15 minutes
-   - Per-user sliding window for sensitive endpoints
-   - Location: `backend/src/middleware/rateLimit.js`
+- Node.js built-in test runner (`node --test`)
+- Unit tests for payroll math and overtime calculations
+- Integration tests for route handlers with mocked dependencies
+- Tests cover: payroll calculations, overtime rules, shift conflict detection, cross-org isolation
+- Run: `npm test`
 
-3. **Input Validation**
-   - express-validator on all POST/PUT endpoints
-   - Parameterized SQL queries (prevents SQL injection)
+## CI/CD
 
-4. **Message Encryption**
-   - AES-256-GCM encryption for direct messages
-   - Location: `backend/src/lib/encryption.js`
-
-5. **Immutable Audit Logs**
-   - Database triggers prevent tampering with audit_logs and events tables
-
-6. **CORS Protection**
-   - Configured to allow only frontend origin
-   - Location: `backend/src/index.js` line 38
-
-7. **JWT Verification**
-   - All API requests verified via Clerk JWT
-   - Location: `backend/src/middleware/auth.js`
-
-### Environment Variables
-
-**Backend** (`.env`):
-```
-DATABASE_URL=postgresql://...
-CLERK_JWT_KEY=pem_key_here
-CLERK_SECRET_KEY=sk_...
-ENCRYPTION_KEY=64_char_hex_string
-PORT=4000
-FRONTEND_URL=http://localhost:3000
-```
-
-**Frontend** (`.env.local`):
-```
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_...
-NEXT_PUBLIC_API_URL=http://localhost:4000
-NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
-```
-
----
-
-## Deployment
-
-### Frontend (Vercel)
-
-**Configuration** (`frontend/vercel.json`):
-```json
-{
-    "rewrites": [
-        { "source": "/(.*)", "destination": "/" }
-    ]
-}
-```
-
-**Environment Variables** (set in Vercel dashboard):
-- `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`
-- `NEXT_PUBLIC_API_URL` (production backend URL)
-- `NEXT_PUBLIC_SOCKET_URL` (production backend URL)
-- `CLERK_SECRET_KEY`
-
-### Backend (Railway)
-
-**Configuration** (`backend/package.json`):
-```json
-{
-    "scripts": {
-        "start": "node src/index.js"
-    }
-}
-```
-
-**Environment Variables** (set in Railway dashboard):
-- `DATABASE_URL` (Neon PostgreSQL connection string)
-- `CLERK_SECRET_KEY`
-- `CLERK_JWT_KEY`
-- `ENCRYPTION_KEY`
-- `FRONTEND_URL` (production frontend URL)
-- `PORT` (automatically set by Railway)
-
-### Database (Neon)
-
-- Serverless PostgreSQL database
-- Connection via `DATABASE_URL` environment variable
-- Schema initialization: `npm run db:setup`
-- Seeding: `npm run db:seed`
-
-### Demo Account
-
-Pre-configured demo organization "Northstar Logistics" with 5 demo accounts:
-- Admin account
-- Manager account
-- 3 Employee accounts
-
-Demo access page: `/demo-access`
-
----
-
-## State Management (Frontend)
-
-### TanStack Query (React Query)
-
-Used for server state management:
-
-```typescript
-const { data, isLoading, error } = useQuery({
-    queryKey: ['shifts'],
-    queryFn: () => api.get('/shifts').then(res => res.data)
-});
-```
-
-**Benefits**:
-- Automatic caching and background refetch
-- Loading/error states built-in
-- Optimistic updates support
-- Deduplication of requests
-
-### Local State
-
-React `useState` for UI state (modals, form inputs, etc.)
-
-### Real-time State Sync
-
-Socket.io events update TanStack Query cache directly:
-
-```typescript
-socket.on('shift:created', (shift) => {
-    queryClient.setQueryData(['shifts'], (old) => [...old, shift]);
-});
-```
-
----
-
-## Development Workflow
-
-### Prerequisites
-- Node.js 20+
-- PostgreSQL database (or Neon account)
-- Clerk account for authentication
-
-### Setup
-
-1. **Clone repository**
-   ```bash
-   git clone <repo-url>
-   cd shiftsync
-   ```
-
-2. **Backend setup**
-   ```bash
-   cd backend
-   npm install
-   cp .env.example .env
-   # Fill in environment variables
-   npm run db:setup
-   npm run dev
-   ```
-
-3. **Frontend setup**
-   ```bash
-   cd frontend
-   npm install
-   cp .env.local.example .env.local
-   # Fill in environment variables
-   npm run dev
-   ```
-
-### Running Tests
-
-**Backend**:
-```bash
-cd backend
-npm test
-```
-
-### Database Seeding
-
-```bash
-cd backend
-npm run db:seed              # Basic seed
-npm run db:seed:scenario     # Demo scenario with shifts and timesheets
-```
-
----
-
-## Troubleshooting
-
-### Common Issues
-
-1. **CORS errors**
-   - Check `FRONTEND_URL` in backend `.env`
-   - Ensure frontend URL matches exactly (no trailing slash)
-
-2. **Socket connection fails**
-   - Verify `NEXT_PUBLIC_SOCKET_URL` in frontend
-   - Check that Clerk token is being passed correctly
-
-3. **Database connection fails**
-   - Verify `DATABASE_URL` format
-   - Check Neon dashboard for connection status
-
-4. **Clerk authentication fails**
-   - Verify `CLERK_JWT_KEY` is correct (PEM format)
-   - Check Clerk dashboard for API keys
-
----
-
-## Future Enhancements
-
-Potential areas for expansion:
-- Mobile app (React Native)
-- Advanced reporting (CSV/Excel export)
-- Integration with payroll providers (Gusto, ADP)
-- Time-off request system
-- Geofencing for clock in/out
-- Push notifications (mobile)
-- Multi-language support
-- Dark mode theme
-
----
-
-*Documentation generated on: 2026-05-03*
+GitHub Actions workflow on push/PR to main:
+- Backend: `npm run lint` → `npm run typecheck` → `npm test`
+- Frontend: `npm run lint` → `npm run build`

@@ -1,5 +1,5 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { useApi } from '@/hooks/useApi'
 import toast from 'react-hot-toast'
 import { getInitials, cn } from '@/lib/utils'
@@ -7,8 +7,7 @@ import {
   DollarSign, Clock, Download, Plus, Settings, ChevronRight,
   Calendar, Users, FileText, TrendingUp, AlertTriangle, CheckCircle2, X
 } from 'lucide-react'
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'
+import type { Member, PayPeriod, Payslip, OvertimeRule } from '@/types'
 
 const CURRENCIES = [
   { code: 'USD', symbol: '$', name: 'US Dollar' },
@@ -22,7 +21,7 @@ const CURRENCIES = [
   { code: 'BRL', symbol: 'R$', name: 'Brazilian Real' },
 ]
 
-const fmt = (n, sym = '$') => `${sym}${(Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+const fmt = (n: number, sym = '$') => `${sym}${(Math.round(n * 100) / 100).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
 
 const tabs = [
   { id: 'overview', label: 'Overview', icon: TrendingUp },
@@ -34,9 +33,9 @@ const tabs = [
 
 export default function PayrollPage() {
   const api = useApi()
-  const [member, setMember] = useState<any>(null)
+  const [member, setMember] = useState<Member | null>(null)
   const [activeTab, setActiveTab] = useState('overview')
-  const [org, setOrg] = useState<any>(null)
+  const [org, setOrg] = useState<{ name: string; currency: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
 
@@ -86,7 +85,7 @@ export default function PayrollPage() {
       }
     }
     load()
-  }, [])
+  }, [api])
 
   const loadPayslips = async () => {
     const res = await api.get('/api/payslips')
@@ -156,9 +155,9 @@ export default function PayrollPage() {
   }
 
   const deleteOvertimeRule = async (id: string) => {
-    if (!confirm('Delete this overtime rule?')) return
     await api.delete(`/api/overtime/${id}`)
     await loadOvertimeRules()
+    toast.success('Overtime rule deleted')
   }
 
   const createPayPeriod = async () => {
@@ -184,7 +183,6 @@ export default function PayrollPage() {
   }
 
   const processPayPeriod = async (id: string) => {
-    if (!confirm('Process this pay period? This will generate payslips for all employees.')) return
     try {
       setActionLoading(`process:${id}`)
       const res = await api.post(`/api/payroll/pay-periods/${id}/process`)
@@ -194,9 +192,9 @@ export default function PayrollPage() {
       const { payslipsGenerated, skipped } = res.data
       if (skipped?.length > 0) {
         const names = skipped.map((s: any) => s.name).join(', ')
-        alert(`Generated ${payslipsGenerated} payslips.\nSkipped: ${names}`)
+        toast.success(`Generated ${payslipsGenerated} payslips. Skipped: ${names}`)
       } else {
-        alert(`Generated ${payslipsGenerated} payslips`)
+        toast.success(`Generated ${payslipsGenerated} payslips`)
       }
     } catch (err: any) {
       toast.error(err.response?.data?.error || 'Failed to process')
@@ -206,7 +204,6 @@ export default function PayrollPage() {
   }
 
   const reprocessPayPeriod = async (id: string) => {
-    if (!confirm('This will delete existing payslips and reset the period to DRAFT. Continue?')) return
     try {
       setActionLoading(`reset:${id}`)
       await api.delete(`/api/payroll/pay-periods/${id}/payslips`)
@@ -833,16 +830,16 @@ export default function PayrollPage() {
 
       {/* ===== MODAL ===== */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(null)}>
-          <div className="bg-white w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowModal(null)} onKeyDown={e => e.key === 'Escape' && setShowModal(null)}>
+          <div role="dialog" aria-modal="true" aria-labelledby="payroll-modal-title" className="bg-white w-full max-w-md p-6" onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-6">
-              <h3 className="font-bold text-lg uppercase tracking-wider">
+              <h3 id="payroll-modal-title" className="font-bold text-lg uppercase tracking-wider">
                 {showModal === 'overtime' && 'Overtime Rule'}
                 {showModal === 'createPeriod' && 'New Pay Period'}
                 {showModal === 'currency' && 'Currency'}
                 {showModal === 'rate' && 'Override Rate'}
               </h3>
-              <button onClick={() => setShowModal(null)} className="text-zinc-400 hover:text-black"><X size={20} /></button>
+              <button aria-label="Close dialog" onClick={() => setShowModal(null)} className="text-zinc-400 hover:text-black"><X size={20} /></button>
             </div>
 
             {showModal === 'overtime' && (

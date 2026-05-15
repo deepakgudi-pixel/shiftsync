@@ -5,7 +5,11 @@ const { createClerkClient } = require("@clerk/backend");
 const { query } = require("../db/client");
 
 const BASE_URL = process.env.TEST_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
-const TEST_PASSWORD = "ShiftSync!234";
+const TEST_PASSWORD = process.env.DEMO_PASSWORD;
+if (!TEST_PASSWORD) {
+  console.error("ERROR: DEMO_PASSWORD environment variable is required.");
+  process.exit(1);
+}
 const DEV_HEADER = "x-dev-clerk-user-id";
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
