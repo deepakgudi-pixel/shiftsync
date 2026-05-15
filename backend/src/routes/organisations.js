@@ -17,7 +17,7 @@ const DEMO_EMAILS = new Set([
 router.get("/me", requireAuth, async (req, res) => {
   try {
     const result = await query(
-      `SELECT o.*, COUNT(m.id) as member_count FROM organisations o LEFT JOIN members m ON o.id=m.organisation_id WHERE o.id=$1 GROUP BY o.id`,
+      "SELECT o.*, COUNT(m.id) as member_count FROM organisations o LEFT JOIN members m ON o.id=m.organisation_id WHERE o.id=$1 GROUP BY o.id",
       [req.member.organisation_id],
     );
     res.json(result.rows[0]);

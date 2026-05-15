@@ -15,7 +15,7 @@ router.post("/clock-in", requireAuth, async (req, res) => {
     await client.query("BEGIN");
 
     const shiftResult = await client.query(
-      `SELECT * FROM shifts WHERE id=$1 AND assignee_id=$2 AND (status='ASSIGNED' OR status='OPEN') FOR UPDATE`,
+      "SELECT * FROM shifts WHERE id=$1 AND assignee_id=$2 AND (status='ASSIGNED' OR status='OPEN') FOR UPDATE",
       [shiftId, req.member.id]
     );
     if (!shiftResult.rows.length) {
@@ -24,7 +24,7 @@ router.post("/clock-in", requireAuth, async (req, res) => {
     }
 
     const already = await client.query(
-      `SELECT id FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN'`,
+      "SELECT id FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN'",
       [shiftId, req.member.id]
     );
     if (already.rows.length) {
@@ -39,7 +39,7 @@ router.post("/clock-in", requireAuth, async (req, res) => {
     );
 
     await client.query(
-      `UPDATE shifts SET status='IN_PROGRESS', updated_at=NOW() WHERE id=$1`,
+      "UPDATE shifts SET status='IN_PROGRESS', updated_at=NOW() WHERE id=$1",
       [shiftId]
     );
 
@@ -94,7 +94,7 @@ router.post("/clock-out", requireAuth, async (req, res) => {
     await client.query("BEGIN");
 
     const clockIn = await client.query(
-      `SELECT * FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN' FOR UPDATE`,
+      "SELECT * FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN' FOR UPDATE",
       [shiftId, req.member.id]
     );
     if (!clockIn.rows.length) {
@@ -109,10 +109,10 @@ router.post("/clock-out", requireAuth, async (req, res) => {
     );
 
     const hoursWorked =
-      (new Date(ceResult.rows[0].timestamp) - new Date(clockIn.rows[0].timestamp)) / 3600000;
+      (new Date(ceResult.rows[0].timestamp).getTime() - new Date(clockIn.rows[0].timestamp).getTime()) / 3600000;
 
     await client.query(
-      `UPDATE shifts SET status='COMPLETED', updated_at=NOW() WHERE id=$1`,
+      "UPDATE shifts SET status='COMPLETED', updated_at=NOW() WHERE id=$1",
       [shiftId]
     );
 
@@ -140,7 +140,7 @@ router.post("/clock-out", requireAuth, async (req, res) => {
 
     if (hoursWorked > 8) {
       await client.query(
-        `INSERT INTO notifications (member_id, type, title, body, data) VALUES ($1, 'OVERTIME_ALERT', 'Overtime Detected', $2, $3)`,
+        "INSERT INTO notifications (member_id, type, title, body, data) VALUES ($1, 'OVERTIME_ALERT', 'Overtime Detected', $2, $3)",
         [
           req.member.id,
           `You worked ${hoursWorked.toFixed(1)} hours`,
@@ -227,7 +227,7 @@ router.get("/timesheet", requireAuth, requireRole("ADMIN", "MANAGER"), async (re
 
     const result = await query(
       `SELECT m.id as member_id, m.name, m.avatar_url,
-        CASE WHEN $3 = 'ADMIN' OR m.id = $4 OR ($3 = 'MANAGER' AND m.role = 'EMPLOYEE') THEN m.hourly_rate ELSE NULL END as hourly_rate,
+        CASE WHEN $4 = 'ADMIN' OR m.id = $5 OR ($4 = 'MANAGER' AND m.role = 'EMPLOYEE') THEN m.hourly_rate ELSE NULL END as hourly_rate,
         s.id as shift_id, s.title, s.start_time,
         ci.timestamp as clock_in,
         co.timestamp as clock_out,
@@ -237,10 +237,11 @@ router.get("/timesheet", requireAuth, requireRole("ADMIN", "MANAGER"), async (re
          AND s.status = 'COMPLETED'
        LEFT JOIN clock_events ci ON s.id = ci.shift_id AND ci.type = 'CLOCK_IN'
        LEFT JOIN clock_events co ON s.id = co.shift_id AND co.type = 'CLOCK_OUT'
-       WHERE m.organisation_id = $1
-         AND (ci.timestamp IS NULL OR ci.timestamp >= $2)
-       ORDER BY m.name, s.start_time`,
-      [req.member.organisation_id, startDate, req.member.role, req.member.id]
+         WHERE m.organisation_id = $1
+           AND (ci.timestamp IS NULL OR ci.timestamp >= $2)
+           AND (ci.timestamp IS NULL OR ci.timestamp <= $3)
+         ORDER BY m.name, s.start_time`,
+      [req.member.organisation_id, startDate, endDate, req.member.role, req.member.id]
     );
 
     const grouped = {};

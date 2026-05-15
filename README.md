@@ -8,7 +8,8 @@ A full-stack workforce management platform for frontline teams. Handles scheduli
 # Backend
 cd backend && npm install && cp .env.example .env
 # Fill in .env, then:
-npm run db:setup && npm run db:seed && npm run db:seed:scenario
+npm run demo:seed
+npm run dev
 
 # Frontend
 cd ../frontend && npm install && cp .env.example .env.local
@@ -19,7 +20,7 @@ npm run dev
 cd ../backend && npm test
 ```
 
-Visit `http://localhost:3000`
+Visit `http://localhost:3000` or open the one-click demo at `http://localhost:3000/demo-access`.
 
 ## Tech Stack
 
@@ -97,6 +98,8 @@ Key design decisions:
 
 ## Demo
 
-Run `npm run db:seed` then `npm run db:seed:scenario` to populate a realistic demo with 30+ completed shifts, live attendance, processed payroll, and pending swap requests.
+From `backend/`, run `npm run demo:seed` to validate the required environment, set up the database, create the Clerk demo accounts, and populate a realistic workspace with 30+ completed shifts, live attendance, processed payroll, and pending swap requests.
 
 Login as admin: `demo.admin.northstar+clerk_test@example.com`
+
+All seeded demo accounts use the `DEMO_PASSWORD` value from `backend/.env`. The browser demo flow is available at `http://localhost:3000/demo-access`.

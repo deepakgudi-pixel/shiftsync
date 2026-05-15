@@ -3,8 +3,8 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
-const rateLimit = require("express-rate-limit");
-const helmet = require("helmet");
+const rateLimit = /** @type {any} */ (require("express-rate-limit"));
+const helmet = /** @type {any} */ (require("helmet"));
 const { Server } = require("socket.io");
 const { initSocket } = require("./socket");
 
@@ -12,7 +12,7 @@ const app = express();
 const server = http.createServer(app);
 
 // Trust proxy for correct req.ip behind reverse proxies (Nginx, ALB, etc.)
-app.set('trust proxy', 1);
+app.set("trust proxy", 1);
 
 const io = new Server(server, {
   cors: { origin: process.env.FRONTEND_URL || "http://localhost:3000", credentials: true },
@@ -68,6 +68,7 @@ const apiLimiter = rateLimit({
 app.use("/api", apiLimiter);
 
 // Global error handler — catches unhandled errors and prevents stack trace leaks
+// eslint-disable-next-line no-unused-vars
 app.use((err, req, res, _next) => {
   console.error("Unhandled error:", err.message, err.stack);
   res.status(500).json({ error: "Internal server error" });

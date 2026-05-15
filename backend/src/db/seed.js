@@ -2,13 +2,13 @@ const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 
 const { createClerkClient } = require("@clerk/backend");
-const { query } = require("./client");
+const { pool } = require("./client");
+const { emitEvent } = require("../lib/eventEmitter");
+const { EVENT_TYPES } = require("../lib/events");
 
-const BASE_URL = process.env.TEST_BASE_URL || `http://localhost:${process.env.PORT || 4000}`;
-const DEV_HEADER = "x-dev-clerk-user-id";
 const DEMO_ORG_NAME = "Northstar Logistics";
 
-const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+let clerk = null;
 
 const demoUsers = [
   {
@@ -68,33 +68,6 @@ const demoUsers = [
   },
 ];
 
-const request = async (pathname, options = {}) => {
-  const { clerkUserId, headers, ...rest } = options;
-  const finalHeaders = {
-    "Content-Type": "application/json",
-    ...(headers || {}),
-  };
-
-  if (clerkUserId) {
-    finalHeaders[DEV_HEADER] = clerkUserId;
-    finalHeaders.Host = `localhost:${process.env.PORT || 4000}`;
-  }
-
-  const response = await fetch(`${BASE_URL}${pathname}`, {
-    ...rest,
-    headers: finalHeaders,
-  });
-
-  const contentType = response.headers.get("content-type") || "";
-  const data = contentType.includes("application/json") ? await response.json() : await response.text();
-
-  if (!response.ok) {
-    throw new Error(`${response.status} ${response.statusText} on ${pathname}: ${typeof data === "string" ? data : JSON.stringify(data)}`);
-  }
-
-  return data;
-};
-
 const buildDemoEmail = (label) => `demo.${label}.northstar+clerk_test@example.com`;
 
 const getDemoPassword = () => {
@@ -105,14 +78,92 @@ const getDemoPassword = () => {
   return password;
 };
 
-const upsertClerkUser = async (config) => {
+const getClerk = () => {
+  if (!process.env.CLERK_SECRET_KEY) {
+    throw new Error("CLERK_SECRET_KEY environment variable is required for seeding demo users. Set it in backend/.env.");
+  }
+
+  if (!clerk) {
+    clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
+  }
+
+  return clerk;
+};
+
+const slugify = (value) => value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+
+const upsertDemoOrganisation = async (client) => {
+  const existing = await client.query("SELECT * FROM organisations WHERE name = $1 LIMIT 1", [DEMO_ORG_NAME]);
+  if (existing.rows[0]) return existing.rows[0];
+
+  const slug = slugify(DEMO_ORG_NAME);
+  const result = await client.query(
+    `INSERT INTO organisations (name, slug)
+     VALUES ($1, $2)
+     ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, updated_at = NOW()
+     RETURNING *`,
+    [DEMO_ORG_NAME, slug]
+  );
+
+  return result.rows[0];
+};
+
+const upsertDemoMember = async (client, organisationId, user) => {
+  const existing = await client.query(
+    "SELECT * FROM members WHERE clerk_user_id = $1 OR email = $2 LIMIT 1",
+    [user.clerkUserId, user.email]
+  );
+
+  if (existing.rows[0]) {
+    const result = await client.query(
+      `UPDATE members
+       SET clerk_user_id = $1, email = $2, name = $3, role = $4, organisation_id = $5,
+           hourly_rate = $6, phone = $7, skills = $8, updated_at = NOW()
+       WHERE id = $9
+       RETURNING *`,
+      [
+        user.clerkUserId,
+        user.email,
+        user.displayName,
+        user.role,
+        organisationId,
+        user.hourlyRate,
+        user.phone,
+        user.skills,
+        existing.rows[0].id,
+      ]
+    );
+    return result.rows[0];
+  }
+
+  const result = await client.query(
+    `INSERT INTO members (clerk_user_id, email, name, role, organisation_id, hourly_rate, phone, skills)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+     RETURNING *`,
+    [user.clerkUserId, user.email, user.displayName, user.role, organisationId, user.hourlyRate, user.phone, user.skills]
+  );
+
+  await emitEvent({
+    client,
+    organisationId,
+    memberId: result.rows[0].id,
+    eventType: EVENT_TYPES.MEMBER_JOINED,
+    entityType: "member",
+    entityId: result.rows[0].id,
+    payload: result.rows[0],
+  });
+
+  return result.rows[0];
+};
+
+const upsertClerkUser = async (config, demoPassword) => {
   const email = buildDemoEmail(config.emailLabel);
-  const demoPassword = getDemoPassword();
-  const existing = await clerk.users.getUserList({ emailAddress: [email], limit: 1 });
+  const client = getClerk();
+  const existing = await client.users.getUserList({ emailAddress: [email], limit: 1 });
   let user = existing.data[0];
 
   if (!user) {
-    user = await clerk.users.createUser({
+    user = await client.users.createUser({
       firstName: config.firstName,
       lastName: config.lastName,
       emailAddress: [email],
@@ -124,7 +175,7 @@ const upsertClerkUser = async (config) => {
 
   const primaryEmailId = user.primaryEmailAddressId || user.emailAddresses?.[0]?.id;
   if (primaryEmailId) {
-    await clerk.emailAddresses.updateEmailAddress(primaryEmailId, {
+    await client.emailAddresses.updateEmailAddress(primaryEmailId, {
       verified: true,
       primary: true,
     });
@@ -148,71 +199,30 @@ const seed = async () => {
    try {
      const users = {};
      for (const config of demoUsers) {
-       users[config.key] = await upsertClerkUser(config);
+       users[config.key] = await upsertClerkUser(config, demoPassword);
      }
 
-     const admin = users.admin;
-     const adminMember = await request("/api/members/onboard", {
-       method: "POST",
-       body: JSON.stringify({
-         clerkUserId: admin.clerkUserId,
-         email: admin.email,
-         name: admin.displayName,
-         organisationName: DEMO_ORG_NAME,
-       }),
-     });
+     const dbClient = await pool.connect();
+     try {
+       await dbClient.query("BEGIN");
+       const organisation = await upsertDemoOrganisation(dbClient);
+       const organisationId = organisation.id;
 
-     const organisationId = adminMember.organisation_id;
-
-     for (const user of Object.values(users)) {
-       if (user.key === "admin") continue;
-
-       await request("/api/members/onboard", {
-         method: "POST",
-         body: JSON.stringify({
-           clerkUserId: user.clerkUserId,
-           email: user.email,
-           name: user.displayName,
-           organisationId,
-         }),
-       });
-     }
-
-     for (const user of Object.values(users)) {
-       const memberResult = await query(
-         "SELECT id, role FROM members WHERE clerk_user_id = $1",
-         [user.clerkUserId]
-       );
-       const member = memberResult.rows[0];
-
-       const patchBody = {};
-       if (user.role !== member.role) {
-         patchBody.role = user.role;
-       }
-       if (user.hourlyRate !== null) {
-         patchBody.hourly_rate = user.hourlyRate;
-       }
-
-       if (Object.keys(patchBody).length > 0) {
-         await request(`/api/members/${member.id}`, {
-           method: "PATCH",
-           clerkUserId: admin.clerkUserId,
-           body: JSON.stringify(patchBody),
+       for (const user of Object.values(users)) {
+         const member = await upsertDemoMember(dbClient, organisationId, user);
+         output.accounts.push({
+           role: member.role,
+           name: member.name,
+           email: member.email,
          });
        }
 
-       await query(
-         `UPDATE members
-          SET phone = $1, skills = $2, updated_at = NOW()
-          WHERE id = $3`,
-         [user.phone, user.skills, member.id]
-       );
-
-       output.accounts.push({
-         role: user.role,
-         name: user.displayName,
-         email: user.email,
-       });
+       await dbClient.query("COMMIT");
+     } catch (error) {
+       await dbClient.query("ROLLBACK");
+       throw error;
+     } finally {
+       dbClient.release();
      }
 
      output.accounts.sort((a, b) => {
@@ -234,6 +244,8 @@ const seed = async () => {
    }).catch((error) => {
      console.error(error.message);
      process.exit(1);
+   }).finally(() => {
+     pool.end();
    });
  }
 

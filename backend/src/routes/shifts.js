@@ -14,7 +14,7 @@ router.get("/", requireAuth, async (req, res) => {
                FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id
                WHERE s.organisation_id = $1`;
     const params = [req.member.organisation_id];
-    if (req.member.role === 'MANAGER') {
+    if (req.member.role === "MANAGER") {
       params.push(req.member.id);
       sql += ` AND (m.role = 'EMPLOYEE' OR s.assignee_id IS NULL OR s.assignee_id = $${params.length})`;
     }
@@ -55,8 +55,8 @@ router.get("/:id", requireAuth, async (req, res) => {
     );
     if (!shift.rows.length) return res.status(404).json({ error: "Not found" });
     const [clocks, swaps] = await Promise.all([
-      query(`SELECT ce.*, m.name as member_name FROM clock_events ce JOIN members m ON ce.member_id=m.id WHERE ce.shift_id=$1 ORDER BY ce.timestamp`, [req.params.id]),
-      query(`SELECT sr.*, m.name as requester_name FROM swap_requests sr JOIN members m ON sr.requester_id=m.id WHERE sr.shift_id=$1`, [req.params.id]),
+      query("SELECT ce.*, m.name as member_name FROM clock_events ce JOIN members m ON ce.member_id=m.id WHERE ce.shift_id=$1 ORDER BY ce.timestamp", [req.params.id]),
+      query("SELECT sr.*, m.name as requester_name FROM swap_requests sr JOIN members m ON sr.requester_id=m.id WHERE sr.shift_id=$1", [req.params.id]),
     ]);
     res.json({ ...shift.rows[0], clockEvents: clocks.rows, swapRequests: swaps.rows });
   } catch (err) { res.status(500).json({ error: "Failed" }); }
@@ -77,9 +77,9 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), [
   try {
     const { title, startTime, endTime, location, notes, color, assigneeId } = req.body;
     if (assigneeId) {
-      if (req.member.role === 'MANAGER') {
+      if (req.member.role === "MANAGER") {
         const target = await query("SELECT role FROM members WHERE id=$1", [assigneeId]);
-        if (target.rows[0]?.role !== 'EMPLOYEE' && assigneeId !== req.member.id) return res.status(403).json({ error: "Managers can only assign shifts to employees or themselves" });
+        if (target.rows[0]?.role !== "EMPLOYEE" && assigneeId !== req.member.id) return res.status(403).json({ error: "Managers can only assign shifts to employees or themselves" });
       }
 
       const conflict = await query(
@@ -104,7 +104,7 @@ router.post("/", requireAuth, requireRole("ADMIN","MANAGER"), [
     const shift = fullShift.rows[0];
 
     if (assigneeId) {
-      await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','New Shift Assigned',$2,$3)`,
+      await query("INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','New Shift Assigned',$2,$3)",
         [assigneeId, `You have been assigned: ${title}`, JSON.stringify({ shiftId: shift.id })]);
       req.io.to(`user:${assigneeId}`).emit("notification", { type: "SHIFT_ASSIGNED", shift });
     }
@@ -140,7 +140,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
 
     // Shift lock after clock-in — reject time or assignee changes once clocked in
     const hasClockIn = await query(
-      `SELECT id FROM clock_events WHERE shift_id=$1 AND type='CLOCK_IN' LIMIT 1`,
+      "SELECT id FROM clock_events WHERE shift_id=$1 AND type='CLOCK_IN' LIMIT 1",
       [req.params.id]
     );
     if (hasClockIn.rows.length) {
@@ -157,18 +157,18 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       }
     }
 
-    if (req.member.role === 'MANAGER') {
-      if (existing.rows[0].assignee_id && existing.rows[0].assignee_id !== req.member.id && existing.rows[0].assignee_role !== 'EMPLOYEE') {
+    if (req.member.role === "MANAGER") {
+      if (existing.rows[0].assignee_id && existing.rows[0].assignee_id !== req.member.id && existing.rows[0].assignee_role !== "EMPLOYEE") {
         return res.status(403).json({ error: "Cannot modify non-employee shifts" });
       }
       if (assigneeId) {
         const target = await query("SELECT role FROM members WHERE id=$1", [assigneeId]);
-        if (target.rows[0]?.role !== 'EMPLOYEE' && assigneeId !== req.member.id) return res.status(403).json({ error: "Managers can only assign to employees or themselves" });
+        if (target.rows[0]?.role !== "EMPLOYEE" && assigneeId !== req.member.id) return res.status(403).json({ error: "Managers can only assign to employees or themselves" });
       }
     }
 
     const assigneeDefined = req.body.assigneeId !== undefined;
-    const finalAssigneeId = (assigneeId && assigneeId !== '') ? assigneeId : null;
+    const finalAssigneeId = (assigneeId && assigneeId !== "") ? assigneeId : null;
 
     // If changing time or assignee, check for conflicts
     if (startTime || endTime || assigneeDefined) {
@@ -220,9 +220,9 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       params.push(finalAssigneeId);
       // Auto-update status when assignee changes
       if (finalAssigneeId) {
-        updates.push(`status = 'ASSIGNED'`);
+        updates.push("status = 'ASSIGNED'");
       } else {
-        updates.push(`status = 'OPEN'`);
+        updates.push("status = 'OPEN'");
       }
     }
     if (status !== undefined) {
@@ -230,12 +230,12 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       params.push(status);
     }
 
-    updates.push(`updated_at = NOW()`);
+    updates.push("updated_at = NOW()");
     params.push(req.params.id);
     params.push(req.member.organisation_id);
 
     const result = await query(
-      `UPDATE shifts SET ${updates.join(', ')} WHERE id = $${paramIdx++} AND organisation_id = $${paramIdx} RETURNING *`,
+      `UPDATE shifts SET ${updates.join(", ")} WHERE id = $${paramIdx++} AND organisation_id = $${paramIdx} RETURNING *`,
       params
     );
 
@@ -254,7 +254,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN","MANAGER"), [
       shift = updated;
     }
     if (assigneeId && assigneeId !== existing.rows[0].assignee_id) {
-      await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','Shift Assigned',$2,$3)`,
+      await query("INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_ASSIGNED','Shift Assigned',$2,$3)",
         [assigneeId, `You have been assigned: ${shift.title}`, JSON.stringify({ shiftId: shift.id })]);
       req.io.to(`user:${assigneeId}`).emit("notification", { type: "SHIFT_ASSIGNED", shift });
     }
@@ -282,7 +282,7 @@ router.delete("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, r
     );
     if (!existing.rows.length) return res.status(404).json({ error: "Not found" });
 
-    if (req.member.role === 'MANAGER' && existing.rows[0].assignee_id && existing.rows[0].assignee_id !== req.member.id && existing.rows[0].assignee_role !== 'EMPLOYEE') {
+    if (req.member.role === "MANAGER" && existing.rows[0].assignee_id && existing.rows[0].assignee_id !== req.member.id && existing.rows[0].assignee_role !== "EMPLOYEE") {
       return res.status(403).json({ error: "Cannot delete non-employee shifts" });
     }
 
@@ -291,7 +291,7 @@ router.delete("/:id", requireAuth, requireRole("ADMIN","MANAGER"), async (req, r
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "DELETE", entityType: "shift", entityId: req.params.id, oldValues: shift, req });
     await query("DELETE FROM shifts WHERE id=$1", [req.params.id]);
     if (shift.assignee_id) {
-      await query(`INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_CANCELLED','Shift Cancelled',$2,$3)`,
+      await query("INSERT INTO notifications (member_id,type,title,body,data) VALUES ($1,'SHIFT_CANCELLED','Shift Cancelled',$2,$3)",
         [shift.assignee_id, `Your shift "${shift.title}" was cancelled`, JSON.stringify({ shiftId: shift.id })]);
       req.io.to(`user:${shift.assignee_id}`).emit("notification", { type: "SHIFT_CANCELLED", shiftId: shift.id });
     }
@@ -353,16 +353,16 @@ router.patch("/:id/swap/:swapId", requireAuth, requireRole("ADMIN","MANAGER"), [
     const result = await query("UPDATE swap_requests SET status=$1, updated_at=NOW() WHERE id=$2 RETURNING *", [status, req.params.swapId]);
     const swap = result.rows[0];
 
-    if (status === 'APPROVED') {
+    if (status === "APPROVED") {
       await query("UPDATE shifts SET assignee_id=$1, status=$2 WHERE id=$3", 
-        [swap.target_id, swap.target_id ? 'ASSIGNED' : 'OPEN', swap.shift_id]);
+        [swap.target_id, swap.target_id ? "ASSIGNED" : "OPEN", swap.shift_id]);
       
       const updatedShift = await query("SELECT s.*, m.name as assignee_name FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id WHERE s.id=$1", [swap.shift_id]);
       req.io.to(`org:${req.member.organisation_id}`).emit("shift:updated", updatedShift.rows[0]);
       await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType: EVENT_TYPES.SHIFT_ASSIGNED, entityType: "shift", entityId: swap.shift_id, payload: updatedShift.rows[0], req });
     }
 
-    const eventType = status === 'APPROVED' ? EVENT_TYPES.SWAP_APPROVED : EVENT_TYPES.SWAP_REJECTED;
+    const eventType = status === "APPROVED" ? EVENT_TYPES.SWAP_APPROVED : EVENT_TYPES.SWAP_REJECTED;
     await emitEvent({ organisationId: req.member.organisation_id, memberId: req.member.id, eventType, entityType: "swap_request", entityId: swap.id, payload: swap, req });
     await logAudit({ 
       organisationId: req.member.organisation_id, 

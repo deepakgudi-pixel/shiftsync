@@ -1,14 +1,14 @@
 const path = require("path");
 require("dotenv").config({ path: path.resolve(__dirname, "../../.env") });
 
-const { query } = require("../db/client");
+const { pool, query } = require("../db/client");
 const crypto = require("crypto");
 
 const genId = () => crypto.randomUUID();
 
 const getDemoMembers = async () => {
   const result = await query(
-    `SELECT m.*, o.name as organisation_name FROM members m JOIN organisations o ON o.id = m.organisation_id WHERE m.email LIKE '%northstar%'`
+    "SELECT m.*, o.name as organisation_name FROM members m JOIN organisations o ON o.id = m.organisation_id WHERE m.email LIKE '%northstar%'"
   );
   const byRole = {};
   for (const row of result.rows) byRole[row.role.toLowerCase()] = row;
@@ -18,18 +18,18 @@ const getDemoMembers = async () => {
 };
 
 const clearExistingScenario = async (orgId) => {
-  await query(`DELETE FROM notifications WHERE member_id IN (SELECT id FROM members WHERE organisation_id = $1)`, [orgId]);
-  await query(`DELETE FROM messages WHERE sender_id IN (SELECT id FROM members WHERE organisation_id = $1)`, [orgId]);
-  await query(`DELETE FROM announcements WHERE organisation_id = $1`, [orgId]);
-  await query(`DELETE FROM payslips WHERE organisation_id = $1`, [orgId]);
-  await query(`DELETE FROM payroll_snapshots WHERE organisation_id = $1`, [orgId]);
-  await query(`DELETE FROM pay_periods WHERE organisation_id = $1`, [orgId]);
-  await query(`DELETE FROM overtime_rules WHERE organisation_id = $1`, [orgId]);
-  await query(`DELETE FROM employee_rates WHERE member_id IN (SELECT id FROM members WHERE organisation_id = $1)`, [orgId]);
-  await query(`DELETE FROM availability WHERE member_id IN (SELECT id FROM members WHERE organisation_id = $1)`, [orgId]);
-  await query(`DELETE FROM swap_requests WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = $1)`, [orgId]);
-  await query(`DELETE FROM clock_events WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = $1)`, [orgId]);
-  await query(`DELETE FROM shifts WHERE organisation_id = $1`, [orgId]);
+  await query("DELETE FROM notifications WHERE member_id IN (SELECT id FROM members WHERE organisation_id = $1)", [orgId]);
+  await query("DELETE FROM messages WHERE sender_id IN (SELECT id FROM members WHERE organisation_id = $1)", [orgId]);
+  await query("DELETE FROM announcements WHERE organisation_id = $1", [orgId]);
+  await query("DELETE FROM payslips WHERE organisation_id = $1", [orgId]);
+  await query("DELETE FROM payroll_snapshots WHERE organisation_id = $1", [orgId]);
+  await query("DELETE FROM pay_periods WHERE organisation_id = $1", [orgId]);
+  await query("DELETE FROM overtime_rules WHERE organisation_id = $1", [orgId]);
+  await query("DELETE FROM employee_rates WHERE member_id IN (SELECT id FROM members WHERE organisation_id = $1)", [orgId]);
+  await query("DELETE FROM availability WHERE member_id IN (SELECT id FROM members WHERE organisation_id = $1)", [orgId]);
+  await query("DELETE FROM swap_requests WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = $1)", [orgId]);
+  await query("DELETE FROM clock_events WHERE shift_id IN (SELECT id FROM shifts WHERE organisation_id = $1)", [orgId]);
+  await query("DELETE FROM shifts WHERE organisation_id = $1", [orgId]);
 };
 
 const addDays = (base, days) => { const v = new Date(base); v.setDate(v.getDate() + days); return v; };
@@ -47,7 +47,7 @@ const insertShift = async (orgId, id, title, start, end, loc, notes, color, stat
 
 const insertClock = async (shiftId, memberId, type, timestamp) => {
   await query(
-    `INSERT INTO clock_events (id, shift_id, member_id, type, timestamp) VALUES ($1,$2,$3,$4,$5)`,
+    "INSERT INTO clock_events (id, shift_id, member_id, type, timestamp) VALUES ($1,$2,$3,$4,$5)",
     [genId(), shiftId, memberId, type, iso(timestamp)]
   );
 };
@@ -60,7 +60,7 @@ const completeShift = async (orgId, title, start, end, loc, notes, color, emp) =
   return { id, emp, start, end };
 };
 
-const main = async () => {
+const seedDemoScenario = async () => {
   try {
     const { admin, manager, employees } = await getDemoMembers();
     const orgId = admin.organisation_id;
@@ -77,15 +77,15 @@ const main = async () => {
 
     // Availability
     for (const emp of employees) {
-      for (let day = 1; day <= 5; day++) await query(`INSERT INTO availability (member_id, day_of_week, start_time, end_time) VALUES ($1,$2,'07:00','18:00')`, [emp.id, day]);
+      for (let day = 1; day <= 5; day++) await query("INSERT INTO availability (member_id, day_of_week, start_time, end_time) VALUES ($1,$2,'07:00','18:00')", [emp.id, day]);
     }
 
     // overtime rule
-    await query(`INSERT INTO overtime_rules (organisation_id, name, daily_threshold_hours, weekly_threshold_hours, daily_multiplier, weekly_multiplier, is_active) VALUES ($1,'Standard OT',8,40,1.5,1.5,true)`, [orgId]);
+    await query("INSERT INTO overtime_rules (organisation_id, name, daily_threshold_hours, weekly_threshold_hours, daily_multiplier, weekly_multiplier, is_active) VALUES ($1,'Standard OT',8,40,1.5,1.5,true)", [orgId]);
 
     // employee rates
     for (const [emp, rate] of [[e1, 28], [e2, 26]]) {
-      await query(`INSERT INTO employee_rates (member_id, hourly_rate, overtime_multiplier, effective_from) VALUES ($1,$2,1.5,$3)`, [emp.id, rate, isoDate(thirtyDaysAgo)]);
+      await query("INSERT INTO employee_rates (member_id, hourly_rate, overtime_multiplier, effective_from) VALUES ($1,$2,1.5,$3)", [emp.id, rate, isoDate(thirtyDaysAgo)]);
     }
 
     
@@ -148,23 +148,23 @@ const main = async () => {
     // Swap request
     const swapId = genId();
     await insertShift(orgId, swapId, "Saturday Ward Coverage", atTime(addDays(currentWeekStart, 5), 7), atTime(addDays(currentWeekStart, 5), 15), "Building A", "Swap requested.", "#4f6eff", "ASSIGNED", e1.id);
-    await query(`INSERT INTO swap_requests (id, shift_id, requester_id, target_id, reason, status, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,'PENDING',NOW(),NOW())`, [genId(), swapId, e1.id, e2.id, "Family commitment Saturday."]);
+    await query("INSERT INTO swap_requests (id, shift_id, requester_id, target_id, reason, status, created_at, updated_at) VALUES ($1,$2,$3,$4,$5,'PENDING',NOW(),NOW())", [genId(), swapId, e1.id, e2.id, "Family commitment Saturday."]);
 
     console.log("Created this week's shifts");
 
     
     // announcements
     
-    await query(`INSERT INTO announcements (id, title, content, priority, organisation_id, author_id, created_at) VALUES ($1,$2,$3,'URGENT',$4,$5,NOW())`, [genId(), "New PPE Protocol Effective Immediately", "All staff must wear N95 masks in surgical wings and ICU.", orgId, admin.id]);
-    await query(`INSERT INTO announcements (id, title, content, priority, organisation_id, author_id, created_at) VALUES ($1,$2,$3,'HIGH',$4,$5,NOW())`, [genId(), "Q2 Performance Reviews Scheduled", "Manager 1-on-1s next week. Check your calendar.", orgId, admin.id]);
-    await query(`INSERT INTO announcements (id, title, content, priority, organisation_id, author_id, created_at) VALUES ($1,$2,$3,'NORMAL',$4,$5,NOW())`, [genId(), "Cafeteria Menu Update", "New healthy options added starting Monday.", orgId, admin.id]);
+    await query("INSERT INTO announcements (id, title, content, priority, organisation_id, author_id, created_at) VALUES ($1,$2,$3,'URGENT',$4,$5,NOW())", [genId(), "New PPE Protocol Effective Immediately", "All staff must wear N95 masks in surgical wings and ICU.", orgId, admin.id]);
+    await query("INSERT INTO announcements (id, title, content, priority, organisation_id, author_id, created_at) VALUES ($1,$2,$3,'HIGH',$4,$5,NOW())", [genId(), "Q2 Performance Reviews Scheduled", "Manager 1-on-1s next week. Check your calendar.", orgId, admin.id]);
+    await query("INSERT INTO announcements (id, title, content, priority, organisation_id, author_id, created_at) VALUES ($1,$2,$3,'NORMAL',$4,$5,NOW())", [genId(), "Cafeteria Menu Update", "New healthy options added starting Monday.", orgId, admin.id]);
 
     
     // messages
     
-    await query(`INSERT INTO messages (id, sender_id, receiver_id, content, read, created_at) VALUES ($1,$2,$3,$4,true,NOW())`, [genId(), manager.id, admin.id, "Scheduled this week's shifts. Pending swap request from e1 for Saturday."]);
-    await query(`INSERT INTO messages (id, sender_id, receiver_id, content, read, created_at) VALUES ($1,$2,$3,$4,true,NOW())`, [genId(), admin.id, manager.id, "Looks good. I'll review the swap. Processed pay period is ready."]);
-    await query(`INSERT INTO messages (id, sender_id, receiver_id, content, read, created_at) VALUES ($1,$2,$3,$4,false,NOW())`, [genId(), e1.id, e2.id, "Can you cover my Saturday shift? Family thing."]);
+    await query("INSERT INTO messages (id, sender_id, receiver_id, content, read, created_at) VALUES ($1,$2,$3,$4,true,NOW())", [genId(), manager.id, admin.id, "Scheduled this week's shifts. Pending swap request from e1 for Saturday."]);
+    await query("INSERT INTO messages (id, sender_id, receiver_id, content, read, created_at) VALUES ($1,$2,$3,$4,true,NOW())", [genId(), admin.id, manager.id, "Looks good. I'll review the swap. Processed pay period is ready."]);
+    await query("INSERT INTO messages (id, sender_id, receiver_id, content, read, created_at) VALUES ($1,$2,$3,$4,false,NOW())", [genId(), e1.id, e2.id, "Can you cover my Saturday shift? Family thing."]);
 
     
     // pay periods
@@ -172,7 +172,7 @@ const main = async () => {
     const periodStart = addDays(currentWeekStart, -14);
     const periodEnd = addDays(currentWeekStart, -1);
     const periodId = genId();
-    await query(`INSERT INTO pay_periods (id, organisation_id, period_type, start_date, end_date, status, processed_at, created_at) VALUES ($1,$2,'BIWEEKLY',$3,$4,'PROCESSED',NOW(),NOW())`, [periodId, orgId, isoDate(periodStart), isoDate(periodEnd)]);
+    await query("INSERT INTO pay_periods (id, organisation_id, period_type, start_date, end_date, status, processed_at, created_at) VALUES ($1,$2,'BIWEEKLY',$3,$4,'PROCESSED',NOW(),NOW())", [periodId, orgId, isoDate(periodStart), isoDate(periodEnd)]);
 
     for (const emp of employees) {
       const empShifts = completedShifts.filter(s => s.emp.id === emp.id);
@@ -186,14 +186,14 @@ const main = async () => {
       const otEarn = Math.round(otHours * rate * 1.5 * 100) / 100;
       const totalEarn = Math.round((baseEarn + otEarn) * 100) / 100;
 
-      await query(`INSERT INTO payroll_snapshots (id, pay_period_id, organisation_id, member_id, hourly_rate, overtime_multiplier, rule_daily_threshold_hours, rule_weekly_threshold_hours, rule_daily_multiplier, rule_weekly_multiplier, total_hours, base_hours, overtime_hours, base_earnings, overtime_earnings, total_earnings, generated_by, created_at) VALUES ($1,$2,$3,$4,$5,1.5,8,40,1.5,1.5,$6,$7,$8,$9,$10,$11,$12,NOW())`,
+      await query("INSERT INTO payroll_snapshots (id, pay_period_id, organisation_id, member_id, hourly_rate, overtime_multiplier, rule_daily_threshold_hours, rule_weekly_threshold_hours, rule_daily_multiplier, rule_weekly_multiplier, total_hours, base_hours, overtime_hours, base_earnings, overtime_earnings, total_earnings, generated_by, created_at) VALUES ($1,$2,$3,$4,$5,1.5,8,40,1.5,1.5,$6,$7,$8,$9,$10,$11,$12,NOW())",
         [genId(), periodId, orgId, emp.id, rate, Math.round(totalHours*100)/100, Math.round(baseHours*100)/100, Math.round(otHours*100)/100, baseEarn, otEarn, totalEarn, admin.id]);
 
-      await query(`INSERT INTO payslips (id, member_id, pay_period_id, organisation_id, base_hours, overtime_hours, overtime_rate, base_earnings, overtime_earnings, total_earnings, currency, status, generated_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,1.5,$7,$8,$9,'USD','DOWNLOADED',$10,NOW())`,
+      await query("INSERT INTO payslips (id, member_id, pay_period_id, organisation_id, base_hours, overtime_hours, overtime_rate, base_earnings, overtime_earnings, total_earnings, currency, status, generated_by, created_at) VALUES ($1,$2,$3,$4,$5,$6,1.5,$7,$8,$9,'USD','DOWNLOADED',$10,NOW())",
         [genId(), emp.id, periodId, orgId, Math.round(baseHours*100)/100, Math.round(otHours*100)/100, baseEarn, otEarn, totalEarn, admin.id]);
     }
 
-    await query(`INSERT INTO pay_periods (id, organisation_id, period_type, start_date, end_date, status, created_at) VALUES ($1,$2,'WEEKLY',$3,$4,'DRAFT',NOW())`, [genId(), orgId, isoDate(currentWeekStart), isoDate(addDays(currentWeekStart, 6))]);
+    await query("INSERT INTO pay_periods (id, organisation_id, period_type, start_date, end_date, status, created_at) VALUES ($1,$2,'WEEKLY',$3,$4,'DRAFT',NOW())", [genId(), orgId, isoDate(currentWeekStart), isoDate(addDays(currentWeekStart, 6))]);
 
     
     // summary
@@ -219,12 +219,22 @@ const main = async () => {
     console.log(`Pay Periods: ${s.processed} processed, ${s.draft} draft | Swaps: ${s.swaps} pending`);
     console.log(`\nLogin: ${admin.name} (${admin.email})`);
     console.log("=========================");
-    process.exit(0);
+    return s;
   } catch (error) {
     console.error("Failed to seed demo scenario");
     console.error(error);
-    process.exit(1);
+    throw error;
   }
 };
 
-main();
+if (require.main === module) {
+  seedDemoScenario()
+    .catch(() => {
+      process.exitCode = 1;
+    })
+    .finally(() => {
+      pool.end();
+    });
+}
+
+module.exports = { seedDemoScenario };

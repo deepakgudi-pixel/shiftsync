@@ -9,7 +9,7 @@ const { EVENT_TYPES } = require("../lib/events");
 router.get("/", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, res) => {
   try {
     const result = await query(
-      `SELECT * FROM overtime_rules WHERE organisation_id=$1 ORDER BY created_at DESC`,
+      "SELECT * FROM overtime_rules WHERE organisation_id=$1 ORDER BY created_at DESC",
       [req.member.organisation_id]
     );
     res.json(result.rows);
@@ -66,7 +66,7 @@ router.put("/:id", requireAuth, requireRole("ADMIN"), async (req, res) => {
 
     const { name, daily_threshold_hours, weekly_threshold_hours, daily_multiplier, weekly_multiplier, is_active } = req.body;
     const result = await client.query(
-      `UPDATE overtime_rules SET name=$1, daily_threshold_hours=$2, weekly_threshold_hours=$3, daily_multiplier=$4, weekly_multiplier=$5, is_active=$6 WHERE id=$7 RETURNING *`,
+      "UPDATE overtime_rules SET name=$1, daily_threshold_hours=$2, weekly_threshold_hours=$3, daily_multiplier=$4, weekly_multiplier=$5, is_active=$6 WHERE id=$7 RETURNING *",
       [name, daily_threshold_hours, weekly_threshold_hours, daily_multiplier, weekly_multiplier, is_active, req.params.id]
     );
 

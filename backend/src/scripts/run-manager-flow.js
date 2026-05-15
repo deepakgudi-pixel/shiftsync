@@ -14,6 +14,11 @@ const DEV_HEADER = "x-dev-clerk-user-id";
 
 const clerk = createClerkClient({ secretKey: process.env.CLERK_SECRET_KEY });
 
+/**
+ * @param {string} pathname
+ * @param {Record<string, any>} [options]
+ * @returns {Promise<{ response: Response, data: any }>}
+ */
 const request = async (pathname, options = {}) => {
   const { clerkUserId, headers, ...rest } = options;
   const finalHeaders = {
@@ -84,7 +89,9 @@ const getMemberByClerkId = async (clerkUserId) => {
 
 const main = async () => {
   const summary = [];
+  /** @type {Record<string, any>} */
   const users = {};
+  /** @type {Record<string, any>} */
   const ctx = {};
 
   const step = async (label, fn) => {

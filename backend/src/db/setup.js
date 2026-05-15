@@ -44,6 +44,7 @@ const setup = async () => {
       CREATE TABLE IF NOT EXISTS organisations (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         name TEXT NOT NULL, slug TEXT UNIQUE NOT NULL, logo_url TEXT,
+        allow_manager_rates BOOLEAN DEFAULT FALSE,
         currency TEXT DEFAULT 'USD',
         created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
       );
@@ -54,9 +55,14 @@ const setup = async () => {
         clerk_user_id TEXT UNIQUE NOT NULL, email TEXT NOT NULL, name TEXT NOT NULL,
         avatar_url TEXT, role TEXT NOT NULL DEFAULT 'EMPLOYEE' CHECK (role IN ('ADMIN','MANAGER','EMPLOYEE')),
         skills TEXT[] DEFAULT '{}', hourly_rate NUMERIC(10,2), phone TEXT,
+        can_manage_rates BOOLEAN DEFAULT FALSE,
         organisation_id TEXT NOT NULL REFERENCES organisations(id) ON DELETE CASCADE,
         created_at TIMESTAMPTZ DEFAULT NOW(), updated_at TIMESTAMPTZ DEFAULT NOW()
       );
+    `);
+    await client.query(`
+      ALTER TABLE organisations ADD COLUMN IF NOT EXISTS allow_manager_rates BOOLEAN DEFAULT FALSE;
+      ALTER TABLE members ADD COLUMN IF NOT EXISTS can_manage_rates BOOLEAN DEFAULT FALSE;
     `);
     await client.query(`
       CREATE TABLE IF NOT EXISTS shifts (
@@ -340,6 +346,7 @@ const setup = async () => {
   } catch (err) {
     await client.query("ROLLBACK");
     console.error("Setup failed:", err);
+    process.exitCode = 1;
   } finally {
     client.release();
     pool.end();

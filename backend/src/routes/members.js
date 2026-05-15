@@ -161,12 +161,12 @@ router.patch("/organisation/settings", requireAuth, requireRole("ADMIN"), async 
     await client.query("BEGIN");
 
     await client.query(
-      "UPDATE organisations SET updated_at=NOW() WHERE id=$1",
-      [req.member.organisation_id]
+      "UPDATE organisations SET allow_manager_rates=$1, updated_at=NOW() WHERE id=$2",
+      [allow_manager_rates === true, req.member.organisation_id]
     );
 
     await client.query(
-      `UPDATE members SET can_manage_rates=$1, updated_at=NOW() WHERE organisation_id=$2 AND role='MANAGER'`,
+      "UPDATE members SET can_manage_rates=$1, updated_at=NOW() WHERE organisation_id=$2 AND role='MANAGER'",
       [allow_manager_rates === true, req.member.organisation_id]
     );
 
@@ -185,12 +185,12 @@ router.patch("/:id", requireAuth, requireRole("ADMIN", "MANAGER"), async (req, r
   try {
     const { role, hourly_rate, can_manage_rates } = req.body;
 
-    if (req.member.role === 'MANAGER') {
+    if (req.member.role === "MANAGER") {
       if (role !== undefined) return res.status(403).json({ error: "Managers cannot change member roles" });
       if (can_manage_rates !== undefined) return res.status(403).json({ error: "Managers cannot change permissions" });
       if (!req.member.can_manage_rates) return res.status(403).json({ error: "Manager rate editing is disabled for this organisation" });
       const target = await client.query("SELECT role FROM members WHERE id=$1", [req.params.id]);
-      if (target.rows[0]?.role !== 'EMPLOYEE') return res.status(403).json({ error: "Managers can only set rates for employees" });
+      if (target.rows[0]?.role !== "EMPLOYEE") return res.status(403).json({ error: "Managers can only set rates for employees" });
     }
 
     await client.query("BEGIN");

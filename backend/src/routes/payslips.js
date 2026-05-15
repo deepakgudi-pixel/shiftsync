@@ -1,8 +1,7 @@
 const router = require("express").Router();
 const PDFDocument = require("pdfkit");
 const { query } = require("../db/client");
-const { requireAuth, requireRole } = require("../middleware/auth");
-const { logAudit } = require("../lib/audit");
+const { requireAuth } = require("../middleware/auth");
 
 const CURRENCY_SYMBOLS = {
   USD: "$", EUR: "€", GBP: "£", CAD: "C$", AUD: "A$",

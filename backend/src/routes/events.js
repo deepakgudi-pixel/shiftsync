@@ -36,7 +36,7 @@ router.get("/types/:eventType", requireAuth, async (req, res) => {
     const { eventType } = req.params;
     const { limit = 50, before } = req.query;
 
-    let sql = `SELECT * FROM events WHERE organisation_id = $1 AND event_type = $2`;
+    let sql = "SELECT * FROM events WHERE organisation_id = $1 AND event_type = $2";
     const params = [req.member.organisation_id, eventType];
 
     if (before) {

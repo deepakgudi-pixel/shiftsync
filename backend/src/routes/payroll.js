@@ -51,7 +51,7 @@ router.post("/pay-periods", requireAuth, requireRole("ADMIN", "MANAGER"), async 
     const { period_type, start_date, end_date } = req.body;
     if (!period_type || !start_date || !end_date) return res.status(400).json({ error: "Missing fields" });
     const result = await query(
-      `INSERT INTO pay_periods (organisation_id, period_type, start_date, end_date) VALUES ($1,$2,$3,$4) RETURNING *`,
+      "INSERT INTO pay_periods (organisation_id, period_type, start_date, end_date) VALUES ($1,$2,$3,$4) RETURNING *",
       [req.member.organisation_id, period_type, start_date, end_date]
     );
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CREATE", entityType: "pay_period", entityId: result.rows[0].id, newValues: result.rows[0], req });
@@ -108,7 +108,7 @@ router.get("/pay-periods/:id/timesheet", requireAuth, async (req, res) => {
       const payroll = calculatePayrollTotals({
         dailyHours,
         hourlyRate: parseFloat(emp.override_rate) || parseFloat(emp.hourly_rate) || 0,
-        overtimeMultiplier: parseFloat(emp.ot_multiplier) || parseFloat(rule.daily_multiplier),
+        overtimeMultiplier: parseFloat(String(emp.ot_multiplier)) || parseFloat(String(rule.daily_multiplier)),
         rule,
       });
 
@@ -303,7 +303,7 @@ router.post("/pay-periods/:id/process", requireAuth, requireRole("ADMIN"), async
       const payroll = calculatePayrollTotals({
         dailyHours,
         hourlyRate,
-        overtimeMultiplier: parseFloat(emp.ot_mult) || parseFloat(rule.daily_multiplier),
+        overtimeMultiplier: parseFloat(String(emp.ot_mult)) || parseFloat(String(rule.daily_multiplier)),
         rule,
       });
 
@@ -427,7 +427,7 @@ router.post("/employee-rates", requireAuth, requireRole("ADMIN"), async (req, re
     if (!memberCheck.rows.length) return res.status(404).json({ error: "Member not found in your organisation" });
 
     const result = await query(
-      `INSERT INTO employee_rates (member_id, hourly_rate, overtime_multiplier, effective_from) VALUES ($1,$2,$3,$4) RETURNING *`,
+      "INSERT INTO employee_rates (member_id, hourly_rate, overtime_multiplier, effective_from) VALUES ($1,$2,$3,$4) RETURNING *",
       [member_id, hourly_rate, overtime_multiplier || 1.5, effective_from]
     );
     await logAudit({ organisationId: req.member.organisation_id, memberId: req.member.id, clerkUserId: req.clerkUserId, action: "CREATE", entityType: "employee_rate", entityId: result.rows[0].id, newValues: result.rows[0], req });

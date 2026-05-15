@@ -47,7 +47,7 @@ const roundToCents = (value) => Math.round((value || 0) * 100) / 100;
  * @returns {number}
  */
 const normalizeNumber = (value, fallback) => {
-  const parsed = parseFloat(value);
+  const parsed = parseFloat(String(value));
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 

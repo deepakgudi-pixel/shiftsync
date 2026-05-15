@@ -16,28 +16,28 @@ const seedDemoData = async () => {
     const members = membersResult.rows;
     console.log(`Found ${members.length} members:`, members.map(m => `${m.name} (${m.role})`));
     
-    const employees = members.filter(m => m.role === 'EMPLOYEE');
-    const manager = members.find(m => m.role === 'MANAGER');
-    const admin = members.find(m => m.role === 'ADMIN');
+    const employees = members.filter(m => m.role === "EMPLOYEE");
+    const manager = members.find(m => m.role === "MANAGER");
+    const admin = members.find(m => m.role === "ADMIN");
 
     console.log(`Found ${employees.length} employees`);
     if (employees.length === 0) throw new Error("No employees found");
     
     // Restore original roles
     const roleMap = {
-      'Ava Reynolds': 'ADMIN',
-      'Marco Diaz': 'MANAGER',
-      'Leah Kim': 'MANAGER',
-      'Owen Patel': 'EMPLOYEE',
-      'Nina Lopez': 'EMPLOYEE'
+      "Ava Reynolds": "ADMIN",
+      "Marco Diaz": "MANAGER",
+      "Leah Kim": "MANAGER",
+      "Owen Patel": "EMPLOYEE",
+      "Nina Lopez": "EMPLOYEE"
     };
     
-    console.log('Restoring roles...');
+    console.log("Restoring roles...");
     for (const member of members) {
       const originalRole = roleMap[member.name];
       if (originalRole) {
         await query(
-          `UPDATE members SET role = $1, updated_at = NOW() WHERE id = $2`,
+          "UPDATE members SET role = $1, updated_at = NOW() WHERE id = $2",
           [originalRole, member.id]
         );
         console.log(`Set ${member.name} to ${originalRole} (was ${member.role})`);
@@ -59,6 +59,7 @@ const seedDemoData = async () => {
     await query("DELETE FROM overtime_rules WHERE organisation_id = $1", [organisationId]);
 
     const now = new Date();
+    const nowMs = now.getTime();
     const shifts = [];
 
     // Create realistic past shifts (last 2 weeks) with varied times
@@ -79,13 +80,13 @@ const seedDemoData = async () => {
         `INSERT INTO shifts (title, start_time, end_time, status, organisation_id, assignee_id, location, color)
          VALUES ($1, $2, $3, 'COMPLETED', $4, $5, $6, $7) RETURNING id, start_time`,
         [
-          `${isWeekend ? 'Weekend ' : ''}Shift ${Math.abs(day)}`,
+          `${isWeekend ? "Weekend " : ""}Shift ${Math.abs(day)}`,
           shiftStart,
           shiftEnd,
           organisationId,
           assignee.id,
-          ['Warehouse A', 'Warehouse B', 'Front Desk', 'Loading Dock', 'Forklift Zone'][Math.abs(day) % 5],
-          ['#4f6eff', '#00d4aa', '#ff6b6b', '#ffd93d', '#6bcb77'][Math.abs(day) % 5]
+          ["Warehouse A", "Warehouse B", "Front Desk", "Loading Dock", "Forklift Zone"][Math.abs(day) % 5],
+          ["#4f6eff", "#00d4aa", "#ff6b6b", "#ffd93d", "#6bcb77"][Math.abs(day) % 5]
         ]
       );
       
@@ -123,14 +124,14 @@ const seedDemoData = async () => {
     const morningResult = await query(
       `INSERT INTO shifts (title, start_time, end_time, status, organisation_id, assignee_id, location, color)
        VALUES ($1, $2, $3, 'COMPLETED', $4, $5, $6, $7) RETURNING id`,
-      ['Morning Shift', morningShift, morningEnd, organisationId, getEmployee(0).id, 'Warehouse A', '#4f6eff']
+      ["Morning Shift", morningShift, morningEnd, organisationId, getEmployee(0).id, "Warehouse A", "#4f6eff"]
     );
     await query(
-      `INSERT INTO clock_events (member_id, shift_id, type, timestamp) VALUES ($1, $2, 'CLOCK_IN', $3)`,
+      "INSERT INTO clock_events (member_id, shift_id, type, timestamp) VALUES ($1, $2, 'CLOCK_IN', $3)",
       [getEmployee(0).id, morningResult.rows[0].id, new Date(morningShift.getTime() - 3 * 60 * 1000)]
     );
     await query(
-      `INSERT INTO clock_events (member_id, shift_id, type, timestamp) VALUES ($1, $2, 'CLOCK_OUT', $3)`,
+      "INSERT INTO clock_events (member_id, shift_id, type, timestamp) VALUES ($1, $2, 'CLOCK_OUT', $3)",
       [getEmployee(0).id, morningResult.rows[0].id, new Date(morningEnd.getTime() + 10 * 60 * 1000)]
     );
 
@@ -140,10 +141,10 @@ const seedDemoData = async () => {
     const dayResult = await query(
       `INSERT INTO shifts (title, start_time, end_time, status, organisation_id, assignee_id, location, color)
        VALUES ($1, $2, $3, 'IN_PROGRESS', $4, $5, $6, $7) RETURNING id`,
-      ['Day Shift (Active)', dayShift, dayEnd, organisationId, getEmployee(1).id, 'Warehouse B', '#00d4aa']
+      ["Day Shift (Active)", dayShift, dayEnd, organisationId, getEmployee(1).id, "Warehouse B", "#00d4aa"]
     );
     await query(
-      `INSERT INTO clock_events (member_id, shift_id, type, timestamp) VALUES ($1, $2, 'CLOCK_IN', $3)`,
+      "INSERT INTO clock_events (member_id, shift_id, type, timestamp) VALUES ($1, $2, 'CLOCK_IN', $3)",
       [getEmployee(1).id, dayResult.rows[0].id, new Date(dayShift.getTime() - 5 * 60 * 1000)]
     );
 
@@ -155,7 +156,7 @@ const seedDemoData = async () => {
     await query(
       `INSERT INTO shifts (title, start_time, end_time, status, organisation_id, assignee_id, location, color)
        VALUES ($1, $2, $3, 'ASSIGNED', $4, $5, $6, $7)`,
-      ['Evening Shift', eveningShift, eveningEnd, organisationId, eveningEmployee.id, 'Loading Dock', '#ff6b6b']
+      ["Evening Shift", eveningShift, eveningEnd, organisationId, eveningEmployee.id, "Loading Dock", "#ff6b6b"]
     );
 
     // Tomorrow's shifts
@@ -167,7 +168,7 @@ const seedDemoData = async () => {
       await query(
         `INSERT INTO shifts (title, start_time, end_time, status, organisation_id, assignee_id, location, color)
          VALUES ($1, $2, $3, 'ASSIGNED', $4, $5, $6, $7)`,
-        [`Tomorrow Shift ${i + 1}`, start, end, organisationId, getEmployee(i).id, 'Warehouse A', '#ffd93d']
+        [`Tomorrow Shift ${i + 1}`, start, end, organisationId, getEmployee(i).id, "Warehouse A", "#ffd93d"]
       );
     }
 
@@ -176,7 +177,7 @@ const seedDemoData = async () => {
       await query(
         `INSERT INTO announcements (title, content, priority, organisation_id, author_id, created_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['🎉 Q1 2026 Bonus Announced', 'Great news! All employees will receive a performance bonus this quarter.', 'NORMAL', organisationId, admin.id, new Date(now - 2 * 24 * 60 * 60 * 1000)]
+        ["🎉 Q1 2026 Bonus Announced", "Great news! All employees will receive a performance bonus this quarter.", "NORMAL", organisationId, admin.id, new Date(nowMs - 2 * 24 * 60 * 60 * 1000)]
       );
     }
 
@@ -184,13 +185,13 @@ const seedDemoData = async () => {
       await query(
         `INSERT INTO announcements (title, content, priority, organisation_id, author_id, created_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['⚠️ Warehouse A Closure Tomorrow', 'Warehouse A will be closed for maintenance. Use Warehouse B.', 'HIGH', organisationId, manager.id, new Date(now - 1 * 24 * 60 * 60 * 1000)]
+        ["⚠️ Warehouse A Closure Tomorrow", "Warehouse A will be closed for maintenance. Use Warehouse B.", "HIGH", organisationId, manager.id, new Date(nowMs - 1 * 24 * 60 * 60 * 1000)]
       );
       
       await query(
         `INSERT INTO announcements (title, content, priority, organisation_id, author_id, created_at)
          VALUES ($1, $2, $3, $4, $5, $6)`,
-        ['New Overtime Policy', 'From next month, overtime will be calculated at 1.75x for weekends.', 'NORMAL', organisationId, manager.id, new Date(now - 3 * 24 * 60 * 60 * 1000)]
+        ["New Overtime Policy", "From next month, overtime will be calculated at 1.75x for weekends.", "NORMAL", organisationId, manager.id, new Date(nowMs - 3 * 24 * 60 * 60 * 1000)]
       );
     }
 
@@ -201,14 +202,14 @@ const seedDemoData = async () => {
       await query(
         `INSERT INTO swap_requests (shift_id, requester_id, target_id, status, reason, created_at)
          VALUES ($1, $2, $3, 'PENDING', 'Family emergency', $4)`,
-        [pastShifts[0].id, getEmployee(0).id, getEmployee(1).id, new Date(now - 1 * 24 * 60 * 60 * 1000)]
+        [pastShifts[0].id, getEmployee(0).id, getEmployee(1).id, new Date(nowMs - 1 * 24 * 60 * 60 * 1000)]
       );
 
       // Approved swap request
       await query(
         `INSERT INTO swap_requests (shift_id, requester_id, target_id, status, reason, created_at)
          VALUES ($1, $2, $3, 'APPROVED', 'Schedule conflict', $4)`,
-        [pastShifts[1].id, getEmployee(1).id, getEmployee(2).id, new Date(now - 3 * 24 * 60 * 60 * 1000)]
+        [pastShifts[1].id, getEmployee(1).id, getEmployee(2).id, new Date(nowMs - 3 * 24 * 60 * 60 * 1000)]
       );
     }
 
@@ -218,12 +219,12 @@ const seedDemoData = async () => {
         await query(
           `INSERT INTO messages (sender_id, receiver_id, content, created_at, read)
            VALUES ($1, $2, $3, $4, $5)`,
-          [getEmployee(i).id, getEmployee(i + 1).id, `Hey! Can you cover my shift on Friday?`, new Date(now - 2 * 24 * 60 * 60 * 1000), false]
+          [getEmployee(i).id, getEmployee(i + 1).id, "Hey! Can you cover my shift on Friday?", new Date(nowMs - 2 * 24 * 60 * 60 * 1000), false]
         );
         await query(
           `INSERT INTO messages (sender_id, receiver_id, content, created_at, read)
            VALUES ($1, $2, $3, $4, $5)`,
-          [getEmployee(i + 1).id, getEmployee(i).id, `Sure, I'll check my schedule!`, new Date(now - 2 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000), true]
+          [getEmployee(i + 1).id, getEmployee(i).id, "Sure, I'll check my schedule!", new Date(nowMs - 2 * 24 * 60 * 60 * 1000 + 30 * 60 * 1000), true]
         );
       }
     }

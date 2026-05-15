@@ -26,7 +26,7 @@ const initSocket = (io) => {
         // Verify memberId belongs to the authenticated user
         const { query } = require("../db/client");
         const result = await query(
-          `SELECT id FROM members WHERE clerk_user_id = $1 AND organisation_id = $2`,
+          "SELECT id FROM members WHERE clerk_user_id = $1 AND organisation_id = $2",
           [socket.clerkUserId, organisationId]
         );
         if (!result.rows.length || result.rows[0].id.toString() !== memberId.toString()) {
