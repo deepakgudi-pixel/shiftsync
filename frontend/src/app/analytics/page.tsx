@@ -15,8 +15,17 @@ export default function AnalyticsPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const api = useApi()
-  const [analytics, setAnalytics] = useState<any>(null)
-  const [member, setMember] = useState<any>(null)
+  const [analytics, setAnalytics] = useState<{
+    totalMembers: number
+    totalHours: number
+    totalLaborCost: number
+    completedThisMonth: number
+    openShifts: number
+    activeNow: number
+    shiftsThisWeek: number
+    shiftsByDay: { day: string; total: number; completed: number }[]
+  } | null>(null)
+  const [member, setMember] = useState<{ role: string } | null>(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {

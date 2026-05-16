@@ -1,108 +1,174 @@
 # ShiftSync — Developer Concepts Guide
 
-This guide covers the concepts and patterns needed to work on the ShiftSync codebase.
+This guide covers the architecture, patterns, and conventions needed to work confidently on the ShiftSync codebase.
+
+---
 
 ## Prerequisites
 
-- JavaScript/TypeScript (ES6+, async/await, modules)
+- JavaScript/TypeScript (ES2020+, async/await, modules)
 - Node.js (event loop, npm, CommonJS)
-- HTTP/REST (status codes, methods, headers)
-- SQL (SELECT, INSERT, UPDATE, JOIN, WHERE)
-- React fundamentals (components, hooks)
+- HTTP/REST (status codes, methods, headers, middleware)
+- SQL (SELECT, INSERT, UPDATE, JOIN, transactions)
+- React fundamentals (components, hooks, effects)
 - Git basics
+
+---
 
 ## Frontend
 
 ### Next.js 14 (App Router)
 
-- File-based routing: folders = routes
-- `'use client'` directive for client components
-- Layouts wrap child pages; each route can have its own `layout.tsx`
-- `error.tsx` for error boundaries, `loading.tsx` for loading states
+- File-based routing: folders in `src/app/` become routes
+- `'use client'` directive marks components that run in the browser
+- Layouts in `layout.tsx` wrap all child pages automatically
+- `error.tsx` handles runtime errors; `middleware.ts` gates entire route groups
+- All authenticated pages live under the root layout which includes `<ClerkProvider>`
 
 Key files:
-- `src/app/layout.tsx` — root layout with ClerkProvider
-- `src/app/dashboard/page.tsx` — main dashboard
-- `src/app/schedule/page.tsx` — shift kanban board
+- `src/app/layout.tsx` — root layout with ClerkProvider + AppLayout wrapper
+- `src/app/dashboard/page.tsx` — composes `useDashboard` hook + sub-components
+- `src/app/payroll/page.tsx` — composes `usePayroll` hook + payroll components
+- `middleware.ts` — protects all `/app/**` routes via Clerk session check
+
+### Feature-Slice Architecture
+
+Pages are kept thin (< 170 lines). Each feature owns its code in `src/features/<feature>/`:
+
+```
+features/
+├── payroll/
+│   ├── constants.ts          # Tab/modal IDs + currency list
+│   ├── utils.ts              # formatMoney(), getCurrencySymbol()
+│   ├── hooks/usePayroll.ts   # ALL data fetching + actions for payroll
+│   └── components/           # OverviewTab, PayPeriodsTab, PayrollModals, …
+├── dashboard/
+│   ├── hooks/useDashboard.ts # ALL data fetching + socket + actions
+│   └── components/           # AdminStats, AnalyticsChart, UpcomingShifts, …
+└── landing/
+    └── components/           # WebGLHero, BentoGrid, Comparison, …
+```
+
+**Rule**: If a component needs data, the hook fetches it. The component receives it as props and renders it. No fetching inside leaf components.
 
 ### TypeScript
 
-- Shared interfaces in `src/types/index.ts` (Member, Shift, PayPeriod, etc.)
-- Use interfaces over `any` for API responses
-- `catch (err: unknown)` with type guards instead of `catch (err: any)`
-
-### TanStack Query
-
-Used for all server state. Replaces useEffect + useState for data fetching.
-
-```typescript
-const { data, isLoading, error } = useQuery({
-  queryKey: ['shifts'],
-  queryFn: () => api.get('/api/shifts').then(res => res.data)
-})
-```
+- All shared API interfaces live in `src/types/index.ts`
+- Use typed interfaces over `any` — `any` is treated as a lint violation
+- `catch (err: unknown)` with typed narrowing: `const e = err as { response?: ... }`
+- New shared types: `PayPeriodTimesheet`, `PayPeriodSummary`, `TimesheetEmployee`, `PayslipWithPeriod`, `EmployeeRate`, `ProcessPayPeriodResult`
 
 ### Custom Hooks
 
-- `useApi()` — Axios instance with Clerk token injection
-- `useSocket()` — Socket.io connection with reconnect recovery
+- **`useApi()`** — Axios instance with automatic Clerk JWT injection on every request
+- **`useSocket(orgId, memberId)`** — Socket.io connection with room join + reconnect recovery + `SOCKET_RESYNC_EVENT` broadcast
 
 ### Shared Components
 
-- `AppLayout` — wraps all app pages with sidebar and mobile header
-- `Sidebar` — navigation with role-based visibility
+- `AppLayout` — wraps all authenticated pages with Sidebar and mobile header
+- `Sidebar` — navigation with Clerk auth, org-scoped delete modal, demo-user guards
+
+---
 
 ## Backend
 
-### Express.js
+### Request Lifecycle
 
-Route handlers in `src/routes/`. Each file exports an Express router mounted in `src/index.js`.
+```
+HTTP Request
+  → Rate limiter (global 1000 req/15min, skips ADMIN)
+  → routes/index.js (route registry)
+    → middleware/auth.js (Clerk JWT → req.member + req.clerkUserId)
+      → requireRole() (RBAC check)
+        → express-validator (input validation)
+          → service layer (DB queries, business logic)
+            → emitEvent() (event log write)
+              → logAudit() (audit log write)
+                → Socket.io broadcast
+                  → HTTP response
+```
+
+### Service Layer (Added in May 2026 Refactor)
+
+Domain logic lives in `src/services/`, not in route files:
+
+| Service | Responsibility |
+|---|---|
+| `payrollService.js` | Pay period CRUD, payroll processing, snapshot insertion, employee rate queries |
+| `shiftService.js` | Shift CRUD, conflict detection, swap requests, permission helpers |
+| `attendanceService.js` | Clock-in/out transactions, timesheet aggregation, live attendance |
+
+**Rule**: Route files handle HTTP concerns only (auth, validation, status codes, req/res). Service files handle all database interaction and domain logic.
+
+### Route Registry
+
+`src/routes/index.js` is the single source of truth for base paths:
 
 ```javascript
-router.get('/', requireAuth, async (req, res) => {
-  const result = await query('SELECT * FROM shifts WHERE organisation_id = $1', [req.member.organisation_id])
-  res.json(result.rows)
-})
+const routes = [
+  { path: '/api/shifts',     router: require('./shifts') },
+  { path: '/api/attendance', router: require('./attendance') },
+  { path: '/api/payroll',    router: require('./payroll') },
+  // ...
+];
+// Registered in index.js with: for (const route of routes) app.use(route.path, route.router)
 ```
+
+To add a new API domain: create `src/routes/myfeature.js`, then add it to this array.
 
 ### PostgreSQL (node-postgres)
 
-- Connection pool in `src/db/client.js`
-- Always use parameterized queries (`$1`, `$2`) — never string interpolation
-- Transactions: `BEGIN` → queries → `COMMIT` or `ROLLBACK`
-- `FOR UPDATE` row locks for race condition prevention (clock-in)
+- Connection pool: `src/db/client.js` — exports `{ query, pool }`
+- Always use parameterised queries: `$1`, `$2` — never string interpolation
+- Transactions for multi-step writes:
+  ```javascript
+  const client = await pool.connect();
+  try {
+    await client.query('BEGIN');
+    // ... queries
+    await client.query('COMMIT');
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    client.release();   // ← always release, even on error
+  }
+  ```
+- `FOR UPDATE` row locks in `attendanceService` prevent race conditions on clock-in
 
 ### Auth Middleware
 
-- `requireAuth` — verifies Clerk JWT, attaches `req.member` and `req.clerkUserId`
-- `requireRole('ADMIN', 'MANAGER')` — checks `req.member.role`
-- Dev bypass via `x-dev-clerk-user-id` header (localhost only, `NODE_ENV=development`)
+- `requireAuth` — verifies Clerk JWT, attaches `req.member` (full DB row) and `req.clerkUserId`
+- `requireRole('ADMIN', 'MANAGER')` — checks `req.member.role`; returns 403 if not satisfied
+- Dev bypass: `x-dev-clerk-user-id` header accepted on localhost with `NODE_ENV=development`
 
 ### Event System
 
-- `events` table — canonical event log (append-only via DB trigger)
-- `emitEvent()` — writes event, optionally inside a transaction
-- Event types in `src/lib/events.js`
-- Socket.io broadcasts events to `org:${id}` and `user:${id}` rooms
+- `events` table — canonical, append-only event log (DB trigger blocks UPDATE/DELETE)
+- `emitEvent({ client, organisationId, memberId, eventType, entityType, entityId, payload, req })` — writes to event log, optionally within an open transaction
+- Event type constants: `src/lib/events.js`
+- Downstream: Socket.io broadcasts events to `org:${id}` and `user:${id}` rooms
 
 ### Audit Logging
 
-- `logAudit()` — writes to `audit_logs` with before/after state diffs
-- Silent failure (non-blocking) — audit never breaks the main operation
-- Append-only via DB trigger
+- `logAudit({ organisationId, memberId, clerkUserId, action, entityType, entityId, oldValues, newValues, req })` — writes a structured record with before/after state, IP, and user agent
+- Non-blocking: errors in audit logging are caught and logged but never propagate to the main operation
+- Append-only: `audit_logs` has the same DB trigger protection as `events`
 
 ### Payroll Calculations
 
-- `src/lib/payrollCalculations.js` — pure functions for OT math
-- Daily vs weekly overtime: picks the larger OT amount
-- `roundToCents()` for financial rounding
-- JSDoc types for type checking without full TypeScript migration
+- `src/lib/payrollCalculations.js` — pure, side-effect-free math functions
+- `calculatePayrollTotals({ dailyHours, hourlyRate, overtimeMultiplier, rule })` — handles both daily and weekly OT thresholds, picks the larger result
+- `roundToCents()` for financial-safe rounding
+- `normalizeOvertimeRule()` — ensures consistent field types regardless of DB/default source
+
+---
 
 ## Database
 
 ### Multi-tenant Design
 
-Every core table has `organisation_id`. All queries filter by the authenticated member's org.
+Every core table has `organisation_id`. All queries must filter by `req.member.organisation_id`. Cross-org data access is architecturally prevented — never trust a client-supplied org ID.
 
 ### Immutable Tables
 
@@ -111,86 +177,147 @@ Every core table has `organisation_id`. All queries filter by the authenticated 
 ```sql
 CREATE TRIGGER block_events_delete
 BEFORE DELETE ON events
-FOR EACH ROW EXECUTE FUNCTION block_events_modification()
+FOR EACH ROW EXECUTE FUNCTION block_events_modification();
 ```
 
 ### Key Relationships
 
-- organisations → members (one-to-many)
-- organisations → shifts (one-to-many)
-- shifts → clock_events (one-to-many)
-- shifts → swap_requests (one-to-many)
-- pay_periods → payslips (one-to-many)
-- pay_periods → payroll_snapshots (one-to-many)
+```
+organisations
+  ├── members (one-to-many)
+  ├── shifts (one-to-many)
+  │     ├── clock_events (one-to-many)
+  │     └── swap_requests (one-to-many)
+  ├── pay_periods (one-to-many)
+  │     ├── payslips (one-to-many)
+  │     └── payroll_snapshots (one-to-many)
+  ├── employee_rates (via members)
+  ├── overtime_rules (one-to-many)
+  ├── announcements (one-to-many)
+  └── events / audit_logs (append-only)
+```
+
+### Payroll Snapshot Pattern
+
+When a pay period is processed, a `payroll_snapshot` is written for each employee containing:
+- The hourly rate **at that moment** (`hourly_rate`, `effective_rate_id`)
+- The overtime rule **at that moment** (all threshold/multiplier fields)
+- Computed hours and earnings
+
+This means re-processing is idempotent (returns cached result) and historical payslips reflect the rates that were actually in effect — not current rates.
+
+---
 
 ## Real-time
 
 ### Socket.io Rooms
 
-- `org:${id}` — org-wide broadcasts (shift updates, announcements)
-- `user:${id}` — private notifications (messages, shift assignments)
+- `org:${id}` — org-wide broadcasts: shift updates, announcements, attendance events
+- `user:${id}` — private: notifications, messages, shift assignments
+
+### Connection Auth
+
+Every socket handshake requires a Clerk JWT in `socket.handshake.auth.token`. The socket server verifies it and stores `socket.clerkUserId`. On `join:org`, the member's org ownership is verified against the DB before room admission.
 
 ### Reconnect Recovery
 
 1. Client stores `lastEventTimestamp` in localStorage on every event
-2. On reconnect: rejoin rooms, fetch `/api/events/since?since=timestamp`
-3. Replay events, then refresh from authoritative API
+2. On reconnect: client rejoins rooms, fetches `/api/events/since?since=<timestamp>`
+3. Replays missed events, then refreshes from authoritative API endpoints
+4. `SOCKET_RESYNC_EVENT` (custom DOM event) triggers `loadDashboard()` silently
 
-## Security
+---
 
-- **Auth**: Clerk JWT verified on every API request and socket handshake
-- **RBAC**: middleware enforces role checks per route
-- **Org scoping**: every query filters by `organisation_id`
-- **Headers**: Helmet.js (CSP, HSTS, frame-ancestors, XSS filter)
-- **CORS**: restricted to frontend origin
-- **Rate limiting**: global (1000 req/15min) + per-user on sensitive routes
-- **Validation**: express-validator on POST/PUT/PATCH
-- **SQL**: parameterized queries only
-- **Encryption**: AES-256-GCM for message content
-- **Audit**: all write operations logged, append-only tables
+## Security Model
+
+| Layer | Mechanism |
+|---|---|
+| Auth | Clerk JWT verified on every API request AND socket handshake |
+| RBAC | `requireRole()` middleware on every mutating route |
+| Org scoping | Every query filters `organisation_id = req.member.organisation_id` |
+| Headers | Helmet.js: CSP, HSTS (1yr + preload), X-Frame-Options: DENY, noSniff |
+| CORS | Restricted to `FRONTEND_URL` env var |
+| Rate limiting | 1000 req/15min globally; per-user keyed by `member.id`; ADMIN role skipped |
+| Input validation | `express-validator` on all POST/PUT/PATCH routes |
+| SQL injection | Parameterised queries only — no string interpolation ever |
+| Encryption | AES-256-GCM for message content (`src/lib/encryption.js`) |
+| Debug endpoints | `/api/attendance/debug*` blocked in `NODE_ENV=production` |
+| Demo protection | Demo org deletion blocked server-side by email allowlist check |
+
+---
 
 ## Development Workflow
 
 ```bash
 # Install
-cd backend && npm install
-cd ../frontend && npm install
+cd backend  && npm install
+cd frontend && npm install
 
-# Setup
-cd backend && npm run db:setup && npm run db:seed && npm run db:seed:scenario
+# One-time setup (creates DB schema + demo data)
+cd backend && npm run demo:seed
 
 # Run
-cd backend && npm run dev    # port 4000
-cd ../frontend && npm run dev  # port 3000
+cd backend  && npm run dev    # → http://localhost:4000
+cd frontend && npm run dev    # → http://localhost:3000
 
-# Test
+# Test (backend integration tests)
 cd backend && npm test
 
 # Lint
-cd backend && npm run lint
-cd ../frontend && npm run lint
+cd backend  && npm run lint
+cd frontend && npm run lint
 
 # Typecheck
-cd backend && npm run typecheck
-cd ../frontend && npm run build  # includes typecheck
+cd frontend && npx tsc --noEmit
 ```
 
-## Key Files to Read
+---
 
-1. `backend/src/index.js` — server setup, middleware chain
-2. `backend/src/middleware/auth.js` — Clerk JWT verification
-3. `backend/src/lib/payrollCalculations.js` — payroll math
-4. `backend/src/routes/payroll.js` — pay period processing
-5. `frontend/src/hooks/useApi.ts` — API client with auth
-6. `frontend/src/hooks/useSocket.ts` — socket with reconnect
-7. `frontend/src/components/layout/AppLayout.tsx` — shared layout
-8. `frontend/src/types/index.ts` — shared TypeScript interfaces
+## Key Files to Read First
+
+| File | Why |
+|---|---|
+| `backend/src/index.js` | Server setup, middleware chain, rate limiter placement |
+| `backend/src/routes/index.js` | Route registry — add new APIs here |
+| `backend/src/middleware/auth.js` | Clerk JWT flow, dev bypass |
+| `backend/src/services/payrollService.js` | Most complex domain logic in the codebase |
+| `backend/src/lib/payrollCalculations.js` | Pure OT math — modify with care |
+| `frontend/src/types/index.ts` | All shared interfaces — source of truth for API shapes |
+| `frontend/src/hooks/useApi.ts` | Auth-injecting Axios wrapper |
+| `frontend/src/hooks/useSocket.ts` | Socket connection + reconnect recovery |
+| `frontend/src/features/payroll/hooks/usePayroll.ts` | Pattern for all complex hooks |
+
+---
+
+## Conventions & Standards
+
+### Route files
+- HTTP layer only: auth checks, input validation, call a service, return status + JSON
+- All `catch` blocks must `console.error('ROUTE context:', err)` before returning 500
+- Use descriptive error messages in `res.json({ error: '...' })` — never just `"Failed"`
+
+### Service files
+- One file per domain aggregate (shifts, attendance, payroll)
+- Export named async functions — no classes
+- Accept a `client` parameter for transaction-aware queries; fall back to `query()` if null
+- Never emit Socket.io events or log audit entries from services — that belongs in routes
+
+### Frontend hooks
+- One hook per page/feature — `usePayroll`, `useDashboard`
+- State: `useState` for UI state; `useCallback` for stable fetch functions; `useEffect` to trigger on mount/deps
+- All API errors surface via `toast.error()` — never swallow silently
+- Never use `any` — use typed interfaces from `src/types/index.ts`
+
+---
 
 ## Common Gotchas
 
-- `FRONTEND_URL` in backend `.env` must match exactly (no trailing slash)
-- Frontend env vars must be prefixed with `NEXT_PUBLIC_`
-- Socket rooms must be rejoined after reconnect
-- Payroll processing is idempotent — re-processing returns cached results
-- Shifts lock after first clock-in — time and assignee changes are rejected
-- `events` and `audit_logs` are append-only — cannot be updated or deleted
+- `FRONTEND_URL` in backend `.env` must match exactly — no trailing slash
+- Frontend env vars must be prefixed `NEXT_PUBLIC_` to be browser-visible
+- Socket rooms must be explicitly rejoined after reconnect
+- Payroll processing is **idempotent** — calling `/process` twice returns cached snapshots, not duplicates
+- Shifts **lock after first clock-in** — `startTime`, `endTime`, `assigneeId` changes are rejected with `SHIFT_LOCKED_AFTER_CLOCK_IN`
+- `events` and `audit_logs` are **append-only** — DB triggers prevent UPDATE/DELETE
+- `employee_rates.effective_rate_id` in payroll snapshots stores the `employee_rates.id` FK — not the member ID
+- The rate limiter must be registered **before** the routes loop in `index.js`
+- Debug endpoints in `attendance.js` are wrapped in `if (process.env.NODE_ENV !== 'production')` — don't remove this guard

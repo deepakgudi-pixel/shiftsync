@@ -10,6 +10,18 @@ const authModulePath = path.join(srcRoot, "middleware/auth.js");
 const dbModulePath = path.join(srcRoot, "db/client.js");
 const auditModulePath = path.join(srcRoot, "lib/audit.js");
 const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.js");
+const payrollServicePath = path.join(srcRoot, "services/payrollService.js");
+const shiftServicePath = path.join(srcRoot, "services/shiftService.js");
+const attendanceServicePath = path.join(srcRoot, "services/attendanceService.js");
+
+const clearModuleCache = (modulePath) => {
+  try {
+    const resolved = require.resolve(modulePath);
+    delete require.cache[resolved];
+  } catch {
+    // Module not in cache, nothing to clear
+  }
+};
 
 const normalizeSql = (sql) => sql.replace(/\s+/g, " ").trim();
 
@@ -35,6 +47,11 @@ const createClient = (queryImpl) => ({
 });
 
 const loadRoute = async ({ routeFile, basePath, member, queryImpl, clientQueryImpl }) => {
+  // Clear service modules that depend on db/client so they pick up the mock
+  clearModuleCache(payrollServicePath);
+  clearModuleCache(shiftServicePath);
+  clearModuleCache(attendanceServicePath);
+
   const router = await withMockedModules(
     {
       [authModulePath]: createAuthMocks(member),
@@ -333,7 +350,7 @@ test("PUT /api/shifts/:id returns 409 when an updated shift overlaps another ass
         };
       }
 
-      if (sql.includes("FROM clock_events WHERE shift_id=$1 AND type='CLOCK_IN'")) {
+      if (sql.includes("FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN'")) {
         return { rows: [] };
       }
 
@@ -441,5 +458,189 @@ test("POST /api/payroll/employee-rates returns 404 when member is in a different
 
   assert.equal(response.status, 404);
   assert.equal(response.body.error, "Member not found in your organisation");
+});
+
+test("POST /api/payroll/pay-periods/:id/process returns cached result on second call", async (t) => {
+  const periodId = "period-1";
+  let snapshotCount = 0;
+  const harness = await loadRoute({
+    routeFile: "payroll.js",
+    basePath: "/api/payroll",
+    member: { id: "member-admin", organisation_id: "org-1", role: "ADMIN" },
+    queryImpl: async (sql) => {
+      if (sql.includes("FROM pay_periods WHERE id=$1")) {
+        return { rows: [{ id: periodId, start_date: "2026-04-01", end_date: "2026-04-07", status: "DRAFT" }] };
+      }
+      if (sql.includes("SELECT COUNT(*) FROM payroll_snapshots")) {
+        snapshotCount++;
+        return { rows: [{ count: snapshotCount > 1 ? "2" : "0" }] };
+      }
+      if (sql.includes("FROM overtime_rules")) {
+        return { rows: [] };
+      }
+      if (sql.includes("FROM members m") && sql.includes("role='EMPLOYEE'")) {
+        return { rows: [] };
+      }
+      if (sql.includes("SELECT currency FROM organisations")) {
+        return { rows: [{ currency: "USD" }] };
+      }
+      if (sql.includes("FROM payroll_snapshots ps") && sql.includes("JOIN members")) {
+        return { rows: [] };
+      }
+      if (sql.includes("FROM payslips WHERE pay_period_id")) {
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+    clientQueryImpl: async (sql) => {
+      if (sql.includes("FROM pay_periods WHERE id=$1")) {
+        return { rows: [{ id: periodId, start_date: "2026-04-01", end_date: "2026-04-07", status: "DRAFT" }] };
+      }
+      if (sql.includes("SELECT COUNT(*) FROM payroll_snapshots")) {
+        snapshotCount++;
+        return { rows: [{ count: snapshotCount > 1 ? "2" : "0" }] };
+      }
+      if (sql.includes("FROM overtime_rules")) {
+        return { rows: [] };
+      }
+      if (sql.includes("FROM members m") && sql.includes("role='EMPLOYEE'")) {
+        return { rows: [] };
+      }
+      if (sql.includes("SELECT currency FROM organisations")) {
+        return { rows: [{ currency: "USD" }] };
+      }
+      if (sql.includes("FROM payroll_snapshots ps") && sql.includes("JOIN members")) {
+        return { rows: [] };
+      }
+      if (sql.includes("FROM payslips WHERE pay_period_id")) {
+        return { rows: [] };
+      }
+      return { rows: [] };
+    },
+  });
+
+  t.after(async () => {
+    await harness.close();
+  });
+
+  const first = await harness.request(`/pay-periods/${periodId}/process`, { method: "POST" });
+  assert.equal(first.status, 200);
+  assert.equal(first.body.success, true);
+
+  const second = await harness.request(`/pay-periods/${periodId}/process`, { method: "POST" });
+  assert.equal(second.status, 200);
+  assert.equal(second.body.cached, true);
+});
+
+test("PUT /api/shifts/:id returns 409 with locked fields after clock-in", async (t) => {
+  const shiftId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const harness = await loadRoute({
+    routeFile: "shifts.js",
+    basePath: "/api/shifts",
+    member: { id: "member-admin", organisation_id: "org-1", role: "ADMIN" },
+    queryImpl: async (sql) => {
+      if (sql.includes("FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id")) {
+        return {
+          rows: [{
+            id: shiftId,
+            organisation_id: "org-1",
+            assignee_id: "emp-1",
+            start_time: "2026-05-01T09:00:00.000Z",
+            end_time: "2026-05-01T17:00:00.000Z",
+            assignee_role: "EMPLOYEE",
+          }],
+        };
+      }
+      if (sql.includes("FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN'")) {
+        return { rows: [{ id: "clock-1" }] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  t.after(async () => {
+    await harness.close();
+  });
+
+  const response = await harness.request(`/${shiftId}`, {
+    method: "PUT",
+    body: { startTime: "2026-05-01T10:00:00.000Z", endTime: "2026-05-01T18:00:00.000Z" },
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, "SHIFT_LOCKED_AFTER_CLOCK_IN");
+  assert.deepEqual(response.body.lockedFields, ["startTime", "endTime"]);
+});
+
+test("POST /api/dev/demo-ticket returns 400 for unknown demo account", async (t) => {
+  const prevEnv = process.env.DEMO_ACCESS_ENABLED;
+  process.env.DEMO_ACCESS_ENABLED = "true";
+
+  const harness = await loadRoute({
+    routeFile: "dev.js",
+    basePath: "/api/dev",
+    member: { id: "member-public", organisation_id: "org-1", role: "EMPLOYEE" },
+    queryImpl: async () => {
+      throw new Error("Should not reach DB for invalid email");
+    },
+  });
+
+  t.after(async () => {
+    process.env.DEMO_ACCESS_ENABLED = prevEnv;
+    await harness.close();
+  });
+
+  const response = await harness.request("/demo-ticket", {
+    method: "POST",
+    body: { email: "not-a-demo-user@example.com" },
+  });
+
+  assert.equal(response.status, 400);
+  assert.equal(response.body.error, "Unknown demo account");
+});
+
+test("GET /api/payroll/employee-rates returns 403 for EMPLOYEE role", async (t) => {
+  const harness = await loadRoute({
+    routeFile: "payroll.js",
+    basePath: "/api/payroll",
+    member: { id: "member-emp", organisation_id: "org-1", role: "EMPLOYEE" },
+    queryImpl: async () => {
+      throw new Error("Should not reach DB for unauthorized role");
+    },
+  });
+
+  t.after(async () => {
+    await harness.close();
+  });
+
+  const response = await harness.request("/employee-rates?memberId=some-id", {
+    method: "GET",
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, "Insufficient permissions");
+});
+
+test("POST /api/payroll/employee-rates returns 403 for MANAGER role", async (t) => {
+  const harness = await loadRoute({
+    routeFile: "payroll.js",
+    basePath: "/api/payroll",
+    member: { id: "member-mgr", organisation_id: "org-1", role: "MANAGER" },
+    queryImpl: async () => {
+      throw new Error("Should not reach DB for unauthorized role");
+    },
+  });
+
+  t.after(async () => {
+    await harness.close();
+  });
+
+  const response = await harness.request("/employee-rates", {
+    method: "POST",
+    body: { member_id: "emp-1", hourly_rate: 25, effective_from: "2026-01-01" },
+  });
+
+  assert.equal(response.status, 403);
+  assert.equal(response.body.error, "Insufficient permissions");
 });
 

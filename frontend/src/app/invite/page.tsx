@@ -1,7 +1,7 @@
 'use client'
 import { useEffect, useState } from 'react'
 import { useApi } from '@/hooks/useApi'
-import { Copy, Check, Users, Building2, Share2, User } from 'lucide-react'
+import { Copy, Check, Building2, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
 
@@ -34,8 +34,6 @@ export default function SettingsPage() {
     toast.success('Copied to clipboard!')
     setTimeout(() => setCopied(null), 2000)
   }
-
-  const onboardingLink = `${window.location.origin}/onboarding`
 
   if (!org || !member) return (
     <div className="p-8 text-zinc-400 text-[10px] font-bold uppercase tracking-widest">Initialising registry...</div>

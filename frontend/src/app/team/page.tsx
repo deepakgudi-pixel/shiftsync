@@ -19,7 +19,12 @@ export default function TeamPage() {
   const router = useRouter()
   const api = useApi()
   const [members, setMembers] = useState<Member[]>([])
-  const [me, setMe] = useState<any>(null)
+  const [me, setMe] = useState<{
+    id: string
+    role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE'
+    allow_manager_rates?: boolean
+    can_manage_rates?: boolean
+  } | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('ALL')
 

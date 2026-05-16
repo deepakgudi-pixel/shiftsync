@@ -259,7 +259,7 @@ export default function AttendancePage() {
       {/* Timesheet */}
       {timesheet?.timesheet?.length > 0 && (
         <div className="bg-white border border-zinc-200 p-5 shadow-sm">
-          <h2 className="text-[10px] font-bold text-black mb-4 uppercase tracking-[0.2em] border-l-2 border-black pl-3">This Month's Timesheet</h2>
+          <h2 className="text-[10px] font-bold text-black mb-4 uppercase tracking-[0.2em] border-l-2 border-black pl-3">This Month&apos;s Timesheet</h2>
           <div className="space-y-1">
             {timesheet.timesheet.map((row: any) => (
               <div key={row.id} className="flex items-center gap-3 p-3 border-b border-zinc-50 last:border-0 hover:bg-zinc-50 transition-colors">

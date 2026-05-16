@@ -192,7 +192,7 @@ export default function AuditPage() {
                       </p>
                       <p className="text-[9px] font-bold text-zinc-400 uppercase tracking-wider mt-0.5">
                         {log.action} {ENTITY_LABELS[log.entity_type] || log.entity_type}
-                        {log.entity_id && <span className="text-zinc-300 font-mono"> // {log.entity_id.slice(0, 8)}</span>}
+                        {log.entity_id && <span className="text-zinc-300 font-mono">{' // '}{log.entity_id.slice(0, 8)}</span>}
                       </p>
                     </div>
                   </div>

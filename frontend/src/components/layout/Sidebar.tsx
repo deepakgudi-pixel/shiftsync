@@ -7,6 +7,7 @@ import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, Message
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { cn } from '@/lib/utils'
+import type { Member } from '@/types'
 
 interface SidebarProps {
   isOpen?: boolean
@@ -39,7 +40,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
   const api = useApi()
   const { signOut } = useClerk()
   const { user } = useUser()
-  const [member, setMember] = useState<any>(null)
+  const [member, setMember] = useState<Member | null>(null)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
 

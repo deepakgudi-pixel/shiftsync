@@ -1,6 +1,5 @@
 const router = require("express").Router();
-const { pool } = require("../db/client");
-const { query } = require("../db/client");
+const { pool, query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
 const { emitEvent } = require("../lib/eventEmitter");
@@ -22,7 +21,8 @@ router.get("/me", requireAuth, async (req, res) => {
     );
     res.json(result.rows[0]);
   } catch (err) {
-    res.status(500).json({ error: "Failed" });
+    console.error("GET /organisations/me:", err);
+    res.status(500).json({ error: "Failed to load organisation" });
   }
 });
 
@@ -39,7 +39,8 @@ router.get("/announcements", requireAuth, async (req, res) => {
     );
     res.json(result.rows);
   } catch (err) {
-    res.status(500).json({ error: "Failed" });
+    console.error("GET /organisations/announcements:", err);
+    res.status(500).json({ error: "Failed to load announcements" });
   }
 });
 
@@ -87,7 +88,8 @@ router.post("/announcements", requireAuth, requireRole("ADMIN"), async (req, res
     res.status(201).json(result.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: "Failed" });
+    console.error("POST /organisations/announcements:", err);
+    res.status(500).json({ error: "Failed to post announcement" });
   } finally {
     client.release();
   }

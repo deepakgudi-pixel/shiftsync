@@ -134,3 +134,63 @@ export interface Message {
   sender_avatar?: string
   created_at: string
 }
+
+export interface PayPeriodTimesheet {
+  period: PayPeriod
+  rule: OvertimeRule
+  employees: TimesheetEmployee[]
+}
+
+export interface TimesheetEmployee {
+  employeeId: string
+  name: string
+  avatarUrl: string | null
+  hourlyRate: number
+  shifts: { date: string; hours: number }[]
+  totalHours: number
+  baseHours: number
+  overtimeHours: number
+  baseEarnings: number
+  overtimeEarnings: number
+  totalEarnings: number
+}
+
+export interface PayPeriodSummary {
+  employeeCount: number
+  totalHours: number
+  totalBaseEarnings: number
+  totalOvertimeEarnings: number
+  totalCost: number
+  rule: OvertimeRule
+  breakdown: {
+    empId: string
+    name: string
+    rate: number
+    totalHours: number
+    overtimeHours: number
+    baseEarn: number
+    otEarn: number
+  }[]
+}
+
+export interface EmployeeRate {
+  id: string
+  member_id: string
+  hourly_rate: number
+  overtime_multiplier: number
+  effective_from: string
+}
+
+export interface PayslipWithPeriod extends Payslip {
+  employee_name: string
+  period_type: string
+  start_date: string
+  end_date: string
+}
+
+export interface ProcessPayPeriodResult {
+  success: boolean
+  payslipsGenerated: number
+  generated: { id: string; name: string; totalEarn: number }[]
+  skipped: { id: string; name: string; reason: string }[]
+}

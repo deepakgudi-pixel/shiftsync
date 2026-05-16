@@ -1,6 +1,5 @@
 const router = require("express").Router();
-const { pool } = require("../db/client");
-const { query } = require("../db/client");
+const { pool, query } = require("../db/client");
 const { requireAuth, requireRole } = require("../middleware/auth");
 const { logAudit } = require("../lib/audit");
 const { emitEvent } = require("../lib/eventEmitter");
@@ -17,7 +16,10 @@ router.get("/", requireAuth, async (req, res) => {
       [req.member.organisation_id, req.member.role, req.member.id]
     );
     res.json(result.rows);
-  } catch (err) { res.status(500).json({ error: "Failed to fetch members" }); }
+  } catch (err) {
+    console.error("GET /members:", err);
+    res.status(500).json({ error: "Failed to fetch members" });
+  }
 });
 
 router.get("/me", requireAuth, async (req, res) => {
@@ -30,7 +32,10 @@ router.get("/me", requireAuth, async (req, res) => {
     ]);
     if (!member.rows[0]) return res.status(404).json({ error: "Member not found" });
     res.json({ ...member.rows[0], availability: avail.rows, notifications: notifs.rows });
-  } catch (err) { res.status(500).json({ error: "Failed" }); }
+  } catch (err) {
+    console.error("GET /members/me:", err);
+    res.status(500).json({ error: "Failed" });
+  }
 });
 
 router.post("/onboard", async (req, res) => {
@@ -124,6 +129,7 @@ router.put("/me", requireAuth, async (req, res) => {
     res.json(result.rows[0]);
   } catch (err) {
     await client.query("ROLLBACK");
+    console.error("PUT /members/me:", err);
     res.status(500).json({ error: "Failed to update" });
   } finally {
     client.release();
@@ -147,7 +153,8 @@ router.put("/me/availability", requireAuth, async (req, res) => {
     res.json({ success: true });
   } catch (err) {
     await client.query("ROLLBACK");
-    res.status(500).json({ error: "Failed" });
+    console.error("PUT /members/me/availability:", err);
+    res.status(500).json({ error: "Failed to update availability" });
   } finally {
     client.release();
   }
