@@ -4,16 +4,29 @@ const express = require("express");
 const http = require("http");
 const cors = require("cors");
 
-// Parse allowed origins from FRONTEND_URL (comma-separated for multiple domains)
-const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
-  .split(",")
-  .map((o: string) => o.trim());
+const parseOrigins = (...values: Array<string | undefined>) => Array.from(new Set(
+  values
+    .filter(Boolean)
+    .flatMap((value) => String(value).split(","))
+    .map((origin) => origin.trim().replace(/\/$/, ""))
+    .filter(Boolean)
+));
+
+// FRONTEND_URL is the primary deployed client. FRONTEND_URLS is optional for
+// previews, migrations, or multiple branded domains during a rollout.
+const allowedOrigins = parseOrigins(
+  process.env.FRONTEND_URL || "http://localhost:3000",
+  process.env.FRONTEND_URLS
+);
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Dynamic fallback: allow any request, mirroring the origin header back.
-    // This provides 100% resilient CORS regardless of host/domain migrations or env propagation delays.
-    callback(null, true);
+    if (!origin || allowedOrigins.includes(origin.replace(/\/$/, ""))) {
+      callback(null, true);
+      return;
+    }
+
+    callback(new Error(`CORS blocked origin: ${origin}`), false);
   },
   credentials: true,
 };
