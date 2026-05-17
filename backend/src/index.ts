@@ -71,7 +71,11 @@ app.use(cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
 
 app.use((req, _, next) => { req.io = io; next(); });
-app.get("/health", (_, res) => res.json({ status: "ok", ts: new Date() }));
+app.get("/health", (_, res) => res.json({
+  status: "ok",
+  ts: new Date(),
+  allowedOrigins,
+}));
 
 // Coarse IP rate limiting for all API traffic. Authenticated routes apply a
 // per-member limiter inside requireAuth after req.member is available.
