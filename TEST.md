@@ -6,7 +6,7 @@ ShiftSync uses a comprehensive testing strategy covering both backend and fronte
 
 ---
 
-## Backend Tests: 92/92 Passing
+## Backend Tests: 93/93 Passing
 
 | Test File | Tests | Coverage |
 |---|---|---|
@@ -71,7 +71,7 @@ cd frontend && npm run test:watch # Watch mode
 
 | Metric | Before | After |
 |---|---|---|
-| Backend tests | 18 | 92 |
+| Backend tests | 18 | 93 |
 | Dedicated cross-org tests | 0 | 3 |
 | Frontend tests | 0 | 71 |
 | **Total tests** | **18** | **163** |

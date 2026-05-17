@@ -1,6 +1,7 @@
 const Clerk = require("@clerk/backend");
 const { query } = require("../db/client");
 const { logAudit } = require("../lib/audit");
+const { authenticatedApiRateLimit } = require("./rateLimit");
 
 const DEV_BYPASS_HEADER = "x-dev-clerk-user-id";
 
@@ -34,7 +35,7 @@ const requireAuth = async (req, res, next) => {
       req.member = member;
       req.clerkUserId = devClerkUserId;
       req.isDevAuthBypass = true;
-      return next();
+      return authenticatedApiRateLimit(req, res, next);
     }
 
     const authHeader = req.headers.authorization;
@@ -84,7 +85,7 @@ const requireAuth = async (req, res, next) => {
 
     req.member = member;
     req.clerkUserId = clerkUserId;
-    next();
+    return authenticatedApiRateLimit(req, res, next);
   } catch (err) {
     console.error("Auth error:", err.message);
     res.status(401).json({ error: "Invalid token", detail: err.message });

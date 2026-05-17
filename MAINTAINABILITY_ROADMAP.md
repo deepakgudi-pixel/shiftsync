@@ -59,7 +59,7 @@ This roadmap keeps cleanup work visible and reviewable. The goal is a codebase t
 ## Done In This Pass
 
 - Tightened TypeScript types across entire payroll feature area — zero `any` warnings. Added 6 new shared types to `types/index.ts`.
-- Added cross-org leakage, stale shift version, attendance side-effect, and production demo-access regression tests. Backend tests: 92 (all passing).
+- Added cross-org leakage, stale shift version, attendance side-effect, rate-limit role-skip, and production demo-access regression tests. Backend tests: 93 (all passing).
 - Added `rules_snapshot` JSONB to payroll snapshots while preserving existing columns for compatibility.
 - Added optimistic shift concurrency via `If-Match` and `shifts.version`.
 - Migrated backend source from JS/JSDoc to TypeScript with `ts-node` dev/test flow and compiled `dist/` production startup.

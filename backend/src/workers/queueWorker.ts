@@ -2,6 +2,7 @@ const { query, pool } = require("../db/client");
 const {
   PAY_PERIOD_PROCESSED_FANOUT,
   getBoss,
+  republishQueuedJobs,
   updateJobStatus,
 } = require("../services/jobQueueService");
 
@@ -42,6 +43,15 @@ const startWorker = async () => {
   await boss.work(PAY_PERIOD_PROCESSED_FANOUT, async (job) => {
     await notifyGeneratedPayslips(job.data || {});
   });
+
+  const republished = await republishQueuedJobs({
+    type: PAY_PERIOD_PROCESSED_FANOUT,
+    limit: 100,
+  });
+
+  if (republished > 0) {
+    console.log(`Republished ${republished} queued payroll fan-out job(s)`);
+  }
 
   console.log("Queue worker started");
 };

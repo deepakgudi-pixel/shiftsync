@@ -56,6 +56,44 @@ const publishQueuedJob = async (job) => {
   });
 };
 
+const findQueuedJobs = async (type = null, limit = 100) => {
+  const params = [];
+  let typeClause = "";
+
+  if (type) {
+    params.push(type);
+    typeClause = `AND type = $${params.length}`;
+  }
+
+  params.push(limit);
+  const result = await query(
+    `SELECT *
+     FROM background_jobs
+     WHERE status = 'QUEUED'
+       AND run_after <= NOW()
+       ${typeClause}
+     ORDER BY created_at ASC
+     LIMIT $${params.length}`,
+    params
+  );
+
+  return result.rows;
+};
+
+const republishQueuedJobs = async ({ type = null, limit = 100 } = {}) => {
+  if (process.env.NODE_ENV === "test") return 0;
+
+  const jobs = await findQueuedJobs(type, limit);
+  let published = 0;
+
+  for (const job of jobs) {
+    await publishQueuedJob(job);
+    published++;
+  }
+
+  return published;
+};
+
 const updateJobStatus = async (jobId, status, lastError = null) => {
   if (!jobId) return;
 
@@ -75,7 +113,9 @@ module.exports = {
   PAY_PERIOD_PROCESSED_FANOUT,
   enqueueJob,
   getBoss,
+  findQueuedJobs,
   publishQueuedJob,
+  republishQueuedJobs,
   updateJobStatus,
 };
 

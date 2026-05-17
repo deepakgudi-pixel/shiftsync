@@ -1,6 +1,11 @@
 const userRateLimit = (options: any = {}) => {
-  const { windowMs = 60 * 1000, max = 100, keyPrefix = "rl" } = options;
-  const store = new Map();
+  const {
+    windowMs = 60 * 1000,
+    max = 100,
+    keyPrefix = "rl",
+    skipRoles = [],
+  } = options;
+  const store = new Map<string, { ts: number; count: number }[]>();
   const cleanup = setInterval(() => {
     const now = Date.now();
     for (const [key, entries] of store) {
@@ -13,6 +18,7 @@ const userRateLimit = (options: any = {}) => {
 
   return (req: any, res: any, next: any) => {
     if (!req.member?.id) return next();
+    if (skipRoles.includes(req.member.role)) return next();
 
     const key = `${keyPrefix}:${req.member.id}`;
     const now = Date.now();
@@ -48,5 +54,12 @@ const userRateLimit = (options: any = {}) => {
   };
 };
 
-module.exports = { userRateLimit };
+const authenticatedApiRateLimit = userRateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: Number(process.env.AUTHENTICATED_RATE_LIMIT_MAX || 1000),
+  keyPrefix: "auth-api",
+  skipRoles: ["ADMIN"],
+});
+
+module.exports = { authenticatedApiRateLimit, userRateLimit };
 export {};

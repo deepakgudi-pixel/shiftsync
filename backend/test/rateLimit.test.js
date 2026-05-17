@@ -130,6 +130,18 @@ test("rate limiter isolates different users", async () => {
   assert.equal(results2[0].status, 200);
 });
 
+test("rate limiter skips configured roles", async () => {
+  const app = express();
+  app.use(express.json());
+  app.use((req, res, next) => { req.member = { id: "admin-1", role: "ADMIN" }; next(); });
+  app.use(userRateLimit({ windowMs: 60000, max: 1, keyPrefix: "rl-skip-role", skipRoles: ["ADMIN"] }));
+  app.get("/test", (req, res) => res.json({ success: true }));
+
+  const results = await makeRequests(app, "/test", 2);
+  assert.equal(results[0].status, 200);
+  assert.equal(results[1].status, 200);
+});
+
 test("rate limiter skips when no member", async () => {
   const app = express();
   app.use(express.json());

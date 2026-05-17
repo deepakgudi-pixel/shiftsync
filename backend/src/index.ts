@@ -46,15 +46,14 @@ app.use(express.json({ limit: "1mb" }));
 app.use((req, _, next) => { req.io = io; next(); });
 app.get("/health", (_, res) => res.json({ status: "ok", ts: new Date() }));
 
-// Global rate limiting — must be registered before routes so it intercepts incoming requests
-// The skip callback works correctly because requireAuth runs inside each route and populates req.member
+// Coarse IP rate limiting for all API traffic. Authenticated routes apply a
+// per-member limiter inside requireAuth after req.member is available.
 const apiLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   max: 1000,
   standardHeaders: true,
   legacyHeaders: false,
-  keyGenerator: (req) => req.member?.id || ipKeyGenerator(req),
-  skip: (req) => req.member?.role === "ADMIN",
+  keyGenerator: (req) => ipKeyGenerator(req),
 });
 app.use("/api", apiLimiter);
 

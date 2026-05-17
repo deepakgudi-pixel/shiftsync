@@ -209,7 +209,7 @@ Validates the environment, runs schema setup, creates Clerk demo accounts, and p
 
 ```bash
 cd backend && npm test
-# 92 backend tests — routes, RBAC, conflict detection, payroll, tenancy, demo safety
+# 93 backend tests — routes, RBAC, conflict detection, payroll, tenancy, demo safety
 ```
 
 Tests use the real PostgreSQL driver against a test database. Module cache is cleared between test suites to prevent state bleed.
@@ -221,6 +221,6 @@ Tests use the real PostgreSQL driver against a test database. Module cache is cl
 GitHub Actions runs on every push to `main` or `master` and every PR:
 
 - **Backend**: lint → TypeScript typecheck → build → integration tests
-- **Frontend**: lint → TypeScript typecheck (`tsc --noEmit`) → production build
+- **Frontend**: lint → TypeScript typecheck → production build
 
 Both jobs run in parallel and cancel on new pushes (via `concurrency`).
