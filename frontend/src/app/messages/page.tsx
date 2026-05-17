@@ -36,8 +36,8 @@ export default function MessagesPage() {
         const [meR, memR] = await Promise.all([api.get('/api/members/me'), api.get('/api/members')])
         setMe(meR.data)
         setMembers((memR.data as Member[]).filter((m) => m.id !== meR.data.id))
-      } catch (err) {
-        console.error(err)
+      } catch {
+        toast.error('Failed to load messages')
       } finally {
         setLoading(false)
       }

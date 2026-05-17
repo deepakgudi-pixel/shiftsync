@@ -85,8 +85,7 @@ export function useSocket(orgId?: string, memberId?: string) {
             syncedAt,
           })
         }
-      } catch (error) {
-        console.error('Failed to replay missed socket events', error)
+      } catch {
         updateLastSync(syncedAt)
         hasConnectedRef.current = true
       }

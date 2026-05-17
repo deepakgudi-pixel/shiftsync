@@ -101,7 +101,6 @@ export default function AttendancePage() {
         const error = err as ApiError
         if (error.response?.status === 404) router.push('/onboarding')
         else {
-          console.error(error)
           toast.error('Failed to load attendance data')
         }
       } finally { setLoading(false) }

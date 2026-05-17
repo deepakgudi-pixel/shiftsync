@@ -20,7 +20,7 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
 }
 
 const getApiBase = () => {
-  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, '')
+  const configured = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '')
   if (configured) return configured
 
   if (typeof window !== 'undefined' && window.location.hostname === 'localhost') {

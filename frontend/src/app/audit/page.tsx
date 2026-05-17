@@ -64,7 +64,7 @@ export default function AuditPage() {
       try {
         const me = await api.get('/api/members/me')
         setMember(me.data)
-      } catch (err) { console.error(err) }
+      } catch { /* Audit access errors are reflected by the page state. */ }
     }
     init()
   }, [isLoaded, isSignedIn, api])
@@ -80,7 +80,7 @@ export default function AuditPage() {
       const r = await api.get('/api/audit-logs', { params })
       setLogs(r.data.logs)
       setPagination(r.data.pagination)
-    } catch (err) { console.error(err) }
+    } catch { /* Empty state remains visible if audit logs cannot load. */ }
     finally { setLoading(false) }
   }, [api, filters])
 

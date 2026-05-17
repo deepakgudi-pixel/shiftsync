@@ -142,7 +142,7 @@ export function useDashboard() {
           router.push('/onboarding')
           return
         }
-        console.error(err)
+        // Dashboard will retry on the next resync or navigation.
       } finally {
         if (showInitialLoader) setLoading(false)
       }

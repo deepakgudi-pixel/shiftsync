@@ -30,11 +30,12 @@ cd backend && npm test
 
 ---
 
-## Frontend Tests: 71/71 Passing
+## Frontend Tests: 74/74 Passing
 
 | Test File | Tests | Coverage |
 |---|---|---|
 | `utils.test.ts` | 15 | cn, fmtTime, fmtDateTime, getInitials, colors |
+| `env.test.ts` | 3 | Backend URL trailing slash normalization |
 | `payroll/utils.test.ts` | 17 | formatMoney, getCurrencySymbol, CURRENCIES |
 | `StatusBadge.test.tsx` | 4 | PAID/PROCESSED/DRAFT status rendering |
 | `PayrollHeader.test.tsx` | 9 | Title, org name, total cost, currency button |
@@ -73,8 +74,8 @@ cd frontend && npm run test:watch # Watch mode
 |---|---|---|
 | Backend tests | 18 | 93 |
 | Dedicated cross-org tests | 0 | 3 |
-| Frontend tests | 0 | 71 |
-| **Total tests** | **18** | **163** |
+| Frontend tests | 0 | 74 |
+| **Total tests** | **18** | **167** |
 | Route coverage | ~25% | ~85%+ |
 
 ---

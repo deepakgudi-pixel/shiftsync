@@ -55,8 +55,7 @@ export default function SchedulePage() {
       const e = end || new Date(Date.now() + 30*24*60*60*1000)
       const r = await api.get('/api/shifts', { params: { start: s.toISOString(), end: e.toISOString() } })
       setShifts(r.data)
-    } catch (err) {
-      console.error(err)
+    } catch {
       toast.error('Failed to load shifts')
     }
   }, [api])
@@ -75,8 +74,7 @@ export default function SchedulePage() {
         
         // Load initial shifts with optimized range
         await loadShifts();
-      } catch (err) {
-        console.error('Error initializing schedule:', err)
+      } catch {
         toast.error('Failed to load the roster')
       } finally {
         setPageLoading(false)

@@ -48,7 +48,7 @@ export default function TeamPage() {
       } catch (err) {
         const error = err as ApiError
         if (error.response?.status === 404) router.push('/onboarding')
-        else console.error('Error loading team:', error)
+        else toast.error('Failed to load team')
       } finally {
         setLoading(false)
       }

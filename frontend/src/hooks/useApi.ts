@@ -18,8 +18,8 @@ export const useApi = () => {
         if (token) {
           config.headers.Authorization = `Bearer ${token}`
         }
-      } catch (err) {
-        console.error('Failed to get token', err)
+      } catch {
+        // Clerk can briefly be unavailable during session transitions; continue without noisy console output.
       }
       return config
     })
