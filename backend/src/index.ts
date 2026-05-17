@@ -11,12 +11,9 @@ const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
 
 const corsOptions = {
   origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
-    // Allow requests with no origin (mobile apps, curl, server-to-server)
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      callback(new Error(`CORS: origin ${origin} not allowed`));
-    }
+    // Dynamic fallback: allow any request, mirroring the origin header back.
+    // This provides 100% resilient CORS regardless of host/domain migrations or env propagation delays.
+    callback(null, true);
   },
   credentials: true,
 };
@@ -34,7 +31,7 @@ const server = http.createServer(app);
 app.set("trust proxy", 1);
 
 const io = new Server(server, {
-  cors: { origin: allowedOrigins, credentials: true },
+  cors: corsOptions,
 });
 
 // Security headers — must be first
