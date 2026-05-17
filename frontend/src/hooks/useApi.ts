@@ -2,13 +2,14 @@
 import { useAuth } from '@clerk/nextjs'
 import axios from 'axios'
 import { useMemo } from 'react'
+import { getApiBaseUrl } from '@/lib/env'
 
 export const useApi = () => {
   const { getToken } = useAuth()
 
   return useMemo(() => {
     const instance = axios.create({
-      baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
+      baseURL: getApiBaseUrl(),
     })
 
     instance.interceptors.request.use(async (config) => {

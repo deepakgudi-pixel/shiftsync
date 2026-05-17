@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useAuth } from '@clerk/nextjs'
+import { getApiBaseUrl, getSocketBaseUrl } from '@/lib/env'
 
 export const SOCKET_RESYNC_EVENT = 'relay:socket-resync'
 
@@ -56,7 +57,7 @@ export function useSocket(orgId?: string, memberId?: string) {
 
       try {
         const response = await fetch(
-          `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000'}/api/events/since?since=${encodeURIComponent(since)}`,
+          `${getApiBaseUrl()}/api/events/since?since=${encodeURIComponent(since)}`,
           {
             headers: {
               Authorization: `Bearer ${token}`,
@@ -113,7 +114,7 @@ export function useSocket(orgId?: string, memberId?: string) {
       const token = await getToken()
       if (!token || !active) return
 
-      socketInstance = io(process.env.NEXT_PUBLIC_SOCKET_URL || 'http://localhost:4000', {
+      socketInstance = io(getSocketBaseUrl(), {
         auth: { token },
         query: { orgId, memberId },
         transports: ['websocket', 'polling'],
