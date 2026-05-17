@@ -27,9 +27,10 @@ Visit `http://localhost:3000` — or try the one-click demo at `http://localhost
 |---|---|
 | Frontend | Next.js 14 (App Router) + TypeScript |
 | Styling | Tailwind CSS |
-| Backend | Node.js + Express |
+| Backend | Node.js + Express + TypeScript |
 | Auth | Clerk (multi-role JWT) |
 | Database | PostgreSQL (Neon serverless) |
+| Jobs | pg-boss + PostgreSQL |
 | Real-time | Socket.io |
 | Charts | Recharts |
 | CI | GitHub Actions |
@@ -70,30 +71,32 @@ Visit `http://localhost:3000` — or try the one-click demo at `http://localhost
 shiftsync/
 ├── backend/
 │   ├── src/
-│   │   ├── index.js              # Express server · security middleware · rate limiter · route registry
+│   │   ├── index.ts              # Express server · security middleware · rate limiter · route registry
 │   │   ├── routes/
-│   │   │   ├── index.js          # Route registry (base-path → router map)
-│   │   │   ├── shifts.js         # Shift CRUD + swap workflow
-│   │   │   ├── attendance.js     # Clock-in/out + timesheets
-│   │   │   ├── payroll.js        # Pay periods + processing + rates
-│   │   │   ├── members.js        # Member management + availability
-│   │   │   ├── organisations.js  # Org settings + announcements
+│   │   │   ├── index.ts          # Route registry (base-path → router map)
+│   │   │   ├── shifts.ts         # Shift CRUD + swap workflow
+│   │   │   ├── attendance.ts     # Clock-in/out + timesheets
+│   │   │   ├── payroll.ts        # Pay periods + processing + rates
+│   │   │   ├── members.ts        # Member management + availability
+│   │   │   ├── organisations.ts  # Org settings + announcements
 │   │   │   └── ...               # analytics, audit, messages, etc.
 │   │   ├── services/
-│   │   │   ├── payrollService.js   # Payroll data access + processing logic
-│   │   │   ├── shiftService.js     # Shift queries + conflict detection
-│   │   │   └── attendanceService.js # Clock transactions + timesheet aggregation
-│   │   ├── middleware/auth.js    # Clerk JWT verification + RBAC
+│   │   │   ├── payrollService.ts   # Payroll data access + processing logic
+│   │   │   ├── shiftService.ts     # Shift queries + conflict detection
+│   │   │   ├── attendanceService.ts # Clock transactions + timesheet aggregation
+│   │   │   └── jobQueueService.ts  # Durable job records + pg-boss publishing
+│   │   ├── workers/queueWorker.ts # pg-boss payroll fan-out worker
+│   │   ├── middleware/auth.ts    # Clerk JWT verification + RBAC
 │   │   ├── lib/
-│   │   │   ├── payrollCalculations.js  # Pure OT math (daily + weekly)
-│   │   │   ├── audit.js          # logAudit() — before/after diffs
-│   │   │   ├── eventEmitter.js   # emitEvent() — writes to event log
-│   │   │   └── events.js         # EVENT_TYPES constants
+│   │   │   ├── payrollCalculations.ts  # Pure OT math (daily + weekly)
+│   │   │   ├── audit.ts          # logAudit() — before/after diffs
+│   │   │   ├── eventEmitter.ts   # emitEvent() — writes to event log
+│   │   │   └── events.ts         # EVENT_TYPES constants
 │   │   ├── db/
-│   │   │   ├── client.js         # pg connection pool
-│   │   │   ├── setup.js          # Schema DDL
-│   │   │   └── seed.js           # Demo data seeder
-│   │   └── socket/index.js       # Socket.io room auth + membership
+│   │   │   ├── client.ts         # pg connection pool
+│   │   │   ├── setup.ts          # Schema DDL
+│   │   │   └── seed.ts           # Demo data seeder
+│   │   └── socket/index.ts       # Socket.io room auth + membership
 │   └── test/
 │       └── routes.integration.test.js
 ├── frontend/
@@ -124,10 +127,13 @@ ShiftSync is a multi-tenant, event-driven workforce platform. Every mutation:
 Key design decisions:
 
 - **Payroll snapshots** freeze rates and rules at processing time for auditability — results don't change if rates are updated later
+- **Rule snapshots** are also stored as JSONB on payroll snapshots so future overtime rule fields can evolve without widening the table every time
 - **Shift locking** — once a clock-in exists, `startTime`, `endTime`, and `assigneeId` are immutable
+- **Optimistic shift concurrency** — the schedule UI sends `If-Match` with `shifts.version` so stale edits get a `409 SHIFT_VERSION_CONFLICT`
 - **Organisation scoping** — enforced on every read and write query; cross-org data leakage is architecturally impossible
 - **Append-only tables** — `events` and `audit_logs` are protected by PostgreSQL triggers that block UPDATE and DELETE
 - **Reconnect recovery** — clients store `lastEventTimestamp`; on reconnect they replay missed events from `/api/events/since`
+- **Background jobs** — payroll fan-out records durable `background_jobs` rows and publishes to pg-boss for async notification work
 - **Thin routes, fat services** — route files handle HTTP concerns only (auth, validation, status codes); all domain logic lives in `src/services/`
 
 ---
@@ -145,6 +151,8 @@ FRONTEND_URL=http://localhost:3000   # Exact origin (no trailing slash)
 PORT=4000
 NODE_ENV=development
 DEMO_PASSWORD=          # Password for seeded demo accounts
+DEMO_ACCESS_ENABLED=false
+ATTENDANCE_DEBUG_ENDPOINTS_ENABLED=false
 ENCRYPTION_KEY=         # 32-char hex string for AES-256-GCM message encryption
 ```
 
@@ -164,9 +172,18 @@ NEXT_PUBLIC_SOCKET_URL=http://localhost:4000
 | Target | Platform | Required env vars |
 |---|---|---|
 | Backend | Railway / Render | `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLERK_JWT_KEY`, `FRONTEND_URL`, `ENCRYPTION_KEY` |
+| Worker | Railway / Render background process | same env as backend; run `npm run worker` after `npm run build` |
 | Frontend | Vercel | `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY`, `NEXT_PUBLIC_API_URL`, `NEXT_PUBLIC_SOCKET_URL` |
 
-Set `NODE_ENV=production` on the backend to disable the `/api/attendance/debug` endpoints.
+Demo access and `/api/attendance/debug*` are disabled in `NODE_ENV=production`. Debug attendance endpoints also require `ATTENDANCE_DEBUG_ENDPOINTS_ENABLED=true` in non-production environments.
+
+Run the backend API and worker as separate processes in deployed environments:
+
+```bash
+cd backend && npm run build
+npm start
+npm run worker
+```
 
 ---
 
@@ -192,7 +209,7 @@ Validates the environment, runs schema setup, creates Clerk demo accounts, and p
 
 ```bash
 cd backend && npm test
-# 18 integration tests — all routes, RBAC, conflict detection, payroll processing
+# 92 backend tests — routes, RBAC, conflict detection, payroll, tenancy, demo safety
 ```
 
 Tests use the real PostgreSQL driver against a test database. Module cache is cleared between test suites to prevent state bleed.
@@ -201,9 +218,9 @@ Tests use the real PostgreSQL driver against a test database. Module cache is cl
 
 ## CI
 
-GitHub Actions runs on every push to `main` and every PR:
+GitHub Actions runs on every push to `main` or `master` and every PR:
 
-- **Backend**: lint → JSDoc typecheck → 18 integration tests
+- **Backend**: lint → TypeScript typecheck → build → integration tests
 - **Frontend**: lint → TypeScript typecheck (`tsc --noEmit`) → production build
 
 Both jobs run in parallel and cancel on new pushes (via `concurrency`).

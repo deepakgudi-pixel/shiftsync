@@ -8,7 +8,11 @@ This roadmap keeps cleanup work visible and reviewable. The goal is a codebase t
 - Backend tests cover payroll math and high-risk route behavior.
 - Demo setup is now a single canonical command: `npm run demo:seed`.
 - Lint, typecheck, tests, and audit run cleanly in the backend.
+- Backend source is now TypeScript and compiles to `dist/` for production startup.
 - Events, audit logs, payroll snapshots, and shift locking show production-minded design.
+- Cross-org leakage has a dedicated backend test suite.
+- Shift updates now use optimistic version checks from the frontend.
+- Payroll processing writes durable background-job records and publishes pg-boss work for async fan-out.
 
 ## Refactor Priorities
 
@@ -38,16 +42,29 @@ This roadmap keeps cleanup work visible and reviewable. The goal is a codebase t
    - Completed: Shift lock behavior after clock-in test.
    - Completed: Demo access ticket validation test (rejects unknown accounts).
    - Completed: Manager permissions test (EMPLOYEE blocked from viewing rates, MANAGER blocked from creating rates).
+   - Completed: Dedicated cross-org leakage tests for messages, swap approvals, and employee rates.
+   - Completed: Stale shift update test for `If-Match` version conflicts.
+   - Completed: Production demo-access disablement test.
    - All roadmap test items complete.
 
 6. Plan the framework/tooling migration separately.
    - Next is patched to the latest 14.x line for this codebase.
    - A future Next 16 + ESLint 9 migration should be a dedicated slice because it changes lint config format and framework behavior.
 
+7. Larger architecture slices to keep isolated.
+   - Backend TypeScript strictness: source now compiles as TypeScript; keep tightening domain DTOs and service return types incrementally.
+   - Worker depth: pg-boss now handles payroll fan-out; add retry dashboards, dead-letter views, and more queues as async workloads grow.
+   - Playwright E2E: add after choosing a stable browser test account and seed reset strategy.
+
 ## Done In This Pass
 
 - Tightened TypeScript types across entire payroll feature area — zero `any` warnings. Added 6 new shared types to `types/index.ts`.
-- Added 2 backend integration tests: payroll idempotency and shift lock behavior. Total tests: 15 (all passing).
+- Added cross-org leakage, stale shift version, attendance side-effect, and production demo-access regression tests. Backend tests: 92 (all passing).
+- Added `rules_snapshot` JSONB to payroll snapshots while preserving existing columns for compatibility.
+- Added optimistic shift concurrency via `If-Match` and `shifts.version`.
+- Migrated backend source from JS/JSDoc to TypeScript with `ts-node` dev/test flow and compiled `dist/` production startup.
+- Added pg-boss worker runtime for payroll fan-out and durable `background_jobs` status tracking.
+- Added non-production + feature-flag gating for attendance debug endpoints and production-hard demo route disabling.
 - Split `frontend/src/app/dashboard/page.tsx` (535 → 135 lines) into `useDashboard` hook + 7 components.
 - Split `frontend/src/app/page.tsx` (438 → 99 lines) into `WebGLHero`, `SmoothScroll`, and 7 section components.
 - Split `frontend/src/app/payroll/page.tsx` (851 → 168 lines) into `usePayroll` hook + 8 components.

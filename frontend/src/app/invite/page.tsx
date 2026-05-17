@@ -4,12 +4,23 @@ import { useApi } from '@/hooks/useApi'
 import { Copy, Check, Building2, User } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useRouter } from 'next/navigation'
+import type { ApiError, Member } from '@/types'
+
+interface OrganisationDetails {
+  id: string
+  name: string
+  member_count: number
+}
+
+interface InviteMember extends Member {
+  created_at: string
+}
 
 export default function SettingsPage() {
   const api = useApi()
   const router = useRouter()
-  const [org, setOrg] = useState<any>(null)
-  const [member, setMember] = useState<any>(null)
+  const [org, setOrg] = useState<OrganisationDetails | null>(null)
+  const [member, setMember] = useState<InviteMember | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
 
   useEffect(() => {
@@ -21,8 +32,9 @@ export default function SettingsPage() {
         ])
         setMember(me.data)
         setOrg(orgData.data)
-      } catch (err: any) {
-        if (err.response?.status === 404) router.push('/onboarding')
+      } catch (err) {
+        const error = err as ApiError
+        if (error.response?.status === 404) router.push('/onboarding')
       }
     }
     load()

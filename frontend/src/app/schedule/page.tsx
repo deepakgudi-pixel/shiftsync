@@ -7,7 +7,7 @@ import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { cn, fmtTime, fmtDateTime, STATUS_COLORS } from '@/lib/utils'
-import type { Member, Shift } from '@/types'
+import type { ApiError, Shift, Member } from '@/types'
 
 const COLORS = ['#4f6eff','#7c3aed','#059669','#dc2626','#d97706','#0891b2','#be185d']
 
@@ -148,7 +148,9 @@ export default function SchedulePage() {
       }
 
       if (selected) {
-        await api.put(`/api/shifts/${selected.id}`, payload)
+        await api.put(`/api/shifts/${selected.id}`, payload, {
+          headers: { 'If-Match': String(selected.version) },
+        })
         toast.success('Shift updated')
       } else {
         await api.post('/api/shifts', payload)
@@ -156,12 +158,19 @@ export default function SchedulePage() {
       }
       closeModal()
       await loadShifts()
-    } catch (err: any) {
+    } catch (err) {
+      const error = err as ApiError
+      if (error.response?.data?.error === 'SHIFT_VERSION_CONFLICT') {
+        toast.error(error.response.data.message || 'This shift changed. Refreshing roster...')
+        await loadShifts()
+        closeModal()
+        return
+      }
       const message =
-        err.response?.data?.message ||
-        err.response?.data?.error ||
-        (err.response?.data?.lockedFields?.length
-          ? `Locked after clock-in: ${err.response.data.lockedFields.join(', ')}`
+        error.response?.data?.message ||
+        error.response?.data?.error ||
+        (error.response?.data?.lockedFields?.length
+          ? `Locked after clock-in: ${error.response.data.lockedFields.join(', ')}`
           : null) ||
         'Failed to save shift'
       toast.error(message)
@@ -297,7 +306,7 @@ export default function SchedulePage() {
                   ['End', fmtTime(selected.end_time)],
                   selected.location && ['Location', selected.location],
                   selected.notes && ['Notes', selected.notes],
-                ].filter(Boolean).map(([k, v]: any) => (
+                ].filter((item): item is [string, string] => Boolean(item)).map(([k, v]) => (
                   <div key={k} className="flex justify-between text-sm">
                     <span className="text-ink-tertiary">{k}</span>
                     <span className="text-ink font-medium">{v}</span>

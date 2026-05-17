@@ -6,11 +6,11 @@ const { createTestServer } = require("./helpers/http");
 const { withMockedModules } = require("./helpers/moduleMocks");
 
 const srcRoot = path.resolve(__dirname, "../src");
-const authModulePath = path.join(srcRoot, "middleware/auth.js");
-const dbModulePath = path.join(srcRoot, "db/client.js");
-const auditModulePath = path.join(srcRoot, "lib/audit.js");
-const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.js");
-const shiftServicePath = path.join(srcRoot, "services/shiftService.js");
+const authModulePath = path.join(srcRoot, "middleware/auth.ts");
+const dbModulePath = path.join(srcRoot, "db/client.ts");
+const auditModulePath = path.join(srcRoot, "lib/audit.ts");
+const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.ts");
+const shiftServicePath = path.join(srcRoot, "services/shiftService.ts");
 
 const clearModuleCache = (modulePath) => {
   try {
@@ -67,7 +67,7 @@ const loadRoute = async ({ routeFile, basePath, member, queryImpl, clientQueryIm
 
 test("GET /api/shifts returns shifts for organisation", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -94,7 +94,7 @@ test("GET /api/shifts returns shifts for organisation", async (t) => {
 test("POST /api/shifts creates a new shift successfully", async (t) => {
   const assigneeId = "11111111-1111-4111-8111-111111111111";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql, params) => {
@@ -158,7 +158,7 @@ test("POST /api/shifts creates a new shift successfully", async (t) => {
 
 test("POST /api/shifts creates open shift without assignee", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql, params) => {
@@ -198,7 +198,7 @@ test("POST /api/shifts creates open shift without assignee", async (t) => {
 test("PUT /api/shifts/:id updates shift successfully", async (t) => {
   const shiftId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql, params) => {
@@ -248,9 +248,51 @@ test("PUT /api/shifts/:id updates shift successfully", async (t) => {
   assert.equal(response.body.title, "Updated Shift");
 });
 
+test("PUT /api/shifts/:id returns 409 when If-Match version is stale", async (t) => {
+  const shiftId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
+  const harness = await loadRoute({
+    routeFile: "shifts.ts",
+    basePath: "/api/shifts",
+    member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
+    queryImpl: async (sql) => {
+      if (sql.includes("FROM shifts s LEFT JOIN members m ON s.assignee_id = m.id") && sql.includes("WHERE s.id=$1 AND s.organisation_id=$2")) {
+        return {
+          rows: [{
+            id: shiftId,
+            organisation_id: "org-1",
+            assignee_id: null,
+            start_time: "2026-05-01T09:00:00Z",
+            end_time: "2026-05-01T17:00:00Z",
+            assignee_role: null,
+            version: 3,
+          }],
+        };
+      }
+      if (sql.includes("FROM clock_events WHERE shift_id=$1 AND member_id=$2 AND type='CLOCK_IN'")) {
+        return { rows: [] };
+      }
+      if (sql.includes("UPDATE shifts SET")) {
+        return { rows: [] };
+      }
+      throw new Error(`Unexpected SQL: ${sql}`);
+    },
+  });
+
+  t.after(async () => await harness.close());
+
+  const response = await harness.request(`/${shiftId}`, {
+    method: "PUT",
+    headers: { "if-match": "2" },
+    body: { title: "Stale Update" },
+  });
+
+  assert.equal(response.status, 409);
+  assert.equal(response.body.error, "SHIFT_VERSION_CONFLICT");
+});
+
 test("DELETE /api/shifts/:id deletes shift successfully", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -276,7 +318,7 @@ test("DELETE /api/shifts/:id deletes shift successfully", async (t) => {
 
 test("GET /api/shifts/swaps/pending returns pending swap requests", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -302,7 +344,7 @@ test("GET /api/shifts/swaps/pending returns pending swap requests", async (t) =>
 test("POST /api/shifts/:id/swap creates swap request", async (t) => {
   const shiftId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async (sql, params) => {
@@ -334,7 +376,7 @@ test("PATCH /api/shifts/:id/swap/:swapId approves swap and reassigns", async (t)
   const shiftId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const swapId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql, params) => {
@@ -369,7 +411,7 @@ test("PATCH /api/shifts/:id/swap/:swapId rejects swap", async (t) => {
   const shiftId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const swapId = "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -396,7 +438,7 @@ test("PATCH /api/shifts/:id/swap/:swapId rejects swap", async (t) => {
 
 test("GET /api/shifts/:id returns shift with clock events and swap requests", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -424,7 +466,7 @@ test("GET /api/shifts/:id returns shift with clock events and swap requests", as
 
 test("GET /api/shifts/:id returns 404 for unknown shift", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {

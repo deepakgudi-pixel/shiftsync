@@ -6,13 +6,11 @@ const mockAnalytics: DashboardAnalytics = {
   totalMembers: 12,
   shiftsThisWeek: 25,
   openShifts: 3,
-  assignedShifts: 15,
   completedThisMonth: 45,
   activeNow: 5,
   totalHours: 180.5,
   totalLaborCost: 4500,
   shiftsByDay: [],
-  analyticsWindowDays: 30,
 }
 
 describe('AdminStats', () => {

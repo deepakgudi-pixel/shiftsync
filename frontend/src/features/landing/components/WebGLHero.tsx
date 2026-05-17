@@ -31,7 +31,7 @@ export function WebGLHero() {
         p.x *= u_ratio;
 
         float t = u_time * 0.5;
-        
+
         for(int i=1; i<5; i++){
           float fi = float(i);
           p.x += 0.4 / fi * sin(fi * p.y + t + 0.5 * fi);
@@ -40,7 +40,7 @@ export function WebGLHero() {
 
         float strength = sin(p.x + p.y);
         vec3 color = mix(vec3(0.05, 0.1, 0.2), vec3(0.2, 0.5, 1.0), strength * 0.5 + 0.5);
-        
+
         float highlight = pow(max(0.0, strength), 12.0);
         color += highlight * 0.4;
 

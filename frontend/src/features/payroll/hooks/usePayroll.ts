@@ -135,9 +135,10 @@ export function usePayroll() {
           await loadPayPeriods()
           await loadEmployeeRates()
         }
-        if (!currencyForm.currency || currencyForm.currency === 'USD') {
-          setCurrencyForm({ currency: orgData.currency || 'USD' })
-        }
+        setCurrencyForm((current) => {
+          if (current.currency && current.currency !== 'USD') return current
+          return { currency: orgData.currency || 'USD' }
+        })
       } catch (err) {
         const error = err as ApiError
         toast.error(error.response?.data?.error || 'Failed to load payroll')

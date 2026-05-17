@@ -1,19 +1,22 @@
 {
   "name": "shiftsync-backend",
   "version": "1.0.0",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "dev": "nodemon src/index.js",
-    "start": "node src/index.js",
-    "test": "node --test test/*.test.js",
-    "lint": "eslint src/",
+    "build": "tsc",
+    "dev": "nodemon --watch src --ext ts --exec ts-node src/index.ts",
+    "start": "node dist/index.js",
+    "worker": "node dist/workers/queueWorker.js",
+    "worker:dev": "nodemon --watch src --ext ts --exec ts-node src/workers/queueWorker.ts",
+    "test": "NODE_ENV=test node --require ts-node/register --test test/*.test.js",
+    "lint": "eslint \"src/**/*.ts\"",
     "format": "prettier --write src/",
     "typecheck": "tsc --noEmit",
-    "demo:check": "node src/scripts/check-demo-env.js",
+    "demo:check": "ts-node src/scripts/check-demo-env.ts",
     "demo:seed": "npm run demo:check && npm run db:setup && npm run db:seed && npm run db:seed:scenario",
-    "db:setup": "node src/db/setup.js",
-    "db:seed": "node src/db/seed.js",
-    "db:seed:scenario": "node src/scripts/seed-demo-scenario.js"
+    "db:setup": "ts-node src/db/setup.ts",
+    "db:seed": "ts-node src/db/seed.ts",
+    "db:seed:scenario": "ts-node src/scripts/seed-demo-scenario.ts"
   },
   "dependencies": {
     "@clerk/backend": "^1.0.0",
@@ -26,12 +29,20 @@
     "helmet": "^8.0.0",
     "pdfkit": "^0.18.0",
     "pg": "^8.11.0",
+    "pg-boss": "^12.18.2",
     "socket.io": "^4.7.0"
   },
   "devDependencies": {
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
     "@types/node": "^20.19.41",
+    "@types/pdfkit": "^0.17.6",
+    "@types/pg": "^8.20.0",
+    "@typescript-eslint/eslint-plugin": "^8.59.3",
+    "@typescript-eslint/parser": "^8.59.3",
     "eslint": "^8.57.1",
     "nodemon": "^3.1.0",
+    "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
 }

@@ -54,6 +54,7 @@ features/
 ### TypeScript
 
 - All shared API interfaces live in `src/types/index.ts`
+- Backend source lives in `backend/src/**/*.ts` and compiles to `backend/dist/`
 - Use typed interfaces over `any` — `any` is treated as a lint violation
 - `catch (err: unknown)` with typed narrowing: `const e = err as { response?: ... }`
 - New shared types: `PayPeriodTimesheet`, `PayPeriodSummary`, `TimesheetEmployee`, `PayslipWithPeriod`, `EmployeeRate`, `ProcessPayPeriodResult`
@@ -241,7 +242,9 @@ Every socket handshake requires a Clerk JWT in `socket.handshake.auth.token`. Th
 | Input validation | `express-validator` on all POST/PUT/PATCH routes |
 | SQL injection | Parameterised queries only — no string interpolation ever |
 | Encryption | AES-256-GCM for message content (`src/lib/encryption.js`) |
-| Debug endpoints | `/api/attendance/debug*` blocked in `NODE_ENV=production` |
+| Debug endpoints | `/api/attendance/debug*` require non-production `NODE_ENV` and `ATTENDANCE_DEBUG_ENDPOINTS_ENABLED=true` |
+| Demo access | `/api/dev/demo-*` routes are unavailable in `NODE_ENV=production`, even if `DEMO_ACCESS_ENABLED=true` |
+| Shift concurrency | Schedule updates send `If-Match` using `shifts.version`; stale updates return `409 SHIFT_VERSION_CONFLICT` |
 | Demo protection | Demo org deletion blocked server-side by email allowlist check |
 
 ---

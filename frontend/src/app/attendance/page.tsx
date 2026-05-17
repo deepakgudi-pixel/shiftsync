@@ -6,19 +6,42 @@ import { useRouter } from 'next/navigation'
 import { fmtDateTime, cn, getInitials, fmtTime } from '@/lib/utils'
 import { Clock, CheckCircle, LogIn, LogOut, MapPin, Activity, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
+import type { ApiError, Member, Shift } from '@/types'
 
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("bg-zinc-100 animate-pulse rounded-none", className)} />
 )
 
+interface TimesheetRow {
+  id: string
+  title: string
+  start_time: string
+  color: string
+  hoursWorked: number
+}
+
+interface TimesheetSummary {
+  totalHours: number
+  timesheet: TimesheetRow[]
+}
+
+interface LiveAttendanceShift extends Shift {
+  member_name: string
+}
+
+interface AttendanceSocketEvent {
+  memberName?: string
+  hoursWorked?: number
+}
+
 export default function AttendancePage() {
   const api = useApi()
   const router = useRouter()
-  const [assignedShifts, setAssignedShifts] = useState<any[]>([])
-  const [inProgressShifts, setInProgressShifts] = useState<any[]>([])
-  const [liveAttendance, setLiveAttendance] = useState<any[]>([])
-  const [timesheet, setTimesheet] = useState<any>(null)
-  const [member, setMember] = useState<any>(null)
+  const [assignedShifts, setAssignedShifts] = useState<Shift[]>([])
+  const [inProgressShifts, setInProgressShifts] = useState<Shift[]>([])
+  const [liveAttendance, setLiveAttendance] = useState<LiveAttendanceShift[]>([])
+  const [timesheet, setTimesheet] = useState<TimesheetSummary | null>(null)
+  const [member, setMember] = useState<Member | null>(null)
   const [loading, setLoading] = useState(true)
   const [submittingShiftId, setSubmittingShiftId] = useState<string | null>(null)
   const socket = useSocket(member?.organisation_id, member?.id)
@@ -31,8 +54,9 @@ export default function AttendancePage() {
         end: new Date(Date.now() + 7*24*60*60*1000).toISOString()
       }
     })
-    setAssignedShifts(sh.data.filter((s: any) => s.status === 'ASSIGNED' || s.status === 'OPEN'))
-    setInProgressShifts(sh.data.filter((s: any) => s.status === 'IN_PROGRESS'))
+    const shiftData = sh.data as Shift[]
+    setAssignedShifts(shiftData.filter((s) => s.status === 'ASSIGNED' || s.status === 'OPEN'))
+    setInProgressShifts(shiftData.filter((s) => s.status === 'IN_PROGRESS'))
   }, [api])
 
   const refreshLiveAttendance = useCallback(async (role?: string) => {
@@ -41,7 +65,7 @@ export default function AttendancePage() {
     setLiveAttendance(live.data)
   }, [api])
 
-  const refreshAttendanceState = useCallback(async (currentMember: any) => {
+  const refreshAttendanceState = useCallback(async (currentMember: Member) => {
     await Promise.all([
       loadShifts(currentMember.id),
       api.get('/api/attendance/timesheet/me').then((response) => setTimesheet(response.data)),
@@ -66,10 +90,11 @@ export default function AttendancePage() {
         if (me.role !== 'EMPLOYEE') {
           await refreshLiveAttendance(me.role)
         }
-      } catch (err: any) { 
-        if (err.response?.status === 404) router.push('/onboarding')
+      } catch (err) {
+        const error = err as ApiError
+        if (error.response?.status === 404) router.push('/onboarding')
         else {
-          console.error(err)
+          console.error(error)
           toast.error('Failed to load attendance data')
         }
       } finally { setLoading(false) }
@@ -79,11 +104,11 @@ export default function AttendancePage() {
 
   useEffect(() => {
     if (!socket) return
-    socket.on('attendance:clockIn', (data: any) => {
+    socket.on('attendance:clockIn', (data: AttendanceSocketEvent) => {
       toast.success(`${data.memberName || 'A team member'} clocked in`)
       if (member?.role !== 'EMPLOYEE') refreshLiveAttendance(member?.role).catch(() => {})
     })
-    socket.on('attendance:clockOut', (data: any) => {
+    socket.on('attendance:clockOut', (data: AttendanceSocketEvent) => {
       const name = data.memberName || 'A team member'
       const worked = typeof data.hoursWorked === 'number' ? ` - ${data.hoursWorked.toFixed(1)}h worked` : ''
       toast(`${name} clocked out${worked}`)
@@ -113,7 +138,10 @@ export default function AttendancePage() {
       if (member) {
         await refreshAttendanceState(member)
       }
-    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
+    } catch (err) {
+      const error = err as ApiError
+      toast.error(error.response?.data?.error || 'Failed')
+    }
     finally { setSubmittingShiftId(null) }
   }
 
@@ -125,7 +153,10 @@ export default function AttendancePage() {
       if (member) {
         await refreshAttendanceState(member)
       }
-    } catch (err: any) { toast.error(err.response?.data?.error || 'Failed') }
+    } catch (err) {
+      const error = err as ApiError
+      toast.error(error.response?.data?.error || 'Failed')
+    }
     finally { setSubmittingShiftId(null) }
   }
 
@@ -261,7 +292,7 @@ export default function AttendancePage() {
         <div className="bg-white border border-zinc-200 p-5 shadow-sm">
           <h2 className="text-[10px] font-bold text-black mb-4 uppercase tracking-[0.2em] border-l-2 border-black pl-3">This Month&apos;s Timesheet</h2>
           <div className="space-y-1">
-            {timesheet.timesheet.map((row: any) => (
+            {timesheet.timesheet.map((row) => (
               <div key={row.id} className="flex items-center gap-3 p-3 border-b border-zinc-50 last:border-0 hover:bg-zinc-50 transition-colors">
                 <div className="w-2 h-2 flex-shrink-0 bg-black" style={{background: row.color}} />
                 <div className="flex-1 min-w-0">

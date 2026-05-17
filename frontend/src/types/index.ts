@@ -23,6 +23,7 @@ export interface Shift {
   status: 'OPEN' | 'ASSIGNED' | 'IN_PROGRESS' | 'COMPLETED'
   organisation_id: string
   assignee_id: string | null
+  version: number
   assignee_name?: string
   assignee_avatar?: string
   assignee_role?: string
@@ -134,6 +135,27 @@ export interface Message {
   sender_avatar?: string
   created_at: string
 }
+
+export interface ApiError {
+  response?: {
+    status?: number
+    data?: {
+      error?: string
+      message?: string
+      lockedFields?: string[]
+    }
+  }
+  message?: string
+  errors?: { longMessage?: string; message?: string }[]
+}
+
+export type JsonValue =
+  | string
+  | number
+  | boolean
+  | null
+  | JsonValue[]
+  | { [key: string]: JsonValue }
 
 export interface PayPeriodTimesheet {
   period: PayPeriod

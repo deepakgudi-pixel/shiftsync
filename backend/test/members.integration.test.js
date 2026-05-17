@@ -6,10 +6,10 @@ const { createTestServer } = require("./helpers/http");
 const { withMockedModules } = require("./helpers/moduleMocks");
 
 const srcRoot = path.resolve(__dirname, "../src");
-const authModulePath = path.join(srcRoot, "middleware/auth.js");
-const dbModulePath = path.join(srcRoot, "db/client.js");
-const auditModulePath = path.join(srcRoot, "lib/audit.js");
-const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.js");
+const authModulePath = path.join(srcRoot, "middleware/auth.ts");
+const dbModulePath = path.join(srcRoot, "db/client.ts");
+const auditModulePath = path.join(srcRoot, "lib/audit.ts");
+const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.ts");
 
 const clearModuleCache = (modulePath) => {
   try {
@@ -64,7 +64,7 @@ const loadRoute = async ({ routeFile, basePath, member, queryImpl, clientQueryIm
 
 test("GET /api/members returns team members", async (t) => {
   const harness = await loadRoute({
-    routeFile: "members.js",
+    routeFile: "members.ts",
     basePath: "/api/members",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -89,7 +89,7 @@ test("GET /api/members returns team members", async (t) => {
 
 test("GET /api/members/me returns member profile with availability", async (t) => {
   const harness = await loadRoute({
-    routeFile: "members.js",
+    routeFile: "members.ts",
     basePath: "/api/members",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async (sql) => {
@@ -116,7 +116,7 @@ test("GET /api/members/me returns member profile with availability", async (t) =
 
 test("PUT /api/members/me updates profile", async (t) => {
   const harness = await loadRoute({
-    routeFile: "members.js",
+    routeFile: "members.ts",
     basePath: "/api/members",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should use client"); },
@@ -145,7 +145,7 @@ test("PUT /api/members/me updates profile", async (t) => {
 
 test("PUT /api/members/me/availability updates availability schedule", async (t) => {
   const harness = await loadRoute({
-    routeFile: "members.js",
+    routeFile: "members.ts",
     basePath: "/api/members",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should use client"); },
@@ -175,7 +175,7 @@ test("PUT /api/members/me/availability updates availability schedule", async (t)
 
 test("PATCH /api/members/:id updates member role (admin only)", async (t) => {
   const harness = await loadRoute({
-    routeFile: "members.js",
+    routeFile: "members.ts",
     basePath: "/api/members",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should use client"); },
@@ -204,7 +204,7 @@ test("PATCH /api/members/:id updates member role (admin only)", async (t) => {
 
 test("PATCH /api/members/:id returns 403 when manager tries to change role", async (t) => {
   const harness = await loadRoute({
-    routeFile: "members.js",
+    routeFile: "members.ts",
     basePath: "/api/members",
     member: { id: "mgr-1", organisation_id: "org-1", role: "MANAGER" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },

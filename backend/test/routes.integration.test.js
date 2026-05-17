@@ -6,13 +6,13 @@ const { createTestServer } = require("./helpers/http");
 const { withMockedModules } = require("./helpers/moduleMocks");
 
 const srcRoot = path.resolve(__dirname, "../src");
-const authModulePath = path.join(srcRoot, "middleware/auth.js");
-const dbModulePath = path.join(srcRoot, "db/client.js");
-const auditModulePath = path.join(srcRoot, "lib/audit.js");
-const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.js");
-const payrollServicePath = path.join(srcRoot, "services/payrollService.js");
-const shiftServicePath = path.join(srcRoot, "services/shiftService.js");
-const attendanceServicePath = path.join(srcRoot, "services/attendanceService.js");
+const authModulePath = path.join(srcRoot, "middleware/auth.ts");
+const dbModulePath = path.join(srcRoot, "db/client.ts");
+const auditModulePath = path.join(srcRoot, "lib/audit.ts");
+const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.ts");
+const payrollServicePath = path.join(srcRoot, "services/payrollService.ts");
+const shiftServicePath = path.join(srcRoot, "services/shiftService.ts");
+const attendanceServicePath = path.join(srcRoot, "services/attendanceService.ts");
 
 const clearModuleCache = (modulePath) => {
   try {
@@ -74,7 +74,7 @@ const loadRoute = async ({ routeFile, basePath, member, queryImpl, clientQueryIm
 
 test("GET /api/payroll/pay-periods/:id/timesheet returns calculated payroll totals", async (t) => {
   const harness = await loadRoute({
-    routeFile: "payroll.js",
+    routeFile: "payroll.ts",
     basePath: "/api/payroll",
     member: { id: "member-admin", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -167,7 +167,7 @@ test("GET /api/payroll/pay-periods/:id/timesheet returns calculated payroll tota
 
 test("POST /api/overtime applies default rule values when fields are omitted", async (t) => {
   const harness = await loadRoute({
-    routeFile: "overtime.js",
+    routeFile: "overtime.ts",
     basePath: "/api/overtime",
     member: { id: "member-admin", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => {
@@ -223,7 +223,7 @@ test("POST /api/overtime applies default rule values when fields are omitted", a
 
 test("PUT /api/overtime/:id updates an existing overtime rule", async (t) => {
   const harness = await loadRoute({
-    routeFile: "overtime.js",
+    routeFile: "overtime.ts",
     basePath: "/api/overtime",
     member: { id: "member-admin", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => {
@@ -297,7 +297,7 @@ test("PUT /api/overtime/:id updates an existing overtime rule", async (t) => {
 test("POST /api/shifts returns 409 when the assignee already has an overlapping shift", async (t) => {
   const assigneeId = "11111111-1111-4111-8111-111111111111";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "member-manager", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -331,7 +331,7 @@ test("PUT /api/shifts/:id returns 409 when an updated shift overlaps another ass
   const shiftId = "22222222-2222-4222-8222-222222222222";
   const assigneeId = "11111111-1111-4111-8111-111111111111";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "member-manager", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -380,7 +380,7 @@ test("PUT /api/shifts/:id returns 409 when an updated shift overlaps another ass
 
 test("POST /api/messages returns 403 when receiver is in a different organisation", async (t) => {
   const harness = await loadRoute({
-    routeFile: "messages.js",
+    routeFile: "messages.ts",
     basePath: "/api/messages",
     member: { id: "member-1", organisation_id: "org-a", role: "EMPLOYEE" },
     queryImpl: async (sql) => {
@@ -408,7 +408,7 @@ test("PATCH /api/shifts/:id/swap/:swapId returns 404 when swap belongs to differ
   const shiftId = "11111111-1111-4111-8111-111111111111";
   const swapId = "22222222-2222-4222-8222-222222222222";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "member-1", organisation_id: "org-a", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -436,7 +436,7 @@ test("PATCH /api/shifts/:id/swap/:swapId returns 404 when swap belongs to differ
 
 test("POST /api/payroll/employee-rates returns 404 when member is in a different organisation", async (t) => {
   const harness = await loadRoute({
-    routeFile: "payroll.js",
+    routeFile: "payroll.ts",
     basePath: "/api/payroll",
     member: { id: "member-admin", organisation_id: "org-a", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -464,7 +464,7 @@ test("POST /api/payroll/pay-periods/:id/process returns cached result on second 
   const periodId = "period-1";
   let snapshotCount = 0;
   const harness = await loadRoute({
-    routeFile: "payroll.js",
+    routeFile: "payroll.ts",
     basePath: "/api/payroll",
     member: { id: "member-admin", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -535,7 +535,7 @@ test("POST /api/payroll/pay-periods/:id/process returns cached result on second 
 test("PUT /api/shifts/:id returns 409 with locked fields after clock-in", async (t) => {
   const shiftId = "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa";
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "member-admin", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -577,7 +577,7 @@ test("POST /api/dev/demo-ticket returns 400 for unknown demo account", async (t)
   process.env.DEMO_ACCESS_ENABLED = "true";
 
   const harness = await loadRoute({
-    routeFile: "dev.js",
+    routeFile: "dev.ts",
     basePath: "/api/dev",
     member: { id: "member-public", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => {
@@ -599,9 +599,39 @@ test("POST /api/dev/demo-ticket returns 400 for unknown demo account", async (t)
   assert.equal(response.body.error, "Unknown demo account");
 });
 
+test("POST /api/dev/demo-ticket stays disabled in production even when demo flag is set", async (t) => {
+  const prevDemo = process.env.DEMO_ACCESS_ENABLED;
+  const prevNodeEnv = process.env.NODE_ENV;
+  process.env.DEMO_ACCESS_ENABLED = "true";
+  process.env.NODE_ENV = "production";
+
+  const harness = await loadRoute({
+    routeFile: "dev.ts",
+    basePath: "/api/dev",
+    member: { id: "member-public", organisation_id: "org-1", role: "EMPLOYEE" },
+    queryImpl: async () => {
+      throw new Error("Production-disabled demo route should not reach DB");
+    },
+  });
+
+  t.after(async () => {
+    process.env.DEMO_ACCESS_ENABLED = prevDemo;
+    process.env.NODE_ENV = prevNodeEnv;
+    await harness.close();
+  });
+
+  const response = await harness.request("/demo-ticket", {
+    method: "POST",
+    body: { email: "demo.admin.northstar+clerk_test@example.com" },
+  });
+
+  assert.equal(response.status, 404);
+  assert.equal(response.body.error, "Not found");
+});
+
 test("GET /api/payroll/employee-rates returns 403 for EMPLOYEE role", async (t) => {
   const harness = await loadRoute({
-    routeFile: "payroll.js",
+    routeFile: "payroll.ts",
     basePath: "/api/payroll",
     member: { id: "member-emp", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => {
@@ -623,7 +653,7 @@ test("GET /api/payroll/employee-rates returns 403 for EMPLOYEE role", async (t) 
 
 test("POST /api/payroll/employee-rates returns 403 for MANAGER role", async (t) => {
   const harness = await loadRoute({
-    routeFile: "payroll.js",
+    routeFile: "payroll.ts",
     basePath: "/api/payroll",
     member: { id: "member-mgr", organisation_id: "org-1", role: "MANAGER" },
     queryImpl: async () => {
@@ -643,4 +673,3 @@ test("POST /api/payroll/employee-rates returns 403 for MANAGER role", async (t) 
   assert.equal(response.status, 403);
   assert.equal(response.body.error, "Insufficient permissions");
 });
-

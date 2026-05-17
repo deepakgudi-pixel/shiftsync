@@ -6,10 +6,10 @@ const { createTestServer } = require("./helpers/http");
 const { withMockedModules } = require("./helpers/moduleMocks");
 
 const srcRoot = path.resolve(__dirname, "../src");
-const authModulePath = path.join(srcRoot, "middleware/auth.js");
-const dbModulePath = path.join(srcRoot, "db/client.js");
-const auditModulePath = path.join(srcRoot, "lib/audit.js");
-const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.js");
+const authModulePath = path.join(srcRoot, "middleware/auth.ts");
+const dbModulePath = path.join(srcRoot, "db/client.ts");
+const auditModulePath = path.join(srcRoot, "lib/audit.ts");
+const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.ts");
 
 const clearModuleCache = (modulePath) => {
   try {
@@ -64,7 +64,7 @@ const loadRoute = async ({ routeFile, basePath, member, queryImpl, clientQueryIm
 
 test("GET /api/organisations/announcements returns announcements", async (t) => {
   const harness = await loadRoute({
-    routeFile: "organisations.js",
+    routeFile: "organisations.ts",
     basePath: "/api/organisations",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -90,7 +90,7 @@ test("GET /api/organisations/announcements returns announcements", async (t) => 
 
 test("POST /api/organisations/announcements creates announcement", async (t) => {
   const harness = await loadRoute({
-    routeFile: "organisations.js",
+    routeFile: "organisations.ts",
     basePath: "/api/organisations",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should use client"); },
@@ -127,7 +127,7 @@ test("POST /api/organisations/announcements creates announcement", async (t) => 
 
 test("DELETE /api/organisations/announcements/:id deletes announcement", async (t) => {
   const harness = await loadRoute({
-    routeFile: "organisations.js",
+    routeFile: "organisations.ts",
     basePath: "/api/organisations",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should use client"); },
@@ -150,7 +150,7 @@ test("DELETE /api/organisations/announcements/:id deletes announcement", async (
 
 test("GET /api/notifications returns user notifications", async (t) => {
   const harness = await loadRoute({
-    routeFile: "notifications.js",
+    routeFile: "notifications.ts",
     basePath: "/api/notifications",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async (sql) => {
@@ -175,7 +175,7 @@ test("GET /api/notifications returns user notifications", async (t) => {
 
 test("PATCH /api/notifications/read-all marks all as read", async (t) => {
   const harness = await loadRoute({
-    routeFile: "notifications.js",
+    routeFile: "notifications.ts",
     basePath: "/api/notifications",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async (sql) => {
@@ -195,7 +195,7 @@ test("PATCH /api/notifications/read-all marks all as read", async (t) => {
 
 test("PATCH /api/notifications/:id/read marks single notification as read", async (t) => {
   const harness = await loadRoute({
-    routeFile: "notifications.js",
+    routeFile: "notifications.ts",
     basePath: "/api/notifications",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async (sql) => {
@@ -215,7 +215,7 @@ test("PATCH /api/notifications/:id/read marks single notification as read", asyn
 
 test("GET /api/organisations/me returns organisation details", async (t) => {
   const harness = await loadRoute({
-    routeFile: "organisations.js",
+    routeFile: "organisations.ts",
     basePath: "/api/organisations",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -236,7 +236,7 @@ test("GET /api/organisations/me returns organisation details", async (t) => {
 
 test("PUT /api/organisations/currency updates org currency", async (t) => {
   const harness = await loadRoute({
-    routeFile: "organisations.js",
+    routeFile: "organisations.ts",
     basePath: "/api/organisations",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql, params) => {
@@ -260,7 +260,7 @@ test("PUT /api/organisations/currency updates org currency", async (t) => {
 
 test("PUT /api/organisations/currency returns 400 without currency", async (t) => {
   const harness = await loadRoute({
-    routeFile: "organisations.js",
+    routeFile: "organisations.ts",
     basePath: "/api/organisations",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },

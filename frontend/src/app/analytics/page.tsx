@@ -4,12 +4,14 @@ import { useUser } from '@clerk/nextjs'
 import { useApi } from '@/hooks/useApi'
 import { cn } from '@/lib/utils'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
-import { TrendingUp, Users, Clock, DollarSign, BarChart3 } from 'lucide-react'
+import { TrendingUp, Users, Clock, DollarSign } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("bg-zinc-100 animate-pulse rounded-none", className)} />
 )
+
+type ShiftDayMetric = { day: string; total: number; completed: number }
 
 export default function AnalyticsPage() {
   const { isLoaded, isSignedIn } = useUser()
@@ -23,7 +25,7 @@ export default function AnalyticsPage() {
     openShifts: number
     activeNow: number
     shiftsThisWeek: number
-    shiftsByDay: { day: string; total: number; completed: number }[]
+    shiftsByDay: ShiftDayMetric[]
   } | null>(null)
   const [member, setMember] = useState<{ role: string } | null>(null)
   const [loading, setLoading] = useState(true)
@@ -92,7 +94,7 @@ export default function AnalyticsPage() {
 
   if (!analytics) return <div className="p-6 text-ink-tertiary">No data available.</div>
 
-  const coverageData = analytics.shiftsByDay.map((d: any) => ({
+  const coverageData = analytics.shiftsByDay.map((d) => ({
     ...d,
     coverage: d.total > 0 ? Math.round((d.completed / d.total) * 100) : 0
   }))
@@ -151,7 +153,7 @@ export default function AnalyticsPage() {
             <LineChart data={coverageData}>
               <XAxis dataKey="day" tick={{fontSize:10, fontWeight: 700, fill:'#a1a1aa'}} axisLine={false} tickLine={false} />
               <YAxis domain={[0,100]} tick={{fontSize:10, fontWeight: 700, fill:'#a1a1aa'}} axisLine={false} tickLine={false} />
-              <Tooltip contentStyle={{backgroundColor: '#fff', border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '12px'}} formatter={(v: any) => [`${v}%`, 'Coverage']} />
+              <Tooltip contentStyle={{backgroundColor: '#fff', border: '1px solid #e4e4e7', borderRadius: '0', fontSize: '12px'}} formatter={(value) => [`${value}%`, 'Coverage']} />
               <Line type="monotone" dataKey="coverage" stroke="#18181b" strokeWidth={2} dot={{fill:'#18181b',r:4}} activeDot={{r:6}} />
             </LineChart>
           </ResponsiveContainer>

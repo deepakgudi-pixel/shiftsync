@@ -7,8 +7,9 @@ import { Search, UserPlus, MoreHorizontal, Mail, Phone } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { cn, getInitials, ROLE_COLORS,  } from '@/lib/utils'
+import type { ApiError } from '@/types'
 
-interface Member {
+interface TeamMember {
   id: string; name: string; email: string; role: string
   phone?: string; skills: string[]; hourly_rate?: number
   active_shifts: number; avatar_url?: string; can_manage_rates: boolean
@@ -18,7 +19,7 @@ export default function TeamPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const api = useApi()
-  const [members, setMembers] = useState<Member[]>([])
+  const [members, setMembers] = useState<TeamMember[]>([])
   const [me, setMe] = useState<{
     id: string
     role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE'
@@ -36,9 +37,10 @@ export default function TeamPage() {
         const [mem, me] = await Promise.all([api.get('/api/members'), api.get('/api/members/me')])
         setMembers(mem.data)
         setMe(me.data)
-      } catch (err: any) {
-        if (err.response?.status === 404) router.push('/onboarding')
-        else console.error('Error loading team:', err)
+      } catch (err) {
+        const error = err as ApiError
+        if (error.response?.status === 404) router.push('/onboarding')
+        else console.error('Error loading team:', error)
       }
     }
     load()
@@ -50,7 +52,7 @@ export default function TeamPage() {
     return matchSearch && matchRole
   })
 
-  const updateMember = async (memberId: string, updates: Partial<Member>) => {
+  const updateMember = async (memberId: string, updates: Partial<TeamMember>) => {
     try {
       const res = await api.patch(`/api/members/${memberId}`, updates)
       setMembers(p => p.map(m => m.id === memberId ? { ...m, ...res.data } : m))

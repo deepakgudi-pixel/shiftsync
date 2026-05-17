@@ -2,18 +2,19 @@
 
 ## Overview
 
-ShiftSync uses a comprehensive testing strategy covering both backend and frontend with **158 total tests** and **~85%+ route coverage**.
+ShiftSync uses a comprehensive testing strategy covering both backend and frontend with **163 total tests** and **~85%+ route coverage**.
 
 ---
 
-## Backend Tests: 87/87 Passing
+## Backend Tests: 92/92 Passing
 
 | Test File | Tests | Coverage |
 |---|---|---|
 | `payroll-calculations.test.js` | 5 | Overtime math, rounding, defaults |
 | `routes.integration.test.js` | 14 | Payroll, overtime, conflicts, RBAC, cache |
 | `attendance.integration.test.js` | 9 | Clock-in/out, live view, timesheets |
-| `shifts.integration.test.js` | 12 | CRUD, swaps, conflict detection, locking |
+| `crossOrg.integration.test.js` | 3 | Dedicated cross-org leakage guardrails |
+| `shifts.integration.test.js` | 13 | CRUD, swaps, conflict detection, locking, version conflicts |
 | `members.integration.test.js` | 6 | Profile, availability, role management |
 | `announcements.integration.test.js` | 9 | Announcements, notifications, org settings |
 | `events.integration.test.js` | 7 | Event replay, pagination, filtering |
@@ -70,9 +71,10 @@ cd frontend && npm run test:watch # Watch mode
 
 | Metric | Before | After |
 |---|---|---|
-| Backend tests | 18 | 87 |
+| Backend tests | 18 | 92 |
+| Dedicated cross-org tests | 0 | 3 |
 | Frontend tests | 0 | 71 |
-| **Total tests** | **18** | **158** |
+| **Total tests** | **18** | **163** |
 | Route coverage | ~25% | ~85%+ |
 
 ---

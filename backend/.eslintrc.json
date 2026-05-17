@@ -4,14 +4,29 @@
     "es2022": true
   },
   "parserOptions": {
-    "ecmaVersion": "latest"
+    "ecmaVersion": "latest",
+    "sourceType": "script"
   },
-  "extends": ["eslint:recommended"],
+  "parser": "@typescript-eslint/parser",
+  "plugins": ["@typescript-eslint"],
+  "extends": ["eslint:recommended", "plugin:@typescript-eslint/recommended"],
   "rules": {
-    "no-unused-vars": "warn",
+    "no-unused-vars": "off",
+    "@typescript-eslint/no-unused-vars": [
+      "warn",
+      {
+        "argsIgnorePattern": "^_",
+        "caughtErrors": "none",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "@typescript-eslint/no-var-requires": "off",
+    "@typescript-eslint/no-require-imports": "off",
+    "@typescript-eslint/no-explicit-any": "off",
+    "@typescript-eslint/ban-ts-comment": "off",
     "no-console": "off",
     "semi": ["error", "always"],
     "quotes": ["error", "double", { "avoidEscape": true }]
   },
-  "ignorePatterns": ["node_modules/", "test/"]
+  "ignorePatterns": ["node_modules/", "dist/", "test/"]
 }

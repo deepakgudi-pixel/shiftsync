@@ -13,10 +13,7 @@ const createShift = (overrides: Partial<DashboardShift> = {}): DashboardShift =>
   assignee_name: 'Test User',
   organisation_id: 'org-1',
   color: '#4f6eff',
-  location: null,
-  notes: null,
-  created_at: '2026-05-15T00:00:00Z',
-  updated_at: '2026-05-15T00:00:00Z',
+  location: undefined,
   ...overrides,
 })
 

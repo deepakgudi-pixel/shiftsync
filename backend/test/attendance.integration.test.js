@@ -6,11 +6,11 @@ const { createTestServer } = require("./helpers/http");
 const { withMockedModules } = require("./helpers/moduleMocks");
 
 const srcRoot = path.resolve(__dirname, "../src");
-const authModulePath = path.join(srcRoot, "middleware/auth.js");
-const dbModulePath = path.join(srcRoot, "db/client.js");
-const auditModulePath = path.join(srcRoot, "lib/audit.js");
-const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.js");
-const attendanceServicePath = path.join(srcRoot, "services/attendanceService.js");
+const authModulePath = path.join(srcRoot, "middleware/auth.ts");
+const dbModulePath = path.join(srcRoot, "db/client.ts");
+const auditModulePath = path.join(srcRoot, "lib/audit.ts");
+const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.ts");
+const attendanceServicePath = path.join(srcRoot, "services/attendanceService.ts");
 
 const clearModuleCache = (modulePath) => {
   try {
@@ -67,7 +67,7 @@ const loadRoute = async ({ routeFile, basePath, member, queryImpl, clientQueryIm
 
 test("POST /api/attendance/clock-in returns 201 and creates clock event", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE", name: "Test Emp" },
     queryImpl: async () => {
@@ -120,7 +120,7 @@ test("POST /api/attendance/clock-in returns 201 and creates clock event", async 
 
 test("POST /api/attendance/clock-in returns 404 when shift not assigned", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -143,11 +143,12 @@ test("POST /api/attendance/clock-in returns 404 when shift not assigned", async 
 
   assert.equal(response.status, 404);
   assert.equal(response.body.error, "Shift not found or not assigned to you");
+  assert.equal(harness.io.events.length, 0);
 });
 
 test("POST /api/attendance/clock-in returns 409 when already clocked in", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -172,12 +173,13 @@ test("POST /api/attendance/clock-in returns 409 when already clocked in", async 
 
   assert.equal(response.status, 409);
   assert.equal(response.body.error, "Already clocked in");
+  assert.equal(harness.io.events.length, 0);
 });
 
 test("POST /api/attendance/clock-out returns 200 with hours worked", async (t) => {
   const clockInTime = new Date(Date.now() - 8 * 3600000);
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -219,7 +221,7 @@ test("POST /api/attendance/clock-out returns 200 with hours worked", async (t) =
 
 test("POST /api/attendance/clock-out returns 409 when not clocked in", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -241,11 +243,12 @@ test("POST /api/attendance/clock-out returns 409 when not clocked in", async (t)
 
   assert.equal(response.status, 409);
   assert.equal(response.body.error, "Not clocked in");
+  assert.equal(harness.io.events.length, 0);
 });
 
 test("GET /api/attendance/live returns currently clocked-in shifts", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -270,7 +273,7 @@ test("GET /api/attendance/live returns currently clocked-in shifts", async (t) =
 
 test("GET /api/attendance/timesheet/me returns personal timesheet", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async (sql) => {
@@ -296,7 +299,7 @@ test("GET /api/attendance/timesheet/me returns personal timesheet", async (t) =>
 
 test("GET /api/attendance/timesheet returns team timesheet for admin", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -326,7 +329,7 @@ test("GET /api/attendance/timesheet returns team timesheet for admin", async (t)
 
 test("GET /api/attendance/live returns 403 for employee", async (t) => {
   const harness = await loadRoute({
-    routeFile: "attendance.js",
+    routeFile: "attendance.ts",
     basePath: "/api/attendance",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },

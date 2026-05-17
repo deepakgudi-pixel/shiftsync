@@ -5,27 +5,28 @@ import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { getInitials, fmtTime, cn } from '@/lib/utils'
 import { Send, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
+import type { Member, Message } from '@/types'
 
 export default function MessagesPage() {
   const api = useApi()
-  const [members, setMembers] = useState<any[]>([])
-  const [me, setMe] = useState<any>(null)
-  const [active, setActive] = useState<any>(null)
-  const [messages, setMessages] = useState<any[]>([])
+  const [members, setMembers] = useState<Member[]>([])
+  const [me, setMe] = useState<Member | null>(null)
+  const [active, setActive] = useState<Member | null>(null)
+  const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
   const bottomRef = useRef<HTMLDivElement>(null)
   const socket = useSocket(me?.organisation_id, me?.id)
 
   const loadConversation = useCallback(async (targetMemberId: string) => {
     const response = await api.get('/api/messages', { params: { withMemberId: targetMemberId } })
-    setMessages(response.data)
+    setMessages(response.data as Message[])
   }, [api])
 
   useEffect(() => {
     const load = async () => {
       const [meR, memR] = await Promise.all([api.get('/api/members/me'), api.get('/api/members')])
       setMe(meR.data)
-      setMembers(memR.data.filter((m: any) => m.id !== meR.data.id))
+      setMembers((memR.data as Member[]).filter((m) => m.id !== meR.data.id))
     }
     load()
   }, [api])
@@ -41,7 +42,7 @@ export default function MessagesPage() {
 
   useEffect(() => {
     if (!socket) return
-    socket.on('message:new', (msg: any) => {
+    socket.on('message:new', (msg: Message) => {
       if (msg.sender_id === active?.id || msg.receiver_id === active?.id) {
         setMessages(p => [...p, msg])
       }

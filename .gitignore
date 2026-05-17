@@ -11,6 +11,8 @@ node_modules/
 dist/
 build/
 .next/
+*.tsbuildinfo
+backend/dist/
 
 # OS
 .DS_Store

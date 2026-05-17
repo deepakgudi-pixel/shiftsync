@@ -1,13 +1,14 @@
 'use client'
 import React, { useEffect, useState } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useClerk, useUser } from '@clerk/nextjs'
 import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, FileText, Send, AlertTriangle } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { cn } from '@/lib/utils'
-import type { Member } from '@/types'
+import type { ApiError, Member } from '@/types'
 
 interface SidebarProps {
   isOpen?: boolean
@@ -81,8 +82,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
       toast.success('Organisation deleted')
       router.replace(`${signOutRedirect}?org_deleted=1`)
       await signOut({ redirectUrl: signOutRedirect })
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Failed to delete organisation')
+    } catch (err) {
+      const error = err as ApiError
+      toast.error(error.response?.data?.error || 'Failed to delete organisation')
     } finally {
       setIsDeleting(false)
     }
@@ -192,9 +194,11 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
         <div className="p-4 border-t border-white/5">
           <div className="flex items-center gap-3">
             {user?.imageUrl ? (
-              <img
+              <Image
                 src={user.imageUrl}
                 alt={user.fullName || 'User'}
+                width={32}
+                height={32}
                 className="h-8 w-8 rounded-full object-cover ring-1 ring-white/10"
               />
             ) : (

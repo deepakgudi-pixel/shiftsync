@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs'
 import { useRouter } from 'next/navigation'
 import { useApi } from '@/hooks/useApi'
 import toast from 'react-hot-toast'
+import type { ApiError } from '@/types'
 
 export default function OnboardingPage() {
   const { user } = useUser()
@@ -51,8 +52,9 @@ export default function OnboardingPage() {
       })
       toast.success(mode === 'create' ? 'Organisation created!' : 'Joined organisation!')
       router.push('/dashboard')
-    } catch (err: any) {
-      toast.error(err.response?.data?.error || 'Something went wrong')
+    } catch (err) {
+      const error = err as ApiError
+      toast.error(error.response?.data?.error || 'Something went wrong')
     } finally {
       setLoading(false)
     }

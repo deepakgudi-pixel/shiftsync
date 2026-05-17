@@ -1,24 +1,25 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useUser } from '@clerk/nextjs'
 import { useApi } from '@/hooks/useApi'
 import { cn, fmtDateTime, fmtRelative } from '@/lib/utils'
-import { FileText, Plus, Pencil, Trash2, Clock, CheckCircle, XCircle, ArrowRightLeft, Filter, ChevronLeft, ChevronRight, User } from 'lucide-react'
+import { Plus, Pencil, Trash2, Clock, CheckCircle, XCircle, ArrowRightLeft, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react'
+import type { JsonValue, Member } from '@/types'
 
 interface AuditLog {
   id: string
   action: string
   entity_type: string
   entity_id: string
-  old_values: any
-  new_values: any
+  old_values: JsonValue | null
+  new_values: JsonValue | null
   member_name: string
   member_avatar: string
   ip_address: string
   created_at: string
 }
 
-const ACTION_CONFIG: Record<string, { icon: any; color: string; bg: string }> = {
+const ACTION_CONFIG: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
   CREATE:    { icon: Plus,       color: 'text-black',   bg: 'bg-zinc-50' },
   UPDATE:    { icon: Pencil,    color: 'text-black',     bg: 'bg-zinc-50' },
   DELETE:    { icon: Trash2,     color: 'text-black',      bg: 'bg-zinc-50' },
@@ -45,7 +46,7 @@ export default function AuditPage() {
   const { user, isLoaded, isSignedIn } = useUser()
   const api = useApi()
   const [logs, setLogs] = useState<AuditLog[]>([])
-  const [member, setMember] = useState<any>(null)
+  const [member, setMember] = useState<Member | null>(null)
   const [loading, setLoading] = useState(true)
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1, limit: 50 })
   const [filters, setFilters] = useState({ action: '', entity_type: '', start: '', end: '' })
@@ -61,16 +62,10 @@ export default function AuditPage() {
     init()
   }, [isLoaded, isSignedIn, api])
 
-  useEffect(() => {
-    if (!member) return
-    if (member.role !== 'ADMIN' && member.role !== 'MANAGER') return
-    loadLogs(1)
-  }, [member, api])
-
-  const loadLogs = async (page: number) => {
+  const loadLogs = useCallback(async (page: number) => {
     setLoading(true)
     try {
-      const params: any = { page, limit: 50 }
+      const params: Record<string, string | number> = { page, limit: 50 }
       if (filters.action) params.action = filters.action
       if (filters.entity_type) params.entity_type = filters.entity_type
       if (filters.start) params.start = filters.start
@@ -80,7 +75,13 @@ export default function AuditPage() {
       setPagination(r.data.pagination)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
-  }
+  }, [api, filters])
+
+  useEffect(() => {
+    if (!member) return
+    if (member.role !== 'ADMIN' && member.role !== 'MANAGER') return
+    loadLogs(1)
+  }, [member, loadLogs])
 
   const handleFilterChange = (key: string, value: string) => {
     setFilters(f => ({ ...f, [key]: value }))

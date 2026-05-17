@@ -6,11 +6,11 @@ const { createTestServer } = require("./helpers/http");
 const { withMockedModules } = require("./helpers/moduleMocks");
 
 const srcRoot = path.resolve(__dirname, "../src");
-const authModulePath = path.join(srcRoot, "middleware/auth.js");
-const dbModulePath = path.join(srcRoot, "db/client.js");
-const auditModulePath = path.join(srcRoot, "lib/audit.js");
-const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.js");
-const shiftServicePath = path.join(srcRoot, "services/shiftService.js");
+const authModulePath = path.join(srcRoot, "middleware/auth.ts");
+const dbModulePath = path.join(srcRoot, "db/client.ts");
+const auditModulePath = path.join(srcRoot, "lib/audit.ts");
+const eventEmitterModulePath = path.join(srcRoot, "lib/eventEmitter.ts");
+const shiftServicePath = path.join(srcRoot, "services/shiftService.ts");
 
 const clearModuleCache = (modulePath) => {
   try {
@@ -67,7 +67,7 @@ const loadRoute = async ({ routeFile, basePath, member, queryImpl, clientQueryIm
 
 test("POST /api/shifts returns 400 when title is missing", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -86,7 +86,7 @@ test("POST /api/shifts returns 400 when title is missing", async (t) => {
 
 test("POST /api/shifts returns 400 when startTime is invalid", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -104,7 +104,7 @@ test("POST /api/shifts returns 400 when startTime is invalid", async (t) => {
 
 test("POST /api/shifts returns 400 when endTime is invalid", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -122,7 +122,7 @@ test("POST /api/shifts returns 400 when endTime is invalid", async (t) => {
 
 test("POST /api/shifts returns 400 when assigneeId is not UUID", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -140,7 +140,7 @@ test("POST /api/shifts returns 400 when assigneeId is not UUID", async (t) => {
 
 test("PUT /api/shifts/:id returns 400 when status is invalid", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -163,7 +163,7 @@ test("PUT /api/shifts/:id returns 400 when status is invalid", async (t) => {
 
 test("PATCH /api/shifts/:id/swap/:swapId returns 400 when status is not APPROVED/REJECTED", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -181,7 +181,7 @@ test("PATCH /api/shifts/:id/swap/:swapId returns 400 when status is not APPROVED
 
 test("POST /api/shifts/:id/swap returns 400 when shiftId is not UUID", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "emp-1", organisation_id: "org-1", role: "EMPLOYEE" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -199,7 +199,7 @@ test("POST /api/shifts/:id/swap returns 400 when shiftId is not UUID", async (t)
 
 test("PUT /api/shifts/:id returns 400 when id is not UUID", async (t) => {
   const harness = await loadRoute({
-    routeFile: "shifts.js",
+    routeFile: "shifts.ts",
     basePath: "/api/shifts",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },

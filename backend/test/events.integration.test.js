@@ -6,8 +6,8 @@ const { createTestServer } = require("./helpers/http");
 const { withMockedModules } = require("./helpers/moduleMocks");
 
 const srcRoot = path.resolve(__dirname, "../src");
-const authModulePath = path.join(srcRoot, "middleware/auth.js");
-const dbModulePath = path.join(srcRoot, "db/client.js");
+const authModulePath = path.join(srcRoot, "middleware/auth.ts");
+const dbModulePath = path.join(srcRoot, "db/client.ts");
 
 const normalizeSql = (sql) => sql.replace(/\s+/g, " ").trim();
 
@@ -42,7 +42,7 @@ const loadRoute = async ({ routeFile, basePath, member, queryImpl }) => {
 
 test("GET /api/events/since returns events after timestamp", async (t) => {
   const harness = await loadRoute({
-    routeFile: "events.js",
+    routeFile: "events.ts",
     basePath: "/api/events",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -68,7 +68,7 @@ test("GET /api/events/since returns events after timestamp", async (t) => {
 
 test("GET /api/events/since returns 400 without since parameter", async (t) => {
   const harness = await loadRoute({
-    routeFile: "events.js",
+    routeFile: "events.ts",
     basePath: "/api/events",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -82,7 +82,7 @@ test("GET /api/events/since returns 400 without since parameter", async (t) => {
 
 test("GET /api/events/since returns 400 with invalid timestamp", async (t) => {
   const harness = await loadRoute({
-    routeFile: "events.js",
+    routeFile: "events.ts",
     basePath: "/api/events",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async () => { throw new Error("Should not reach DB"); },
@@ -96,7 +96,7 @@ test("GET /api/events/since returns 400 with invalid timestamp", async (t) => {
 
 test("GET /api/events/since returns empty when no events", async (t) => {
   const harness = await loadRoute({
-    routeFile: "events.js",
+    routeFile: "events.ts",
     basePath: "/api/events",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -117,7 +117,7 @@ test("GET /api/events/since returns empty when no events", async (t) => {
 
 test("GET /api/events/since sets hasMore when 500 results", async (t) => {
   const harness = await loadRoute({
-    routeFile: "events.js",
+    routeFile: "events.ts",
     basePath: "/api/events",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -137,7 +137,7 @@ test("GET /api/events/since sets hasMore when 500 results", async (t) => {
 
 test("GET /api/events/types/:eventType returns events by type", async (t) => {
   const harness = await loadRoute({
-    routeFile: "events.js",
+    routeFile: "events.ts",
     basePath: "/api/events",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {
@@ -161,7 +161,7 @@ test("GET /api/events/types/:eventType returns events by type", async (t) => {
 
 test("GET /api/events/types/:eventType supports pagination", async (t) => {
   const harness = await loadRoute({
-    routeFile: "events.js",
+    routeFile: "events.ts",
     basePath: "/api/events",
     member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
     queryImpl: async (sql) => {

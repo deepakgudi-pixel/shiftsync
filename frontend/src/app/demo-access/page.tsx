@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useClerk, useSignIn, useUser } from '@clerk/nextjs'
 import { ArrowRight } from 'lucide-react'
 import toast from 'react-hot-toast'
+import type { ApiError } from '@/types'
 
 type DemoUser = {
   role: string
@@ -31,11 +32,21 @@ const getApiBase = () => {
 
 const PENDING_DEMO_EMAIL_KEY = 'shiftsync-demo-email'
 
-const readJsonSafely = async (response: Response) => {
+type DemoAccessResponse = {
+  error?: string
+  ticket?: string
+}
+
+const getErrorMessage = (err: unknown, fallback: string) => {
+  const error = err as ApiError
+  return error.errors?.[0]?.longMessage || error.message || fallback
+}
+
+const readJsonSafely = async <T,>(response: Response): Promise<T> => {
   const raw = await response.text()
 
   try {
-    return raw ? JSON.parse(raw) : {}
+    return raw ? JSON.parse(raw) : {} as T
   } catch {
     if (!response.ok) {
       throw new Error(
@@ -65,15 +76,16 @@ export default function DemoAccessPage() {
     const loadUsers = async () => {
       try {
         const response = await fetch(`${apiBase}/api/dev/demo-users`)
-        const data = await readJsonSafely(response)
+        const data = await readJsonSafely<DemoUser[] | DemoAccessResponse>(response)
 
         if (!response.ok) {
-          throw new Error(data?.error || 'Failed to load demo accounts')
+          const errorData = data as DemoAccessResponse
+          throw new Error(errorData.error || 'Failed to load demo accounts')
         }
 
-        setUsers(data)
-      } catch (err: any) {
-        setError(err.message || 'Failed to load demo accounts')
+        setUsers(data as DemoUser[])
+      } catch (err) {
+        setError(getErrorMessage(err, 'Failed to load demo accounts'))
       } finally {
         setLoadingUsers(false)
       }
@@ -98,7 +110,7 @@ export default function DemoAccessPage() {
           body: JSON.stringify({ email }),
         })
 
-        const ticketData = await readJsonSafely(ticketResponse)
+        const ticketData = await readJsonSafely<DemoAccessResponse>(ticketResponse)
 
         if (!ticketResponse.ok) {
           throw new Error(ticketData?.error || 'Failed to create demo access ticket')
@@ -116,13 +128,13 @@ export default function DemoAccessPage() {
         await setActive({ session: result.createdSessionId })
         window.sessionStorage.removeItem(PENDING_DEMO_EMAIL_KEY)
         window.location.replace('/dashboard')
-      } catch (err: any) {
-        setError(err?.errors?.[0]?.longMessage || err.message || 'Failed to sign in with demo account')
+      } catch (err) {
+        setError(getErrorMessage(err, 'Failed to sign in with demo account'))
         setPendingEmail(null)
         setIsSubmitting(false)
       }
     })()
-  }, [apiBase, isLoaded, router, setActive, signIn])
+  }, [apiBase, isLoaded, setActive, signIn])
 
   useEffect(() => {
     const currentEmail = user?.primaryEmailAddress?.emailAddress
@@ -168,11 +180,11 @@ export default function DemoAccessPage() {
     if (!confirm('Reset demo to original state? All changes will be lost.')) return
     try {
       const res = await fetch(`${apiBase}/api/dev/reset-demo`, { method: 'POST' })
-      const data = await readJsonSafely(res)
+      const data = await readJsonSafely<DemoAccessResponse>(res)
       if (!res.ok) throw new Error(data?.error || 'Failed to reset demo')
       toast.success('Demo reset successfully!')
-    } catch (err: any) {
-      setError(err.message || 'Failed to reset demo')
+    } catch (err) {
+      setError(getErrorMessage(err, 'Failed to reset demo'))
     }
   }
 
