@@ -8,7 +8,7 @@ const LEGACY_ITEMS = [
   { t: 'Delayed Sync', d: 'Important updates die in ignored email threads or group chats.' },
 ]
 
-const SHIFTSYNC_ITEMS = [
+const RELAY_ITEMS = [
   { t: 'SQL-Level Validation', d: 'Hard-coded constraints make scheduling conflicts physically impossible.' },
   { t: 'Unified Ecosystem', d: 'Hours worked flow instantly into payroll—no manual reconciliation.' },
   { t: 'Immutable Audit Logs', d: 'Every write operation is logged with before/after state diffs.' },
@@ -46,10 +46,10 @@ export function Comparison() {
 
           <div className="bg-white/[0.02] p-8 md:p-12 relative overflow-hidden">
             <h3 className="text-white text-[10px] font-bold uppercase tracking-widest mb-10">
-              ShiftSync Orchestration
+              Relay Orchestration
             </h3>
             <ul className="space-y-8">
-              {SHIFTSYNC_ITEMS.map((item, i) => (
+              {RELAY_ITEMS.map((item, i) => (
                 <li key={i} className="flex gap-4">
                   <CircleCheck size={16} className="text-white shrink-0 mt-1" />
                   <div>

@@ -7,6 +7,7 @@ import { fmtDateTime, cn, getInitials, fmtTime } from '@/lib/utils'
 import { Clock, CheckCircle, LogIn, LogOut, MapPin, Activity, Calendar } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { ApiError, Member, Shift } from '@/types'
+import { useAppLayout } from '@/components/layout/AppLayout'
 
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("bg-zinc-100 animate-pulse rounded-none", className)} />
@@ -37,6 +38,7 @@ interface AttendanceSocketEvent {
 export default function AttendancePage() {
   const api = useApi()
   const router = useRouter()
+  const { setPageLoading } = useAppLayout()
   const [assignedShifts, setAssignedShifts] = useState<Shift[]>([])
   const [inProgressShifts, setInProgressShifts] = useState<Shift[]>([])
   const [liveAttendance, setLiveAttendance] = useState<LiveAttendanceShift[]>([])
@@ -45,6 +47,11 @@ export default function AttendancePage() {
   const [loading, setLoading] = useState(true)
   const [submittingShiftId, setSubmittingShiftId] = useState<string | null>(null)
   const socket = useSocket(member?.organisation_id, member?.id)
+
+  useEffect(() => {
+    setPageLoading(loading)
+    return () => setPageLoading(false)
+  }, [loading, setPageLoading])
 
   const loadShifts = useCallback(async (memberId: string) => {
     const sh = await api.get('/api/shifts', {

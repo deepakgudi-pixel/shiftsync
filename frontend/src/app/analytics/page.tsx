@@ -6,6 +6,7 @@ import { cn } from '@/lib/utils'
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import { TrendingUp, Users, Clock, DollarSign } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { useAppLayout } from '@/components/layout/AppLayout'
 
 const Skeleton = ({ className }: { className?: string }) => (
   <div className={cn("bg-zinc-100 animate-pulse rounded-none", className)} />
@@ -17,6 +18,7 @@ export default function AnalyticsPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const api = useApi()
+  const { setPageLoading } = useAppLayout()
   const [analytics, setAnalytics] = useState<{
     totalMembers: number
     totalHours: number
@@ -29,6 +31,11 @@ export default function AnalyticsPage() {
   } | null>(null)
   const [member, setMember] = useState<{ role: string } | null>(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setPageLoading(loading)
+    return () => setPageLoading(false)
+  }, [loading, setPageLoading])
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return

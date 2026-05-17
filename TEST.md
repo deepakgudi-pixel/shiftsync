@@ -1,8 +1,8 @@
-# ShiftSync Test Framework
+# Relay Test Framework
 
 ## Overview
 
-ShiftSync uses a comprehensive testing strategy covering both backend and frontend with **163 total tests** and **~85%+ route coverage**.
+Relay uses a comprehensive testing strategy covering both backend and frontend with **163 total tests** and **~85%+ route coverage**.
 
 ---
 

@@ -1,4 +1,4 @@
-# ShiftSync Maintainability Roadmap
+# Relay Maintainability Roadmap
 
 This roadmap keeps cleanup work visible and reviewable. The goal is a codebase that a new engineer can navigate quickly, change safely, and trust in production-like demo flows.
 

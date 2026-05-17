@@ -34,9 +34,9 @@ vi.mock('react-hot-toast', () => ({
 }))
 
 describe('Sidebar', () => {
-  it('renders the ShiftSync logo', () => {
+  it('renders the Relay logo', () => {
     render(<Sidebar />)
-    expect(screen.getByText('ShiftSync')).toBeTruthy()
+    expect(screen.getByText('Relay')).toBeTruthy()
   })
 
   it('renders all navigation items', () => {

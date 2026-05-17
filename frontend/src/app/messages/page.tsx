@@ -5,15 +5,18 @@ import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { getInitials, fmtTime, cn } from '@/lib/utils'
 import { Send, ArrowLeft } from 'lucide-react'
 import toast from 'react-hot-toast'
+import { useAppLayout } from '@/components/layout/AppLayout'
 import type { Member, Message } from '@/types'
 
 export default function MessagesPage() {
   const api = useApi()
+  const { setPageLoading } = useAppLayout()
   const [members, setMembers] = useState<Member[]>([])
   const [me, setMe] = useState<Member | null>(null)
   const [active, setActive] = useState<Member | null>(null)
   const [messages, setMessages] = useState<Message[]>([])
   const [text, setText] = useState('')
+  const [loading, setLoading] = useState(true)
   const bottomRef = useRef<HTMLDivElement>(null)
   const socket = useSocket(me?.organisation_id, me?.id)
 
@@ -23,10 +26,21 @@ export default function MessagesPage() {
   }, [api])
 
   useEffect(() => {
+    setPageLoading(loading)
+    return () => setPageLoading(false)
+  }, [loading, setPageLoading])
+
+  useEffect(() => {
     const load = async () => {
-      const [meR, memR] = await Promise.all([api.get('/api/members/me'), api.get('/api/members')])
-      setMe(meR.data)
-      setMembers((memR.data as Member[]).filter((m) => m.id !== meR.data.id))
+      try {
+        const [meR, memR] = await Promise.all([api.get('/api/members/me'), api.get('/api/members')])
+        setMe(meR.data)
+        setMembers((memR.data as Member[]).filter((m) => m.id !== meR.data.id))
+      } catch (err) {
+        console.error(err)
+      } finally {
+        setLoading(false)
+      }
     }
     load()
   }, [api])

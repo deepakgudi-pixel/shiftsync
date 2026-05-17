@@ -1,8 +1,8 @@
-# ShiftSync — Developer & Technical Documentation
+# Relay — Developer & Technical Documentation
 
 ## System Architecture
 
-ShiftSync is a multi-tenant, event-driven workforce management platform. Every mutation writes to a canonical event log; database state is derived from events; audit logs are event log queries; socket events are event broadcasts.
+Relay is a multi-tenant, event-driven workforce management platform. Every mutation writes to a canonical event log; database state is derived from events; audit logs are event log queries; socket events are event broadcasts.
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -29,7 +29,7 @@ ShiftSync is a multi-tenant, event-driven workforce management platform. Every m
 ## Project Structure
 
 ```
-shiftsync/
+relay/
 ├── backend/
 │   ├── src/
 │   │   ├── index.js                  # Express server, middleware chain

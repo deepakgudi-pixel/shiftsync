@@ -4,6 +4,7 @@ import { useUser } from '@clerk/nextjs'
 import { useApi } from '@/hooks/useApi'
 import { cn, fmtDateTime, fmtRelative } from '@/lib/utils'
 import { Plus, Pencil, Trash2, Clock, CheckCircle, XCircle, ArrowRightLeft, ChevronLeft, ChevronRight, type LucideIcon } from 'lucide-react'
+import { useAppLayout } from '@/components/layout/AppLayout'
 import type { JsonValue, Member } from '@/types'
 
 interface AuditLog {
@@ -45,9 +46,15 @@ const Skeleton = ({ className }: { className?: string }) => (
 export default function AuditPage() {
   const { user, isLoaded, isSignedIn } = useUser()
   const api = useApi()
+  const { setPageLoading } = useAppLayout()
   const [logs, setLogs] = useState<AuditLog[]>([])
   const [member, setMember] = useState<Member | null>(null)
   const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    setPageLoading(loading)
+    return () => setPageLoading(false)
+  }, [loading, setPageLoading])
   const [pagination, setPagination] = useState({ total: 0, page: 1, pages: 1, limit: 50 })
   const [filters, setFilters] = useState({ action: '', entity_type: '', start: '', end: '' })
 

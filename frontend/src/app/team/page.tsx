@@ -8,6 +8,7 @@ import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { cn, getInitials, ROLE_COLORS,  } from '@/lib/utils'
 import type { ApiError } from '@/types'
+import { useAppLayout } from '@/components/layout/AppLayout'
 
 interface TeamMember {
   id: string; name: string; email: string; role: string
@@ -19,7 +20,9 @@ export default function TeamPage() {
   const { isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const api = useApi()
+  const { setPageLoading } = useAppLayout()
   const [members, setMembers] = useState<TeamMember[]>([])
+  const [loading, setLoading] = useState(true)
   const [me, setMe] = useState<{
     id: string
     role: 'ADMIN' | 'MANAGER' | 'EMPLOYEE'
@@ -28,6 +31,11 @@ export default function TeamPage() {
   } | null>(null)
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState('ALL')
+
+  useEffect(() => {
+    setPageLoading(loading)
+    return () => setPageLoading(false)
+  }, [loading, setPageLoading])
 
   useEffect(() => {
     if (!isLoaded || !isSignedIn) return
@@ -41,6 +49,8 @@ export default function TeamPage() {
         const error = err as ApiError
         if (error.response?.status === 404) router.push('/onboarding')
         else console.error('Error loading team:', error)
+      } finally {
+        setLoading(false)
       }
     }
     load()

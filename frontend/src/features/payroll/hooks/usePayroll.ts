@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useApi } from '@/hooks/useApi'
 import toast from 'react-hot-toast'
+import { useAppLayout } from '@/components/layout/AppLayout'
 import type { Member, PayPeriod, PayslipWithPeriod, OvertimeRule, PayPeriodTimesheet, PayPeriodSummary } from '@/types'
 import type { PayrollModalId } from '@/features/payroll/constants'
 
@@ -34,10 +35,16 @@ type ApiError = { response?: { data?: { error?: string }; status?: number } }
 
 export function usePayroll() {
   const api = useApi()
+  const { setPageLoading } = useAppLayout()
   const [member, setMember] = useState<Member | null>(null)
   const [org, setOrg] = useState<{ name: string; currency: string } | null>(null)
   const [loading, setLoading] = useState(true)
   const [actionLoading, setActionLoading] = useState<string | null>(null)
+
+  useEffect(() => {
+    setPageLoading(loading)
+    return () => setPageLoading(false)
+  }, [loading, setPageLoading])
 
   const [payPeriods, setPayPeriods] = useState<PayPeriod[]>([])
   const [selectedPeriodId, setSelectedPeriodId] = useState<string | null>(null)

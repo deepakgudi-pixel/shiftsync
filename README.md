@@ -1,4 +1,4 @@
-# ShiftSync
+# Relay
 
 A full-stack, production-grade workforce management platform for frontline teams. Handles scheduling, real-time team sync, attendance tracking, shift swapping, payroll processing, and labour analytics.
 
@@ -68,7 +68,7 @@ Visit `http://localhost:3000` — or try the one-click demo at `http://localhost
 ## Project Structure
 
 ```
-shiftsync/
+relay/
 ├── backend/
 │   ├── src/
 │   │   ├── index.ts              # Express server · security middleware · rate limiter · route registry
@@ -117,7 +117,7 @@ shiftsync/
 
 ## Architecture
 
-ShiftSync is a multi-tenant, event-driven workforce platform. Every mutation:
+Relay is a multi-tenant, event-driven workforce platform. Every mutation:
 
 1. Writes to the **canonical event log** (`events` table — append-only)
 2. Updates application state in the relevant domain table

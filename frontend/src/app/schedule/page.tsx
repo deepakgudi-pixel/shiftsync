@@ -8,6 +8,7 @@ import { useApi } from '@/hooks/useApi'
 import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import { cn, fmtTime, fmtDateTime, STATUS_COLORS } from '@/lib/utils'
 import type { ApiError, Shift, Member } from '@/types'
+import { useAppLayout } from '@/components/layout/AppLayout'
 
 const COLORS = ['#4f6eff','#7c3aed','#059669','#dc2626','#d97706','#0891b2','#be185d']
 
@@ -21,6 +22,7 @@ const COLUMNS = [
 export default function SchedulePage() {
   const { isLoaded, isSignedIn } = useUser()
   const api = useApi()
+  const { setPageLoading: setGlobalPageLoading } = useAppLayout()
   const [shifts, setShifts] = useState<Shift[]>([])
   const [members, setMembers] = useState<Member[]>([])
   const [member, setMember] = useState<Member | null>(null)
@@ -31,6 +33,11 @@ export default function SchedulePage() {
   const [loading, setLoading] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
   const socket = useSocket(member?.organisation_id, member?.id)
+
+  useEffect(() => {
+    setGlobalPageLoading(pageLoading)
+    return () => setGlobalPageLoading(false)
+  }, [pageLoading, setGlobalPageLoading])
 
   const resetForm = () => {
     setSelected(null)

@@ -2,9 +2,9 @@ import { useEffect, useRef, useState } from 'react'
 import { io, Socket } from 'socket.io-client'
 import { useAuth } from '@clerk/nextjs'
 
-export const SOCKET_RESYNC_EVENT = 'shiftsync:socket-resync'
+export const SOCKET_RESYNC_EVENT = 'relay:socket-resync'
 
-const buildStorageKey = (orgId: string, memberId: string) => `shiftsync:last-event-sync:${orgId}:${memberId}`
+const buildStorageKey = (orgId: string, memberId: string) => `relay:last-event-sync:${orgId}:${memberId}`
 
 export function useSocket(orgId?: string, memberId?: string) {
   const [socket, setSocket] = useState<Socket | null>(null)

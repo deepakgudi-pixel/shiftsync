@@ -16,7 +16,7 @@ export default function SignInPage() {
               <rect x="16" y="8" width="10" height="12" fill="black" fillOpacity="0.5"/>
             </svg>
           </div>
-          <h1 className="text-xl font-bold text-white tracking-[0.3em] uppercase">ShiftSync</h1>
+          <h1 className="text-xl font-bold text-white tracking-[0.3em] uppercase">Relay</h1>
           <p className="text-white/30 mt-3 text-[10px] font-bold uppercase tracking-[0.2em]">Workforce management reimagined</p>
         </div>
         <SignIn

@@ -1,6 +1,6 @@
-# ShiftSync — Developer Concepts Guide
+# Relay — Developer Concepts Guide
 
-This guide covers the architecture, patterns, and conventions needed to work confidently on the ShiftSync codebase.
+This guide covers the architecture, patterns, and conventions needed to work confidently on the Relay codebase.
 
 ---
 

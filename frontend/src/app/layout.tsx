@@ -7,13 +7,28 @@ import './globals.css'
 const dmSans = DM_Sans({ subsets: ['latin'], variable: '--font-dm' })
 
 export const metadata: Metadata = {
-  title: 'ShiftSync — Workforce Management',
+  title: 'Relay — Workforce Management',
   description: 'Next-gen frontline workforce management platform',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <ClerkProvider>
+    <ClerkProvider
+      localization={{
+        signIn: {
+          start: {
+            title: 'Sign in to Relay',
+            subtitle: 'to continue to Relay',
+          },
+        },
+        signUp: {
+          start: {
+            title: 'Create your Relay account',
+            subtitle: 'to continue to Relay',
+          },
+        },
+      }}
+    >
       <html lang="en" suppressHydrationWarning className={dmSans.variable}>
         <body className={dmSans.className}>
           {children}

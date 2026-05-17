@@ -115,7 +115,7 @@ const main = async () => {
     });
 
     await step("Admin creates organisation", async () => {
-      const orgName = `ShiftSync QA ${Date.now()}`;
+      const orgName = `Relay QA ${Date.now()}`;
       const { data } = await request("/api/members/onboard", {
         method: "POST",
         body: JSON.stringify({

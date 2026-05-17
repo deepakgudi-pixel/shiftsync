@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useApi } from '@/hooks/useApi'
 import { SOCKET_RESYNC_EVENT, useSocket } from '@/hooks/useSocket'
 import type { Member } from '@/types'
+import { useAppLayout } from '@/components/layout/AppLayout'
 
 export type { Member }
 
@@ -62,6 +63,7 @@ export function useDashboard() {
   const { user, isLoaded, isSignedIn } = useUser()
   const router = useRouter()
   const api = useApi()
+  const { setPageLoading } = useAppLayout()
   const [analytics, setAnalytics] = useState<DashboardAnalytics | null>(null)
   const [shifts, setShifts] = useState<DashboardShift[]>([])
   const [announcements, setAnnouncements] = useState<DashboardAnnouncement[]>([])
@@ -76,6 +78,11 @@ export function useDashboard() {
   const [selectedShift, setSelectedShift] = useState<DashboardShift | null>(null)
   const [swapForm, setSwapForm] = useState({ reason: '', targetId: '' })
   const [annLoading, setAnnLoading] = useState(false)
+
+  useEffect(() => {
+    setPageLoading(loading)
+    return () => setPageLoading(false)
+  }, [loading, setPageLoading])
 
   const loadDashboard = useCallback(
     async (showInitialLoader = false) => {

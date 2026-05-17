@@ -49,7 +49,7 @@ const decrypt = (input) => {
 
     return decrypted.toString("utf8");
   } catch (e) {
-    console.error("ShiftSync Secure Module - Decrypt Fault:", e.message);
+    console.error("Relay Secure Module - Decrypt Fault:", e.message);
     return input;
   }
 };

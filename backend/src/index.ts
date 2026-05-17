@@ -70,6 +70,6 @@ app.use((err, req, res, _next) => {
 initSocket(io);
 
 const PORT = process.env.PORT || 4000;
-server.listen(PORT, () => console.log(`ShiftSync API running on http://localhost:${PORT}`));
+server.listen(PORT, () => console.log(`Relay API running on http://localhost:${PORT}`));
 
 export {};

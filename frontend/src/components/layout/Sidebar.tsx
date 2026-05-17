@@ -167,7 +167,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 <rect x="16" y="8" width="10" height="12" fill="black" fillOpacity="0.5"/>
               </svg>
             </div>
-            <span className="font-bold text-white text-sm tracking-widest uppercase">ShiftSync</span>
+            <span className="font-bold text-white text-sm tracking-widest uppercase">Relay</span>
           </div>
         </div>
 

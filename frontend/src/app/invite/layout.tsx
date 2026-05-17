@@ -13,7 +13,7 @@ export default function Layout({ children }: { children: React.ReactNode }) {
         <button onClick={() => setIsSidebarOpen(true)} className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors">
           <Menu size={20} />
         </button>
-        <span className="ml-2 font-bold text-white tracking-widest uppercase text-xs">ShiftSync</span>
+        <span className="ml-2 font-bold text-white tracking-widest uppercase text-xs">Relay</span>
       </header>
 
       <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

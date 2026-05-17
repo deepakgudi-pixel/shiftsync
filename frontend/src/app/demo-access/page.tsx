@@ -30,7 +30,7 @@ const getApiBase = () => {
   return ''
 }
 
-const PENDING_DEMO_EMAIL_KEY = 'shiftsync-demo-email'
+const PENDING_DEMO_EMAIL_KEY = 'relay-demo-email'
 
 type DemoAccessResponse = {
   error?: string
@@ -202,7 +202,7 @@ export default function DemoAccessPage() {
             <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Demo Access</p>
             <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Open the seeded demo workspace</h1>
             <p className="text-sm text-white/60 max-w-2xl">
-              Choose one of the prepared demo accounts below. If another account is already signed in, ShiftSync will switch sessions cleanly and take you straight to the dashboard.
+              Choose one of the prepared demo accounts below. If another account is already signed in, Relay will switch sessions cleanly and take you straight to the dashboard.
             </p>
           </div>
         </div>

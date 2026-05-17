@@ -17,7 +17,7 @@ export function LandingNav() {
                 <rect x="16" y="8" width="10" height="12" fill="black" fillOpacity="0.5" />
               </svg>
             </div>
-            <span className="font-bold text-white text-sm tracking-[0.3em] uppercase">ShiftSync</span>
+            <span className="font-bold text-white text-sm tracking-[0.3em] uppercase">Relay</span>
           </div>
           <div className="hidden sm:flex items-center gap-8">
             <Link

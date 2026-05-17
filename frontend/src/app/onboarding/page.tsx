@@ -76,7 +76,7 @@ export default function OnboardingPage() {
             </svg>
           </div>
           <div>
-            <h1 className="font-bold text-white text-sm uppercase tracking-widest">Welcome to ShiftSync</h1>
+            <h1 className="font-bold text-white text-sm uppercase tracking-widest">Welcome to Relay</h1>
             <p className="text-[10px] font-bold text-white/30 uppercase tracking-[0.2em] mt-0.5">Set up your workspace</p>
           </div>
         </div>
