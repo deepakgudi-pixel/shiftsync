@@ -3,6 +3,23 @@ require("dotenv").config({ path: path.resolve(__dirname, "../.env") });
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
+
+// Parse allowed origins from FRONTEND_URL (comma-separated for multiple domains)
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:3000")
+  .split(",")
+  .map((o: string) => o.trim());
+
+const corsOptions = {
+  origin: (origin: string | undefined, callback: (err: Error | null, allow?: boolean) => void) => {
+    // Allow requests with no origin (mobile apps, curl, server-to-server)
+    if (!origin || allowedOrigins.includes(origin)) {
+      callback(null, true);
+    } else {
+      callback(new Error(`CORS: origin ${origin} not allowed`));
+    }
+  },
+  credentials: true,
+};
 const rateLimit = /** @type {any} */ (require("express-rate-limit"));
 const { ipKeyGenerator } = /** @type {any} */ (require("express-rate-limit"));
 const helmet = /** @type {any} */ (require("helmet"));
@@ -17,7 +34,7 @@ const server = http.createServer(app);
 app.set("trust proxy", 1);
 
 const io = new Server(server, {
-  cors: { origin: process.env.FRONTEND_URL || "http://localhost:3000", credentials: true },
+  cors: { origin: allowedOrigins, credentials: true },
 });
 
 // Security headers — must be first
@@ -28,7 +45,7 @@ app.use(helmet({
       scriptSrc: ["'self'"],
       styleSrc: ["'self'", "'unsafe-inline'"],
       imgSrc: ["'self'", "data:", "https:"],
-      connectSrc: ["'self'", process.env.FRONTEND_URL || "http://localhost:3000"],
+      connectSrc: ["'self'", ...allowedOrigins],
       frameAncestors: ["'none'"],
       objectSrc: ["'none'"],
     },
@@ -40,7 +57,7 @@ app.use(helmet({
   referrerPolicy: { policy: "strict-origin-when-cross-origin" },
 }));
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "http://localhost:3000", credentials: true }));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: "1mb" }));
 
 app.use((req, _, next) => { req.io = io; next(); });
