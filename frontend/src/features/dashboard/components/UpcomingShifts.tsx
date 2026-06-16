@@ -1,5 +1,5 @@
 'use client'
-import { ArrowRightLeft } from 'lucide-react'
+import { ArrowRightLeft, CalendarClock } from 'lucide-react'
 import { cn, fmtDateTime } from '@/lib/utils'
 import type { DashboardShift, Member } from '@/features/dashboard/hooks/useDashboard'
 
@@ -11,20 +11,30 @@ type UpcomingShiftsProps = {
 
 export function UpcomingShifts({ shifts, member, onRequestSwap }: UpcomingShiftsProps) {
   return (
-    <div className="bg-white border border-zinc-200 p-5 shadow-sm lg:col-span-1">
-      <h2 className="text-[10px] font-bold text-black mb-6 uppercase tracking-[0.2em] border-l-2 border-black pl-3">
-        {member?.role === 'EMPLOYEE' ? 'My Upcoming Shifts' : 'Upcoming Shifts'}
-      </h2>
+    <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-card lg:col-span-1">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div>
+          <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">
+            {member?.role === 'EMPLOYEE' ? 'My Upcoming Shifts' : 'Upcoming Shifts'}
+          </h2>
+          <p className="mt-1 text-[10px] font-medium text-zinc-400">Next scheduled work blocks</p>
+        </div>
+        <div className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-100 text-zinc-700">
+          <CalendarClock size={16} />
+        </div>
+      </div>
       <div className="space-y-3">
         {shifts.length === 0 && (
-          <p className="text-[10px] font-bold text-zinc-400 text-center py-6 uppercase tracking-widest">
-            No upcoming shifts
-          </p>
+          <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-center">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+              No upcoming shifts
+            </p>
+          </div>
         )}
         {shifts.map((s) => (
           <div
             key={s.id}
-            className="p-4 bg-zinc-50 border border-zinc-100 hover:border-zinc-300 transition-all flex flex-col gap-3"
+            className="flex flex-col gap-3 rounded-lg border border-zinc-100 bg-zinc-50 p-4 transition-all hover:border-zinc-300 hover:bg-white hover:shadow-sm"
           >
             <div className="flex items-start justify-between gap-4">
               <div className="flex-1 min-w-0">
@@ -35,12 +45,12 @@ export function UpcomingShifts({ shifts, member, onRequestSwap }: UpcomingShifts
               </div>
               <span
                 className={cn(
-                  'text-[9px] font-bold uppercase px-2 py-1 tracking-tighter shrink-0',
+                  'shrink-0 rounded-full px-2.5 py-1 text-[9px] font-bold uppercase',
                   s.status === 'ASSIGNED'
-                    ? 'text-black bg-zinc-200'
+                    ? 'bg-blue-50 text-blue-700'
                     : s.status === 'IN_PROGRESS'
-                      ? 'text-white bg-black'
-                      : 'text-zinc-400 bg-zinc-100'
+                      ? 'bg-emerald-600 text-white'
+                      : 'bg-zinc-100 text-zinc-400'
                 )}
               >
                 {s.status.replace('_', ' ')}
@@ -50,7 +60,7 @@ export function UpcomingShifts({ shifts, member, onRequestSwap }: UpcomingShifts
             {member?.id === s.assignee_id && s.status === 'ASSIGNED' && (
               <button
                 onClick={() => onRequestSwap(s)}
-                className="w-full py-2 bg-white border border-zinc-200 text-black text-[9px] font-bold uppercase tracking-[0.2em] hover:bg-black hover:text-white hover:border-black transition-all flex items-center justify-center gap-2 shadow-sm"
+                className="flex w-full items-center justify-center gap-2 rounded-md border border-zinc-200 bg-white py-2 text-[9px] font-bold uppercase tracking-[0.2em] text-black shadow-sm transition-all hover:border-black hover:bg-black hover:text-white"
               >
                 <ArrowRightLeft size={12} />
                 Request Swap

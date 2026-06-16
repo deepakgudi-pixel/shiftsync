@@ -8,22 +8,26 @@ type AnalyticsChartProps = {
 }
 
 const Skeleton = ({ className }: { className?: string }) => (
-  <div className={`bg-surface-100 animate-pulse rounded-2xl ${className}`} />
+  <div className={`rounded-lg bg-surface-100 animate-pulse ${className}`} />
 )
 
 export function AnalyticsChart({ analytics, loading }: AnalyticsChartProps) {
   return (
-    <div className="bg-white border border-zinc-200 p-6 md:p-10 rounded-none lg:col-span-2 shadow-sm">
+    <div className="rounded-lg border border-zinc-200 bg-white p-6 shadow-card lg:col-span-2 md:p-8">
       {loading ? (
         <Skeleton className="h-[300px] w-full" />
       ) : (
         <>
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-10">
+          <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
             <div>
-              <h2 className="text-lg font-bold text-black uppercase tracking-widest">Workforce Velocity</h2>
-              <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mt-1">
+              <h2 className="text-base font-bold uppercase tracking-[0.16em] text-black">Workforce Velocity</h2>
+              <p className="mt-1 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                 Recent shift distribution and completion flow
               </p>
+            </div>
+            <div className="flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-emerald-700">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+              Live Ops
             </div>
           </div>
           <div className="h-[240px] md:h-[300px]">
@@ -45,12 +49,13 @@ export function AnalyticsChart({ analytics, loading }: AnalyticsChartProps) {
                   contentStyle={{
                     backgroundColor: '#fff',
                     border: '1px solid #e4e4e7',
-                    borderRadius: '0',
+                    borderRadius: '8px',
                     fontSize: '12px',
+                    boxShadow: '0 12px 32px rgba(13,13,26,0.08)',
                   }}
                 />
-                <Bar dataKey="total" fill="#f4f4f5" radius={0} name="Total" />
-                <Bar dataKey="completed" fill="#18181b" radius={0} name="Completed" />
+                <Bar dataKey="total" fill="#e4e4e7" radius={[6, 6, 0, 0]} name="Total" />
+                <Bar dataKey="completed" fill="#18181b" radius={[6, 6, 0, 0]} name="Completed" />
               </BarChart>
             </ResponsiveContainer>
           </div>

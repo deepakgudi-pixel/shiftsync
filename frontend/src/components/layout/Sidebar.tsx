@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname, useRouter } from 'next/navigation'
 import { useClerk, useUser } from '@clerk/nextjs'
-import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, FileText, Send, AlertTriangle } from 'lucide-react'
+import { LayoutDashboard, Calendar, Users, Clock, DollarSign, BarChart3, MessageSquare, FileText, Send, AlertTriangle, LogOut } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
 import { cn } from '@/lib/utils'
@@ -106,9 +106,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
             if (e.target === e.currentTarget && !isDeleting) setShowDeleteModal(false)
           }}
         >
-          <div className="w-full max-w-md border border-white/10 bg-zinc-900 p-6 shadow-2xl shadow-black/40">
+          <div className="w-full max-w-md rounded-lg border border-white/10 bg-zinc-900 p-6 shadow-2xl shadow-black/40">
             <div className="mb-5 flex items-start gap-3">
-              <div className="mt-0.5 flex h-10 w-10 items-center justify-center border border-red-500/30 bg-red-500/10 text-red-300">
+              <div className="mt-0.5 flex h-10 w-10 items-center justify-center rounded-md border border-red-500/30 bg-red-500/10 text-red-300">
                 <AlertTriangle size={18} />
               </div>
               <div>
@@ -124,7 +124,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
               This action cannot be undone.
             </p>
 
-            <div className="mt-6 grid gap-3 border border-white/5 bg-black/20 p-4 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
+            <div className="mt-6 grid gap-3 rounded-md border border-white/5 bg-black/20 p-4 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">
               <p>Delete organisation workspace</p>
               <p>Remove all associated operational records</p>
               <p>Sign the current admin out immediately after completion</p>
@@ -135,7 +135,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 type="button"
                 onClick={() => setShowDeleteModal(false)}
                 disabled={isDeleting}
-                className="border border-white/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
+                className="rounded-md border border-white/10 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white disabled:opacity-50"
               >
                 Cancel
               </button>
@@ -143,7 +143,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 type="button"
                 onClick={handleDeleteOrganisation}
                 disabled={isDeleting}
-                className="bg-red-500 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                className="rounded-md bg-red-500 px-4 py-2 text-[10px] font-bold uppercase tracking-[0.18em] text-white transition-colors hover:bg-red-400 disabled:cursor-not-allowed disabled:opacity-60"
               >
                 {isDeleting ? 'Deleting...' : 'Yes, Delete Organisation'}
               </button>
@@ -154,20 +154,23 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
 
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 h-full w-[240px] bg-zinc-900 border-r border-white/5 flex flex-col z-50 transition-transform duration-300 md:translate-x-0',
+          'fixed inset-y-0 left-0 h-full w-[240px] bg-zinc-950 border-r border-white/10 flex flex-col z-50 transition-transform duration-300 md:translate-x-0',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
-        <div className="p-5 border-b border-white/5">
+        <div className="p-5 border-b border-white/10">
           <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-white flex items-center justify-center flex-shrink-0">
+            <div className="w-8 h-8 rounded-md bg-white flex items-center justify-center flex-shrink-0 shadow-[0_0_32px_rgba(255,255,255,0.12)]">
               <svg width="16" height="16" viewBox="0 0 28 28" fill="none">
                 <rect x="2" y="8" width="10" height="4" fill="black"/>
                 <rect x="2" y="16" width="16" height="4" fill="black" fillOpacity="0.7"/>
                 <rect x="16" y="8" width="10" height="12" fill="black" fillOpacity="0.5"/>
               </svg>
             </div>
-            <span className="font-bold text-white text-sm tracking-widest uppercase">Relay</span>
+            <div>
+              <span className="block font-bold text-white text-sm tracking-widest uppercase">Relay</span>
+              <span className="block text-[9px] font-bold uppercase tracking-[0.18em] text-zinc-500">Ops Console</span>
+            </div>
           </div>
         </div>
 
@@ -180,8 +183,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 href={href}
                 onClick={onClose}
                 className={cn(
-                  'flex items-center gap-3 px-3 py-2.5 rounded-none text-[10px] font-bold uppercase tracking-widest transition-all duration-150',
-                  active ? 'bg-white text-black' : 'text-zinc-500 hover:bg-white/5 hover:text-white'
+                  'flex items-center gap-3 rounded-md px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest transition-all duration-150',
+                  active ? 'bg-white text-black shadow-[0_10px_30px_rgba(255,255,255,0.08)]' : 'text-zinc-500 hover:bg-white/5 hover:text-white'
                 )}
               >
                 <Icon size={16} strokeWidth={active ? 2.5 : 2} />
@@ -191,8 +194,8 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           })}
         </nav>
 
-        <div className="p-4 border-t border-white/5">
-          <div className="flex items-center gap-3">
+        <div className="p-4 border-t border-white/10 bg-black/20">
+          <div className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.03] p-3">
             {user?.imageUrl ? (
               <Image
                 src={user.imageUrl}
@@ -218,7 +221,7 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
                 type="button"
                 onClick={() => setShowDeleteModal(true)}
                 disabled={isDemoUser}
-                className="mt-3 w-full border border-red-500/20 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-red-300 transition-colors hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-zinc-500 disabled:hover:bg-transparent"
+                className="mt-3 w-full rounded-md border border-red-500/20 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-red-300 transition-colors hover:border-red-400/40 hover:bg-red-500/10 hover:text-red-200 disabled:cursor-not-allowed disabled:border-white/10 disabled:text-zinc-500 disabled:hover:bg-transparent"
               >
                 Delete Organisation
               </button>
@@ -233,8 +236,9 @@ export default function Sidebar({ isOpen, onClose }: SidebarProps) {
           <button
             type="button"
             onClick={handleSignOut}
-            className="mt-3 w-full border border-white/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-md border border-white/10 px-3 py-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-300 transition-colors hover:border-white/20 hover:bg-white/5 hover:text-white"
           >
+            <LogOut size={12} />
             Sign Out
           </button>
         </div>

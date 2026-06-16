@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useClerk, useSignIn, useUser } from '@clerk/nextjs'
-import { ArrowRight } from 'lucide-react'
+import { ArrowRight, BadgeCheck, BriefcaseBusiness, RotateCcw, ShieldCheck, Sparkles, Users } from 'lucide-react'
 import toast from 'react-hot-toast'
 import type { ApiError } from '@/types'
 
@@ -17,6 +17,12 @@ const ROLE_DESCRIPTIONS: Record<string, string> = {
   'ADMIN': 'Full system access, org settings, audit logs',
   'MANAGER': 'Schedule team, approve swaps, run payroll',
   'EMPLOYEE': 'Clock in/out, request swaps, view payslips'
+}
+
+const ROLE_ICONS: Record<string, React.ElementType> = {
+  'ADMIN': ShieldCheck,
+  'MANAGER': BriefcaseBusiness,
+  'EMPLOYEE': Users
 }
 
 const getApiBase = () => {
@@ -189,54 +195,85 @@ export default function DemoAccessPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#050505] text-white flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden bg-[#050505] p-4 text-white">
       {/* Background grid */}
       <div
         className="fixed inset-0 z-0 opacity-[0.03] pointer-events-none"
         style={{ backgroundImage: 'radial-gradient(#fff 1px, transparent 1px)', backgroundSize: '40px 40px' }}
       />
 
-      <div className="w-full max-w-4xl relative z-10 border border-white/10 bg-zinc-900/50 backdrop-blur-xl">
-        <div className="p-8 md:p-12 border-b border-white/10">
-          <div className="mb-8">
-            <p className="text-[10px] font-bold uppercase tracking-[0.3em] text-white/40 mb-3">Demo Access</p>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-3">Open the seeded demo workspace</h1>
-            <p className="text-sm text-white/60 max-w-2xl">
-              Choose one of the prepared demo accounts below. If another account is already signed in, Relay will switch sessions cleanly and take you straight to the dashboard.
+      <div className="relative z-10 w-full max-w-5xl overflow-hidden rounded-lg border border-white/10 bg-zinc-950/75 shadow-2xl shadow-black/50 backdrop-blur-xl">
+        <div className="grid border-b border-white/10 lg:grid-cols-[1fr_320px]">
+          <div className="p-8 md:p-12">
+            <div className="mb-8 inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/[0.04] px-3 py-1.5">
+              <Sparkles size={13} className="text-white/60" />
+              <p className="text-[10px] font-bold uppercase tracking-[0.22em] text-white/50">Guided Demo Access</p>
+            </div>
+            <h1 className="max-w-2xl text-3xl font-bold md:text-5xl">
+              Open a production-like workforce workspace.
+            </h1>
+            <p className="mt-4 max-w-2xl text-sm leading-6 text-white/55">
+              Pick a role and Relay will sign you into a seeded organisation with schedules, attendance, payroll, announcements, and audit history ready to explore.
             </p>
+          </div>
+          <div className="border-t border-white/10 bg-white/[0.03] p-8 lg:border-l lg:border-t-0 md:p-10">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-md border border-emerald-400/20 bg-emerald-400/10 text-emerald-200">
+                <BadgeCheck size={18} />
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/35">First run</p>
+                <p className="mt-1 text-sm font-semibold text-white">No password setup needed</p>
+              </div>
+            </div>
+            <div className="mt-8 space-y-3 text-[10px] font-bold uppercase tracking-[0.16em] text-white/35">
+              <p>Seeded accounts</p>
+              <p>Clean session switching</p>
+              <p>Resettable demo state</p>
+            </div>
           </div>
         </div>
 
         {error && (
-          <div className="mx-8 md:mx-12 mt-8 border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100">
+          <div className="mx-8 mt-8 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-100 md:mx-12">
             {error}
           </div>
         )}
 
         {loadingUsers ? (
-          <div className="p-8 md:p-12 text-[10px] font-bold uppercase tracking-widest text-white/40">Loading demo accounts...</div>
+          <div className="grid gap-3 p-8 md:p-12">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="h-28 animate-pulse rounded-lg border border-white/10 bg-white/[0.04]" />
+            ))}
+          </div>
         ) : (
           <div className="divide-y divide-white/10">
             {users.map((user, i) => {
               const active = pendingEmail === user.email && isSubmitting
+              const RoleIcon = ROLE_ICONS[user.role] || Users
               return (
                 <button
                   key={user.email}
                   type="button"
                   onClick={() => signInWithDemoUser(user.email)}
                   disabled={!isLoaded || active}
-                  className="w-full text-left p-8 md:p-12 hover:bg-white/[0.03] transition-colors disabled:opacity-60 group flex items-center justify-between gap-6"
+                  className="group flex w-full items-center justify-between gap-6 p-6 text-left transition-colors hover:bg-white/[0.04] disabled:opacity-60 md:p-8"
                 >
-                  <div className="flex-1">
-                    <div className="flex items-center gap-4 mb-3">
-                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Role {String(i + 1).padStart(2, '0')}</span>
-                      <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30">
-                        {active ? 'Signing in...' : 'Use account'}
-                      </span>
+                  <div className="flex min-w-0 flex-1 items-start gap-4">
+                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-white/10 bg-white/[0.04] text-white/60 transition-colors group-hover:border-white/20 group-hover:text-white">
+                      <RoleIcon size={18} />
                     </div>
-                    <h2 className="text-xl font-bold text-white mb-1">{user.name}</h2>
-                    <p className="text-sm text-white/55 break-all mb-2">{user.email}</p>
-                    <p className="text-xs text-white/40">{ROLE_DESCRIPTIONS[user.role] || ''}</p>
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-3 flex flex-wrap items-center gap-3">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/40">Role {String(i + 1).padStart(2, '0')}</span>
+                        <span className="rounded-full border border-white/10 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[0.16em] text-white/35">
+                          {active ? 'Signing in' : user.role}
+                        </span>
+                      </div>
+                      <h2 className="mb-1 text-xl font-bold text-white">{user.name}</h2>
+                      <p className="mb-2 break-all text-sm text-white/55">{user.email}</p>
+                      <p className="text-xs text-white/40">{ROLE_DESCRIPTIONS[user.role] || ''}</p>
+                    </div>
                   </div>
                   <ArrowRight size={16} className="text-white/30 group-hover:text-white group-hover:translate-x-1 transition-all shrink-0" />
                 </button>
@@ -245,19 +282,20 @@ export default function DemoAccessPage() {
           </div>
         )}
 
-        <div className="p-8 md:p-12 border-t border-white/10 flex items-center justify-between">
+        <div className="flex flex-col gap-4 border-t border-white/10 p-6 sm:flex-row sm:items-center sm:justify-between md:p-8">
           <button
             type="button"
             onClick={() => router.push('/sign-in')}
-            className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 hover:text-white transition-colors"
+            className="text-left text-[10px] font-bold uppercase tracking-[0.2em] text-white/50 transition-colors hover:text-white"
           >
             Back to regular sign-in
           </button>
           <button
             type="button"
             onClick={resetDemo}
-            className="text-[10px] font-bold uppercase tracking-[0.2em] text-white/30 hover:text-white transition-colors"
+            className="inline-flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-white/35 transition-colors hover:text-white"
           >
+            <RotateCcw size={13} />
             Reset demo data
           </button>
         </div>

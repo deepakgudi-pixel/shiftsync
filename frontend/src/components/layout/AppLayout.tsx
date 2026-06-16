@@ -56,20 +56,22 @@ export default function AppLayout({ children, variant = 'default' }: AppLayoutPr
   }, [])
 
   const wrapperClass = variant === 'light'
-    ? 'flex min-h-screen bg-zinc-50 selection:bg-black selection:text-white'
+    ? 'flex min-h-screen bg-[radial-gradient(circle_at_top_left,#eef2ff_0,#f8f8fc_36%,#ffffff_100%)] selection:bg-black selection:text-white'
     : 'flex min-h-screen'
 
   return (
     <AppLayoutContext.Provider value={{ setPageLoading }}>
       <div className={wrapperClass}>
-        <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-zinc-900 border-b border-white/5 z-30 flex items-center px-4">
+        <header className="md:hidden fixed top-0 left-0 right-0 h-14 bg-zinc-950/90 border-b border-white/10 z-30 flex items-center justify-between px-4 backdrop-blur-xl">
           <button
             onClick={() => setIsSidebarOpen(true)}
             className="p-2 -ml-2 text-zinc-400 hover:text-white transition-colors"
+            aria-label="Open navigation"
           >
             <Menu size={20} />
           </button>
-          <span className="ml-2 font-bold text-white tracking-widest uppercase text-xs">Relay</span>
+          <span className="font-bold text-white tracking-widest uppercase text-xs">Relay</span>
+          <span className="h-8 w-8" aria-hidden="true" />
         </header>
 
         <Sidebar isOpen={isSidebarOpen} onClose={() => setIsSidebarOpen(false)} />

@@ -1,5 +1,5 @@
 'use client'
-import { Plus, Trash2, User } from 'lucide-react'
+import { Plus, Trash2, User, Megaphone } from 'lucide-react'
 import { cn, fmtRelative } from '@/lib/utils'
 import type { DashboardAnnouncement, Member } from '@/features/dashboard/hooks/useDashboard'
 
@@ -12,36 +12,47 @@ type AnnouncementsProps = {
 
 export function Announcements({ announcements, member, onDelete, onCreatePost }: AnnouncementsProps) {
   return (
-    <div className="bg-white border border-zinc-200 p-5 lg:col-span-3 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em] border-l-2 border-black pl-3">
-          Announcements
-        </h2>
+    <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-card lg:col-span-3">
+      <div className="mb-5 flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-9 w-9 items-center justify-center rounded-md bg-zinc-100 text-zinc-700">
+            <Megaphone size={16} />
+          </div>
+          <div>
+            <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">
+              Announcements
+            </h2>
+            <p className="mt-1 text-[10px] font-medium text-zinc-400">Org-wide updates and role-targeted notes</p>
+          </div>
+        </div>
         {member?.role === 'ADMIN' && (
           <button
             onClick={onCreatePost}
-            className="px-3 py-1 bg-black text-white text-[9px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-colors"
+            className="flex items-center gap-1.5 rounded-md bg-black px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white transition-colors hover:bg-zinc-800"
           >
-            <Plus size={12} className="inline mr-1" /> Create Post
+            <Plus size={12} /> Create
           </button>
         )}
       </div>
 
       {announcements.length === 0 && (
-        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-          No active announcements
-        </p>
+        <div className="rounded-lg border border-dashed border-zinc-200 bg-zinc-50 px-4 py-8 text-center">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            No active announcements
+          </p>
+        </div>
       )}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
         {announcements.slice(0, 6).map((a) => (
           <div
             key={a.id}
-            className="p-4 border border-zinc-100 bg-zinc-50 relative group hover:border-zinc-300 transition-all"
+            className="group relative rounded-lg border border-zinc-100 bg-zinc-50 p-4 transition-all hover:border-zinc-300 hover:bg-white hover:shadow-sm"
           >
             {member?.role === 'ADMIN' && (
               <button
                 onClick={() => onDelete(a.id)}
-                className="absolute top-2 right-2 p-1 text-zinc-300 hover:text-black opacity-0 group-hover:opacity-100 transition-opacity"
+                className="absolute right-2 top-2 rounded-md p-1 text-zinc-300 opacity-0 transition-opacity hover:bg-zinc-100 hover:text-black group-hover:opacity-100"
+                aria-label={`Delete announcement ${a.title}`}
               >
                 <Trash2 size={14} />
               </button>
@@ -50,11 +61,11 @@ export function Announcements({ announcements, member, onDelete, onCreatePost }:
               <p className="text-[11px] font-bold text-black uppercase tracking-widest leading-tight">{a.title}</p>
               <span
                 className={cn(
-                  'text-[8px] font-black px-1.5 py-0.5 uppercase tracking-tighter',
+                  'rounded-full px-2 py-0.5 text-[8px] font-black uppercase',
                   a.priority === 'URGENT'
-                    ? 'bg-black text-white'
+                    ? 'bg-red-600 text-white'
                     : a.priority === 'HIGH'
-                      ? 'bg-zinc-200 text-black'
+                      ? 'bg-amber-100 text-amber-800'
                       : 'bg-white text-zinc-400 border border-zinc-100'
                 )}
               >
