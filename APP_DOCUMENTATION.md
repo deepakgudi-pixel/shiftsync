@@ -32,42 +32,56 @@ Relay is a multi-tenant, event-driven workforce management platform. Every mutat
 relay/
 ├── backend/
 │   ├── src/
-│   │   ├── index.js                  # Express server, middleware chain
+│   │   ├── index.ts                  # Express server, middleware chain
 │   │   ├── db/
-│   │   │   ├── client.js             # PostgreSQL pool (max 20 connections)
-│   │   │   └── setup.js              # Schema creation + triggers
+│   │   │   ├── client.ts             # PostgreSQL pool (max 20 connections)
+│   │   │   ├── setup.ts              # Schema creation + triggers
+│   │   │   └── seed.ts               # Demo account seeding
 │   │   ├── routes/
-│   │   │   ├── organisations.js      # Org settings, announcements, currency
-│   │   │   ├── members.js            # Team CRUD, onboarding, availability
-│   │   │   ├── shifts.js             # Shift CRUD + swap requests
-│   │   │   ├── attendance.js         # Clock in/out + timesheets
-│   │   │   ├── payroll.js            # Pay periods, processing, employee rates
-│   │   │   ├── payslips.js           # Payslip listing + PDF generation
-│   │   │   ├── overtime.js           # OT rule management
-│   │   │   ├── messages.js           # Direct messaging (AES-256-GCM)
-│   │   │   ├── notifications.js      # Per-user notifications
-│   │   │   ├── analytics.js          # Workforce KPIs
-│   │   │   ├── audit.js              # Audit log queries
-│   │   │   ├── events.js             # Event feed for reconnect recovery
-│   │   │   └── dev.js                # Demo access routes
+│   │   │   ├── organisations.ts      # Org settings, announcements, currency
+│   │   │   ├── members.ts            # Team CRUD, onboarding, availability
+│   │   │   ├── shifts.ts             # Shift CRUD + swap requests
+│   │   │   ├── attendance.ts         # Clock in/out + timesheets
+│   │   │   ├── payroll.ts            # Pay periods, processing, employee rates
+│   │   │   ├── payslips.ts           # Payslip listing + PDF generation
+│   │   │   ├── overtime.ts           # OT rule management
+│   │   │   ├── messages.ts           # Direct messaging (AES-256-GCM)
+│   │   │   ├── notifications.ts      # Per-user notifications
+│   │   │   ├── analytics.ts          # Workforce KPIs
+│   │   │   ├── audit.ts              # Audit log queries
+│   │   │   ├── events.ts             # Event feed for reconnect recovery
+│   │   │   └── dev.ts                # Demo access + seed/reset routes
 │   │   ├── middleware/
-│   │   │   ├── auth.js               # Clerk JWT verification + role guards
-│   │   │   └── rateLimit.js          # Per-user sliding-window rate limiter
+│   │   │   ├── auth.ts               # Clerk JWT verification + role guards
+│   │   │   └── rateLimit.ts          # Per-user sliding-window rate limiter
 │   │   ├── lib/
-│   │   │   ├── audit.js              # Audit logging utility
-│   │   │   ├── payrollCalculations.js # OT math (daily/weekly thresholds)
-│   │   │   ├── events.js             # Event type constants
-│   │   │   ├── eventEmitter.js       # Transactional event emission
-│   │   │   ├── shiftConflicts.js     # SQL overlap detection
-│   │   │   └── encryption.js         # AES-256-GCM encrypt/decrypt
+│   │   │   ├── audit.ts              # Audit logging utility
+│   │   │   ├── payrollCalculations.ts # OT math (daily/weekly thresholds)
+│   │   │   ├── events.ts             # Event type constants
+│   │   │   ├── eventEmitter.ts       # Transactional event emission
+│   │   │   ├── shiftConflicts.ts     # SQL overlap detection
+│   │   │   └── encryption.ts         # AES-256-GCM encrypt/decrypt
+│   │   ├── services/
+│   │   │   ├── attendanceService.ts  # Clock transactions + timesheet aggregation
+│   │   │   ├── payrollService.ts     # Payroll queries + processing logic
+│   │   │   ├── shiftService.ts       # Shift workflows + conflict helpers
+│   │   │   └── jobQueueService.ts    # Durable background jobs + pg-boss publishing
+│   │   ├── scripts/
+│   │   │   ├── check-demo-env.ts     # Demo env validation
+│   │   │   ├── run-manager-flow.ts   # Local scripted manager workflow
+│   │   │   └── seed-demo-scenario.ts # Rich Northstar logistics scenario
 │   │   └── socket/
-│   │       └── index.js              # Socket.io room management (org/user)
+│   │       └── index.ts              # Socket.io room management (org/user)
+│   ├── workers/
+│   │   └── queueWorker.ts            # pg-boss worker runtime
 │   └── test/
 │       ├── helpers/
 │       │   ├── http.js               # In-process router test harness
 │       │   └── moduleMocks.js        # Dependency mocking for routes
 │       ├── payroll-calculations.test.js
-│       └── routes.integration.test.js
+│       ├── shifts.integration.test.js
+│       ├── crossOrg.integration.test.js
+│       └── ...
 │
 ├── frontend/
 │   ├── src/
@@ -77,7 +91,7 @@ relay/
 │   │   │   ├── error.tsx             # Global error boundary
 │   │   │   ├── (auth)/               # Sign-in, sign-up pages
 │   │   │   ├── dashboard/            # KPIs, announcements, upcoming shifts
-│   │   │   ├── schedule/             # Kanban board (OPEN/ASSIGNED/IN_PROGRESS/COMPLETED)
+│   │   │   ├── schedule/             # Searchable roster board with internal column scrolling
 │   │   │   ├── team/                 # Member management + role editing
 │   │   │   ├── attendance/           # Clock in/out + timesheets
 │   │   │   ├── payroll/              # Pay periods, processing, payslips
@@ -97,7 +111,10 @@ relay/
 │   │   ├── types/
 │   │   │   └── index.ts              # Shared TypeScript interfaces
 │   │   └── lib/
+│   │       ├── env.ts                # Trailing-slash-safe API/socket URL helpers
 │   │       └── utils.ts              # Helpers (initials, formatters, colors)
+│   ├── scripts/
+│   │   └── verify-ux.mjs             # Playwright browser verification for public/demo flows
 │   ├── middleware.ts                  # Clerk route protection
 │   └── tailwind.config.js
 │
@@ -502,7 +519,7 @@ Event types: `shift.created/updated/deleted/assigned`, `attendance.clock_in/cloc
 | Authorization | RBAC middleware (`requireAuth`, `requireRole`) on all protected routes |
 | Multi-tenant | Every query filtered by `organisation_id` |
 | Headers | Helmet.js: CSP, HSTS (1yr), frame-ancestors: none, XSS filter, strict referrer |
-| CORS | Restricted to `FRONTEND_URL` origin |
+| CORS | Restricted to `FRONTEND_URL` plus optional `FRONTEND_URLS` origins |
 | Rate limiting | Global 1000 req/15min per IP (admin bypass) + per-user sliding window on sensitive routes |
 | Input validation | express-validator on POST/PUT/PATCH (trim, escape, UUID check, enum check) |
 | SQL injection | Parameterized queries only |
@@ -512,14 +529,13 @@ Event types: `shift.created/updated/deleted/assigned`, `attendance.clock_in/cloc
 
 ## Testing
 
-- Node.js built-in test runner (`node --test`)
-- Unit tests for payroll math and overtime calculations
-- Integration tests for route handlers with mocked dependencies
-- Tests cover: payroll calculations, overtime rules, shift conflict detection, cross-org isolation
-- Run: `npm test`
+- Backend: Node.js built-in test runner (`node --test`) for payroll math and in-process route integration tests with mocked dependencies
+- Frontend: Vitest + React Testing Library for utilities and component rendering
+- Browser verification: `cd frontend && npm run verify:ux` for Playwright screenshots and console-error checks on the core public/demo routes
+- Coverage focus: payroll calculations, overtime rules, shift conflict detection, cross-org isolation, dashboard/status components, and env URL normalization
 
 ## CI/CD
 
 GitHub Actions workflow on push/PR to main:
 - Backend: `npm run lint` → `npm run typecheck` → `npm test`
-- Frontend: `npm run lint` → `npm run build`
+- Frontend: `npm run lint` → `npm run typecheck` → `npm run build`

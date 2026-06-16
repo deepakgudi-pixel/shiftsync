@@ -78,8 +78,8 @@ features/
 ```
 HTTP Request
   → Rate limiter (global 1000 req/15min, skips ADMIN)
-  → routes/index.js (route registry)
-    → middleware/auth.js (Clerk JWT → req.member + req.clerkUserId)
+  → routes/index.ts (route registry)
+    → middleware/auth.ts (Clerk JWT → req.member + req.clerkUserId)
       → requireRole() (RBAC check)
         → express-validator (input validation)
           → service layer (DB queries, business logic)
@@ -95,15 +95,15 @@ Domain logic lives in `src/services/`, not in route files:
 
 | Service | Responsibility |
 |---|---|
-| `payrollService.js` | Pay period CRUD, payroll processing, snapshot insertion, employee rate queries |
-| `shiftService.js` | Shift CRUD, conflict detection, swap requests, permission helpers |
-| `attendanceService.js` | Clock-in/out transactions, timesheet aggregation, live attendance |
+| `payrollService.ts` | Pay period CRUD, payroll processing, snapshot insertion, employee rate queries |
+| `shiftService.ts` | Shift CRUD, conflict detection, swap requests, permission helpers |
+| `attendanceService.ts` | Clock-in/out transactions, timesheet aggregation, live attendance |
 
 **Rule**: Route files handle HTTP concerns only (auth, validation, status codes, req/res). Service files handle all database interaction and domain logic.
 
 ### Route Registry
 
-`src/routes/index.js` is the single source of truth for base paths:
+`src/routes/index.ts` is the single source of truth for base paths:
 
 ```javascript
 const routes = [
@@ -112,14 +112,14 @@ const routes = [
   { path: '/api/payroll',    router: require('./payroll') },
   // ...
 ];
-// Registered in index.js with: for (const route of routes) app.use(route.path, route.router)
+// Registered in index.ts with: for (const route of routes) app.use(route.path, route.router)
 ```
 
-To add a new API domain: create `src/routes/myfeature.js`, then add it to this array.
+To add a new API domain: create `src/routes/myfeature.ts`, then add it to this array.
 
 ### PostgreSQL (node-postgres)
 
-- Connection pool: `src/db/client.js` — exports `{ query, pool }`
+- Connection pool: `src/db/client.ts` — exports `{ query, pool }`
 - Always use parameterised queries: `$1`, `$2` — never string interpolation
 - Transactions for multi-step writes:
   ```javascript
@@ -147,7 +147,7 @@ To add a new API domain: create `src/routes/myfeature.js`, then add it to this a
 
 - `events` table — canonical, append-only event log (DB trigger blocks UPDATE/DELETE)
 - `emitEvent({ client, organisationId, memberId, eventType, entityType, entityId, payload, req })` — writes to event log, optionally within an open transaction
-- Event type constants: `src/lib/events.js`
+- Event type constants: `src/lib/events.ts`
 - Downstream: Socket.io broadcasts events to `org:${id}` and `user:${id}` rooms
 
 ### Audit Logging
@@ -158,7 +158,7 @@ To add a new API domain: create `src/routes/myfeature.js`, then add it to this a
 
 ### Payroll Calculations
 
-- `src/lib/payrollCalculations.js` — pure, side-effect-free math functions
+- `src/lib/payrollCalculations.ts` — pure, side-effect-free math functions
 - `calculatePayrollTotals({ dailyHours, hourlyRate, overtimeMultiplier, rule })` — handles both daily and weekly OT thresholds, picks the larger result
 - `roundToCents()` for financial-safe rounding
 - `normalizeOvertimeRule()` — ensures consistent field types regardless of DB/default source
@@ -237,11 +237,11 @@ Every socket handshake requires a Clerk JWT in `socket.handshake.auth.token`. Th
 | RBAC | `requireRole()` middleware on every mutating route |
 | Org scoping | Every query filters `organisation_id = req.member.organisation_id` |
 | Headers | Helmet.js: CSP, HSTS (1yr + preload), X-Frame-Options: DENY, noSniff |
-| CORS | Restricted to `FRONTEND_URL` env var |
+| CORS | Restricted to `FRONTEND_URL` plus optional `FRONTEND_URLS` origins |
 | Rate limiting | 1000 req/15min globally; per-user keyed by `member.id`; ADMIN role skipped |
 | Input validation | `express-validator` on all POST/PUT/PATCH routes |
 | SQL injection | Parameterised queries only — no string interpolation ever |
-| Encryption | AES-256-GCM for message content (`src/lib/encryption.js`) |
+| Encryption | AES-256-GCM for message content (`src/lib/encryption.ts`) |
 | Debug endpoints | `/api/attendance/debug*` require non-production `NODE_ENV` and `ATTENDANCE_DEBUG_ENDPOINTS_ENABLED=true` |
 | Demo access | `/api/dev/demo-*` routes are unavailable in `NODE_ENV=production`, even if `DEMO_ACCESS_ENABLED=true` |
 | Shift concurrency | Schedule updates send `If-Match` using `shifts.version`; stale updates return `409 SHIFT_VERSION_CONFLICT` |
@@ -266,6 +266,12 @@ cd frontend && npm run dev    # → http://localhost:3000
 # Test (backend integration tests)
 cd backend && npm test
 
+# Frontend tests
+cd frontend && npm test
+
+# Browser UX verification
+cd frontend && npm run verify:ux
+
 # Lint
 cd backend  && npm run lint
 cd frontend && npm run lint
@@ -280,11 +286,11 @@ cd frontend && npx tsc --noEmit
 
 | File | Why |
 |---|---|
-| `backend/src/index.js` | Server setup, middleware chain, rate limiter placement |
-| `backend/src/routes/index.js` | Route registry — add new APIs here |
-| `backend/src/middleware/auth.js` | Clerk JWT flow, dev bypass |
-| `backend/src/services/payrollService.js` | Most complex domain logic in the codebase |
-| `backend/src/lib/payrollCalculations.js` | Pure OT math — modify with care |
+| `backend/src/index.ts` | Server setup, middleware chain, rate limiter placement |
+| `backend/src/routes/index.ts` | Route registry — add new APIs here |
+| `backend/src/middleware/auth.ts` | Clerk JWT flow, dev bypass |
+| `backend/src/services/payrollService.ts` | Most complex domain logic in the codebase |
+| `backend/src/lib/payrollCalculations.ts` | Pure OT math — modify with care |
 | `frontend/src/types/index.ts` | All shared interfaces — source of truth for API shapes |
 | `frontend/src/hooks/useApi.ts` | Auth-injecting Axios wrapper |
 | `frontend/src/hooks/useSocket.ts` | Socket connection + reconnect recovery |
@@ -322,5 +328,5 @@ cd frontend && npx tsc --noEmit
 - Shifts **lock after first clock-in** — `startTime`, `endTime`, `assigneeId` changes are rejected with `SHIFT_LOCKED_AFTER_CLOCK_IN`
 - `events` and `audit_logs` are **append-only** — DB triggers prevent UPDATE/DELETE
 - `employee_rates.effective_rate_id` in payroll snapshots stores the `employee_rates.id` FK — not the member ID
-- The rate limiter must be registered **before** the routes loop in `index.js`
-- Debug endpoints in `attendance.js` are wrapped in `if (process.env.NODE_ENV !== 'production')` — don't remove this guard
+- The rate limiter must be registered **before** the routes loop in `index.ts`
+- Debug endpoints in `attendance.ts` are wrapped in non-production + feature-flag guards — don't remove them

@@ -17,9 +17,9 @@ This roadmap keeps cleanup work visible and reviewable. The goal is a codebase t
 ## Refactor Priorities
 
 1. Split oversized backend routes into HTTP routers plus domain/service helpers.
-   - Completed: `backend/src/routes/payroll.js` (438 → 169 lines) split into thin route handlers + `backend/src/services/payrollService.js`.
-   - Completed: `backend/src/routes/shifts.js` (383 → 302 lines) split into thin route handlers + `backend/src/services/shiftService.js`.
-   - Completed: `backend/src/routes/attendance.js` (322 → 144 lines) split into thin route handlers + `backend/src/services/attendanceService.js`.
+   - Completed: `backend/src/routes/payroll.ts` (438 → 169 lines) split into thin route handlers + `backend/src/services/payrollService.ts`.
+   - Completed: `backend/src/routes/shifts.ts` (383 → 302 lines) split into thin route handlers + `backend/src/services/shiftService.ts`.
+   - Completed: `backend/src/routes/attendance.ts` (322 → 144 lines) split into thin route handlers + `backend/src/services/attendanceService.ts`.
    - Target shape: route validates request, service owns workflow, lib owns pure business rules.
 
 2. Split oversized frontend pages into feature components and hooks.
@@ -31,7 +31,8 @@ This roadmap keeps cleanup work visible and reviewable. The goal is a codebase t
 3. Tighten TypeScript usage on the frontend.
    - Completed: All `any` types removed from payroll feature area (`usePayroll`, tab components, modals).
    - Added shared types: `PayPeriodTimesheet`, `TimesheetEmployee`, `PayPeriodSummary`, `EmployeeRate`, `PayslipWithPeriod`, `ProcessPayPeriodResult`.
-   - Remaining: `any` in other pages (analytics, attendance, audit, messages, schedule, team) — pre-existing, not part of refactoring scope.
+   - Completed: current page/feature code lint clean with no frontend `any` usage in app/features, including the refreshed schedule board.
+   - Remaining: backend strictness cleanup still has a small number of interop and helper `any` escape hatches.
 
 4. Keep setup and demo paths boring.
    - Preserve `npm run demo:seed` as the canonical demo rebuild command.
@@ -54,7 +55,7 @@ This roadmap keeps cleanup work visible and reviewable. The goal is a codebase t
 7. Larger architecture slices to keep isolated.
    - Backend TypeScript strictness: source now compiles as TypeScript; keep tightening domain DTOs and service return types incrementally.
    - Worker depth: pg-boss now handles payroll fan-out; add retry dashboards, dead-letter views, and more queues as async workloads grow.
-   - Playwright E2E: add after choosing a stable browser test account and seed reset strategy.
+   - Playwright E2E: lightweight browser verification now exists via `frontend/scripts/verify-ux.mjs`; broader authenticated end-to-end suites can be added separately.
 
 ## Done In This Pass
 
@@ -65,10 +66,13 @@ This roadmap keeps cleanup work visible and reviewable. The goal is a codebase t
 - Migrated backend source from JS/JSDoc to TypeScript with `ts-node` dev/test flow and compiled `dist/` production startup.
 - Added pg-boss worker runtime for payroll fan-out and durable `background_jobs` status tracking.
 - Added non-production + feature-flag gating for attendance debug endpoints and production-hard demo route disabling.
+- Added `frontend/scripts/verify-ux.mjs` plus `npm run verify:ux` for repeatable Playwright browser verification.
+- Polished the schedule board with search, assignee filtering, internal column scrolling, and denser roster cards for large shift volumes.
+- Reworked the demo scenario into a richer Northstar Logistics seed with 70+ completed shifts, live operations, payroll snapshots, open coverage, and pending swaps.
 - Split `frontend/src/app/dashboard/page.tsx` (535 → 135 lines) into `useDashboard` hook + 7 components.
 - Split `frontend/src/app/page.tsx` (438 → 99 lines) into `WebGLHero`, `SmoothScroll`, and 7 section components.
 - Split `frontend/src/app/payroll/page.tsx` (851 → 168 lines) into `usePayroll` hook + 8 components.
-- Split `backend/src/routes/payroll.js` (438 → 169 lines) into thin handlers + `payrollService.js`.
-- Split `backend/src/routes/shifts.js` (383 → 302 lines) into thin handlers + `shiftService.js`.
-- Split `backend/src/routes/attendance.js` (322 → 144 lines) into thin handlers + `attendanceService.js`.
+- Split `backend/src/routes/payroll.ts` (438 → 169 lines) into thin handlers + `payrollService.ts`.
+- Split `backend/src/routes/shifts.ts` (383 → 302 lines) into thin handlers + `shiftService.ts`.
+- Split `backend/src/routes/attendance.ts` (322 → 144 lines) into thin handlers + `attendanceService.ts`.
 - Updated test helper to clear dependent service modules from cache.

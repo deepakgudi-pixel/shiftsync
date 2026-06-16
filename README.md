@@ -15,6 +15,7 @@ npm run dev         # port 4000
 cd ../frontend && npm install && cp .env.example .env.local
 # Fill in .env.local, then:
 npm run dev         # port 3000
+npm run verify:ux   # optional browser verification after both servers are running
 ```
 
 Visit `http://localhost:3000` — or try the one-click demo at `http://localhost:3000/demo-access`.
@@ -39,7 +40,7 @@ Visit `http://localhost:3000` — or try the one-click demo at `http://localhost
 
 ## Features
 
-- **Scheduling** — Drag-and-drop shift calendar. SQL conflict detection prevents double-booking. Status lifecycle: `OPEN → ASSIGNED → IN_PROGRESS → COMPLETED`. Shifts lock after first clock-in.
+- **Scheduling** — Board-based roster with search, assignee filtering, internally scrolling status columns, and SQL conflict detection that prevents double-booking. Status lifecycle: `OPEN → ASSIGNED → IN_PROGRESS → COMPLETED`. Shifts lock after first clock-in.
 - **Attendance** — Transactional clock-in/out with optional GPS coordinates. Hours flow directly into payroll. Live attendance view for managers and admins.
 - **Payroll** — Pay periods with configurable overtime rules (daily + weekly thresholds). Rates can be overridden per-employee. Snapshots freeze all rates and rules at processing time for auditability. PDF payslips with full earnings breakdown.
 - **Shift Swapping** — Employee swap request → manager approval → instant reassignment with real-time notification.
@@ -60,7 +61,7 @@ Visit `http://localhost:3000` — or try the one-click demo at `http://localhost
 | Process payroll | ✅ | ❌ | ❌ |
 | Post announcements | ✅ | ❌ | ❌ |
 | View audit logs | ✅ | ✅ | ❌ |
-| View analytics | ✅ | ❌ | ❌ |
+| View analytics | ✅ | ✅ | ❌ |
 | Invite team members | ✅ | ✅ | ❌ |
 
 ---
@@ -109,6 +110,7 @@ relay/
 │   │   │   └── landing/          # Landing page sections + WebGL hero
 │   │   ├── hooks/                # useApi, useSocket
 │   │   └── types/index.ts        # Shared TypeScript interfaces
+│   ├── scripts/verify-ux.mjs     # Playwright browser verification for core UX routes
 │   └── middleware.ts             # Clerk route protection
 └── .github/workflows/ci.yml      # Lint · typecheck · test · build
 ```
@@ -194,7 +196,7 @@ npm run worker
 cd backend && npm run demo:seed
 ```
 
-Validates the environment, runs schema setup, creates Clerk demo accounts, and populates a realistic workspace with 30+ completed shifts, live attendance, processed payroll, and pending swap requests.
+Validates the environment, runs schema setup, creates Clerk demo accounts, and populates a realistic Northstar Logistics workspace with 70+ completed shifts, live operations, open weekend coverage, processed payroll snapshots, and a pending swap request.
 
 **Demo accounts** (all use `DEMO_PASSWORD` from `.env`):
 
@@ -203,6 +205,8 @@ Validates the environment, runs schema setup, creates Clerk demo accounts, and p
 | Admin | `demo.admin.northstar+clerk_test@example.com` |
 | Manager | `demo.manager.northstar+clerk_test@example.com` |
 | Employee | `demo.leah.northstar+clerk_test@example.com` |
+| Employee | `demo.nina.northstar+clerk_test@example.com` |
+| Employee | `demo.owen.northstar+clerk_test@example.com` |
 
 ---
 
@@ -211,9 +215,15 @@ Validates the environment, runs schema setup, creates Clerk demo accounts, and p
 ```bash
 cd backend && npm test
 # 93 backend tests — routes, RBAC, conflict detection, payroll, tenancy, demo safety
+
+cd frontend && npm test
+# 74 frontend tests — components, utilities, hooks, and UI state
+
+cd frontend && npm run verify:ux
+# Playwright browser verification for / and /demo-access (run with the local stack up)
 ```
 
-Tests use the real PostgreSQL driver against a test database. Module cache is cleared between test suites to prevent state bleed.
+Backend tests are in-process integration tests with mocked SQL dependencies and fresh module-cache isolation. Frontend browser verification is a separate Playwright-based smoke check, not part of the unit-test count.
 
 ---
 
@@ -224,4 +234,4 @@ GitHub Actions runs on every push to `main` or `master` and every PR:
 - **Backend**: lint → TypeScript typecheck → build → integration tests
 - **Frontend**: lint → TypeScript typecheck → production build
 
-Both jobs run in parallel and cancel on new pushes (via `concurrency`).
+Both jobs run in parallel and cancel on new pushes (via `concurrency`). `npm run verify:ux` is currently a local verification step rather than a CI job.

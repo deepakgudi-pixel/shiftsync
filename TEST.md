@@ -2,7 +2,7 @@
 
 ## Overview
 
-Relay uses a comprehensive testing strategy covering both backend and frontend with **163 total tests** and **~85%+ route coverage**.
+Relay uses a comprehensive testing strategy covering both backend and frontend with **167 total tests** and **~85%+ route coverage**. A separate Playwright browser verification script covers the public/demo UX surfaces.
 
 ---
 
@@ -51,6 +51,14 @@ cd frontend && npm test          # Run once
 cd frontend && npm run test:watch # Watch mode
 ```
 
+## Browser UX Verification
+
+```bash
+cd frontend && npm run verify:ux
+```
+
+This launches Playwright against the local frontend and captures screenshots for the core public/demo routes. For full authenticated flows, run it with the backend available on `http://localhost:4000`.
+
 ---
 
 ## Test Infrastructure
@@ -94,7 +102,7 @@ Tests use **SQL-mocked integration testing** — each route is tested in isolati
 ```javascript
 // Example: Testing shift creation with conflict detection
 const harness = await loadRoute({
-  routeFile: "shifts.js",
+  routeFile: "shifts.ts",
   basePath: "/api/shifts",
   member: { id: "admin-1", organisation_id: "org-1", role: "ADMIN" },
   queryImpl: async (sql) => {
@@ -139,12 +147,14 @@ it('hides total cost for employee', () => {
 
 ## CI Integration
 
-Both test suites run in GitHub Actions on every push and PR:
+The automated CI workflow currently runs backend tests and frontend build validation on every push and PR:
 
 ```yaml
 # Backend
 - run: cd backend && npm test
 
 # Frontend
-- run: cd frontend && npm test
+- run: cd frontend && npm run lint
+- run: cd frontend && npm run typecheck
+- run: cd frontend && npm run build
 ```
