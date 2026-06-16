@@ -10,7 +10,8 @@
     "typecheck": "tsc -p tsconfig.typecheck.json --noEmit --incremental false",
     "format": "prettier --write src/",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify:ux": "node scripts/verify-ux.mjs"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.39.3",
@@ -29,6 +30,7 @@
     "tailwind-merge": "^2.3.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
