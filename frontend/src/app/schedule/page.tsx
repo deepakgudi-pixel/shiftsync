@@ -1,7 +1,7 @@
 'use client'
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useMemo, useState, useCallback } from 'react'
 import { useUser } from '@clerk/nextjs'
-import { Plus, X, Clock, MapPin, User } from 'lucide-react'
+import { Activity, AlertCircle, CalendarDays, Clock, Filter, MapPin, Plus, Search, Timer, User, X } from 'lucide-react'
 
 import toast from 'react-hot-toast'
 import { useApi } from '@/hooks/useApi'
@@ -12,12 +12,23 @@ import { useAppLayout } from '@/components/layout/AppLayout'
 
 const COLORS = ['#4f6eff','#7c3aed','#059669','#dc2626','#d97706','#0891b2','#be185d']
 
-const COLUMNS = [
-  { id: 'OPEN', label: 'Open Shifts', color: 'bg-amber-500' },
-  { id: 'ASSIGNED', label: 'Assigned', color: 'bg-brand-500' },
-  { id: 'IN_PROGRESS', label: 'In Progress', color: 'bg-emerald-500' },
-  { id: 'COMPLETED', label: 'Completed', color: 'bg-surface-400' },
+const COLUMNS: { id: Shift['status']; label: string; shortLabel: string; tone: string; dot: string }[] = [
+  { id: 'OPEN', label: 'Open Shifts', shortLabel: 'Open', tone: 'border-amber-200 bg-amber-50 text-amber-800', dot: 'bg-amber-500' },
+  { id: 'ASSIGNED', label: 'Assigned', shortLabel: 'Assigned', tone: 'border-blue-200 bg-blue-50 text-blue-800', dot: 'bg-blue-500' },
+  { id: 'IN_PROGRESS', label: 'In Progress', shortLabel: 'Live', tone: 'border-emerald-200 bg-emerald-50 text-emerald-800', dot: 'bg-emerald-500' },
+  { id: 'COMPLETED', label: 'Completed', shortLabel: 'Done', tone: 'border-zinc-200 bg-zinc-100 text-zinc-700', dot: 'bg-zinc-500' },
 ]
+
+const getShiftHours = (shift: Shift) => {
+  const start = new Date(shift.start_time)
+  const end = new Date(shift.end_time)
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime())) return 0
+  return Math.max(0, (end.getTime() - start.getTime()) / (1000 * 60 * 60))
+}
+
+const getDateLabel = (value: string) => {
+  return new Date(value).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })
+}
 
 export default function SchedulePage() {
   const { isLoaded, isSignedIn } = useUser()
@@ -32,7 +43,57 @@ export default function SchedulePage() {
   const [activeTab, setActiveTab] = useState('OPEN')
   const [loading, setLoading] = useState(false)
   const [pageLoading, setPageLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [assigneeFilter, setAssigneeFilter] = useState('ALL')
   const socket = useSocket(member?.organisation_id, member?.id)
+
+  const canManageShifts = member?.role === 'ADMIN' || member?.role === 'MANAGER'
+
+  const filteredShifts = useMemo(() => {
+    const normalizedSearch = search.trim().toLowerCase()
+
+    return shifts
+      .filter((shift) => {
+        if (assigneeFilter === 'OPEN') return !shift.assignee_id
+        if (assigneeFilter !== 'ALL' && shift.assignee_id !== assigneeFilter) return false
+        if (!normalizedSearch) return true
+
+        return [
+          shift.title,
+          shift.location,
+          shift.notes,
+          shift.assignee_name,
+          shift.status,
+        ].some((value) => value?.toLowerCase().includes(normalizedSearch))
+      })
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())
+  }, [assigneeFilter, search, shifts])
+
+  const shiftsByStatus = useMemo(() => {
+    return COLUMNS.reduce<Record<Shift['status'], Shift[]>>((acc, column) => {
+      const columnShifts = filteredShifts.filter((shift) => shift.status === column.id)
+      acc[column.id] = column.id === 'COMPLETED'
+        ? [...columnShifts].sort((a, b) => new Date(b.start_time).getTime() - new Date(a.start_time).getTime())
+        : columnShifts
+      return acc
+    }, {
+      OPEN: [],
+      ASSIGNED: [],
+      IN_PROGRESS: [],
+      COMPLETED: [],
+    })
+  }, [filteredShifts])
+
+  const totalScheduledHours = useMemo(() => {
+    return filteredShifts.reduce((sum, shift) => sum + getShiftHours(shift), 0)
+  }, [filteredShifts])
+
+  const nextShift = useMemo(() => {
+    const now = Date.now()
+    return shifts
+      .filter((shift) => new Date(shift.start_time).getTime() >= now && shift.status !== 'COMPLETED')
+      .sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime())[0]
+  }, [shifts])
 
   useEffect(() => {
     setGlobalPageLoading(pageLoading)
@@ -193,98 +254,202 @@ export default function SchedulePage() {
   }
 
   return (
-    <div className="p-5 md:p-8 max-w-[1600px] mx-auto min-h-screen">
-      {/* Header - Compact & Responsive */}
-      <div className="mb-10 border-b border-zinc-200 pb-8 flex flex-col md:flex-row md:items-end justify-between gap-6">
-        <div>
-          <h1 className="text-3xl md:text-4xl font-bold text-black tracking-tight mb-2">Roster</h1>
-          <p className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Live coordination center</p>
+    <div className="min-h-screen p-5 md:p-8">
+      <div className="mx-auto max-w-[1600px]">
+      <div className="mb-6 overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-card">
+        <div className="grid gap-0 lg:grid-cols-[1fr_360px]">
+          <div className="p-6 md:p-8">
+            <div className="mb-5 flex flex-wrap items-center gap-3">
+              <span className="inline-flex items-center gap-2 rounded-full border border-zinc-200 bg-zinc-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-600">
+                <CalendarDays size={13} />
+                Live roster
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-3 py-1.5 text-[10px] font-bold uppercase tracking-[0.16em] text-emerald-700">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {shiftsByStatus.IN_PROGRESS.length} active now
+              </span>
+            </div>
+            <h1 className="text-3xl font-bold text-black md:text-4xl">Schedule</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-zinc-500">
+              Coordinate open coverage, assigned shifts, live operations, and completed work from one roster board.
+            </p>
+          </div>
+
+          <div className="border-t border-zinc-200 bg-zinc-950 p-6 text-white lg:border-l lg:border-t-0 md:p-8">
+            <p className="mb-5 flex items-center gap-2 text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400">
+              <Timer size={14} />
+              Next Shift
+            </p>
+            {nextShift ? (
+              <div>
+                <p className="text-lg font-bold">{nextShift.title}</p>
+                <p className="mt-2 text-xs leading-5 text-zinc-400">
+                  {getDateLabel(nextShift.start_time)} at {fmtTime(nextShift.start_time)}
+                  {nextShift.location ? ` · ${nextShift.location}` : ''}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-zinc-400">No upcoming shift in the current roster window.</p>
+            )}
+          </div>
         </div>
-        {(member?.role === 'ADMIN' || member?.role === 'MANAGER') && (
-          <button 
-            className="px-6 py-3 bg-black text-white text-[10px] font-black uppercase tracking-widest hover:bg-zinc-800 transition-all active:scale-95 flex items-center gap-2" 
-            onClick={() => { resetForm(); setShowModal(true) }}
-          >
-            <Plus size={14} /> New Shift
-          </button>
-        )}
+      </div>
+
+      <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-card">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md border border-blue-100 bg-blue-50 text-blue-700">
+            <CalendarDays size={17} />
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Roster Window</p>
+          <p className="mt-2 text-3xl font-bold text-black">{filteredShifts.length}</p>
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-card">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md border border-amber-100 bg-amber-50 text-amber-700">
+            <AlertCircle size={17} />
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Needs Coverage</p>
+          <p className="mt-2 text-3xl font-bold text-black">{shiftsByStatus.OPEN.length}</p>
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-card">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md border border-emerald-100 bg-emerald-50 text-emerald-700">
+            <Activity size={17} />
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Live Now</p>
+          <p className="mt-2 text-3xl font-bold text-black">{shiftsByStatus.IN_PROGRESS.length}</p>
+        </div>
+        <div className="rounded-lg border border-zinc-200 bg-white p-5 shadow-card">
+          <div className="mb-4 flex h-10 w-10 items-center justify-center rounded-md border border-zinc-200 bg-zinc-100 text-zinc-900">
+            <Clock size={17} />
+          </div>
+          <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-500">Scheduled Hours</p>
+          <p className="mt-2 text-3xl font-bold text-black">{Math.round(totalScheduledHours)}</p>
+        </div>
+      </div>
+
+      <div className="mb-6 rounded-lg border border-zinc-200 bg-white p-4 shadow-card">
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+          <div className="relative flex-1">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+            <input
+              className="h-11 w-full rounded-md border border-zinc-200 bg-zinc-50 pl-10 pr-3 text-sm text-black outline-none transition-colors placeholder:text-zinc-400 focus:border-black focus:bg-white"
+              placeholder="Search shifts, locations, notes, assignees..."
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+            />
+          </div>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="relative">
+              <Filter size={14} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" />
+              <select
+                className="h-11 min-w-[210px] appearance-none rounded-md border border-zinc-200 bg-zinc-50 pl-9 pr-8 text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-600 outline-none transition-colors focus:border-black focus:bg-white"
+                value={assigneeFilter}
+                onChange={(event) => setAssigneeFilter(event.target.value)}
+              >
+                <option value="ALL">All assignees</option>
+                <option value="OPEN">Open only</option>
+                {members.map((person) => (
+                  <option key={person.id} value={person.id}>{person.name}</option>
+                ))}
+              </select>
+            </div>
+            {canManageShifts && (
+              <button
+                className="flex h-11 items-center justify-center gap-2 rounded-md bg-black px-5 text-[10px] font-black uppercase tracking-widest text-white transition-all hover:bg-zinc-800 active:scale-95"
+                onClick={() => { resetForm(); setShowModal(true) }}
+              >
+                <Plus size={14} /> New Shift
+              </button>
+            )}
+          </div>
+        </div>
       </div>
 
       {pageLoading && (
-        <div className="bg-white border border-zinc-200 p-8 text-center text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
+        <div className="rounded-lg border border-zinc-200 bg-white p-8 text-center text-[10px] font-bold uppercase tracking-widest text-zinc-400 shadow-card">
           Loading roster...
         </div>
       )}
 
       {!pageLoading && (
       <>
-      {/* Mobile Column Tabs */}
-      <div className="md:hidden flex p-1 bg-zinc-100 mb-6">
+      <div className="mb-6 grid grid-cols-4 gap-2 rounded-lg border border-zinc-200 bg-white p-1 shadow-card md:hidden">
         {COLUMNS.map(col => (
           <button
             key={col.id}
             onClick={() => setActiveTab(col.id)}
             className={cn(
-              "flex-1 py-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-200",
-              activeTab === col.id ? "bg-white text-black" : "text-zinc-400"
+              'rounded-md px-2 py-2 text-[10px] font-bold uppercase tracking-widest transition-all duration-200',
+              activeTab === col.id ? 'bg-black text-white' : 'text-zinc-400'
             )}
           >
-            {col.id === 'IN_PROGRESS' ? 'Active' : col.label.split(' ')[0]}
+            {col.shortLabel}
           </button>
         ))}
       </div>
 
-      <div className="flex flex-col md:flex-row gap-6 overflow-x-auto pb-6">
+      <div className="flex flex-col gap-5 overflow-x-auto pb-6 md:flex-row">
         {COLUMNS.map(col => (
-          <div key={col.id} className={cn(
-            "w-full md:w-80 flex-shrink-0 flex flex-col bg-white border border-zinc-200 shadow-sm",
-            activeTab !== col.id ? "hidden md:flex" : "flex"
+          <section key={col.id} className={cn(
+            'flex w-full flex-shrink-0 flex-col rounded-lg border border-zinc-200 bg-white shadow-card md:h-[calc(100vh-360px)] md:min-h-[560px] md:w-80 xl:w-[360px]',
+            activeTab !== col.id ? 'hidden md:flex' : 'flex'
           )}>
-            <div className="p-5 flex items-center justify-between border-b border-zinc-100">
-              <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em] border-l-2 border-black pl-3">{col.label}</h2>
-              <span className="text-[10px] text-zinc-400 font-bold bg-zinc-50 px-2 py-0.5 border border-zinc-200">
-                {shifts.filter(s => s.status === col.id).length}
-              </span>
+            <div className="border-b border-zinc-100 p-5">
+              <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <span className={cn('h-2.5 w-2.5 rounded-full', col.dot)} />
+                  <h2 className="text-[10px] font-bold uppercase tracking-[0.2em] text-black">{col.label}</h2>
+                </div>
+                <span className={cn('rounded-full border px-2.5 py-1 text-[10px] font-bold', col.tone)}>
+                  {shiftsByStatus[col.id].length}
+                </span>
+              </div>
             </div>
             
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[400px]">
-              {shifts.filter(s => s.status === col.id).length === 0 && (
-                <div className="h-full min-h-[200px] border border-dashed border-zinc-200 bg-zinc-50/50 flex items-center justify-center p-6 text-center">
-                  <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">
-                    {col.id === 'OPEN' ? 'No open shifts' : `No ${col.label.toLowerCase()}`}
+            <div className="min-h-[420px] flex-1 space-y-3 overflow-y-auto p-4 md:min-h-0">
+              {shiftsByStatus[col.id].length === 0 && (
+                <div className="flex min-h-[220px] items-center justify-center rounded-lg border border-dashed border-zinc-200 bg-zinc-50 p-6 text-center">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    {search || assigneeFilter !== 'ALL'
+                      ? 'No matching shifts'
+                      : col.id === 'OPEN'
+                        ? 'No open shifts'
+                        : `No ${col.label.toLowerCase()}`}
                   </p>
                 </div>
               )}
-              {shifts.filter(s => s.status === col.id).map(s => (
+              {shiftsByStatus[col.id].map(s => (
                 <button key={s.id} type="button" onClick={() => handleEventClick(s)}
-                  className="w-full text-left bg-zinc-50 p-5 border border-zinc-100 hover:border-zinc-300 transition-all duration-300 group">
-                  <div className="flex items-start justify-between gap-2 mb-4">
-                    <h3 className="font-bold text-black text-[11px] uppercase tracking-widest leading-snug truncate">{s.title}</h3>
-                    <div className="w-2.5 h-2.5 flex-shrink-0 border border-zinc-200" style={{background: s.color}} />
+                  className="group w-full rounded-lg border border-zinc-100 bg-zinc-50 p-4 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:shadow-card">
+                  <div className="mb-4 flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-zinc-400">{getDateLabel(s.start_time)}</p>
+                      <h3 className="truncate text-sm font-bold text-black">{s.title}</h3>
+                    </div>
+                    <div className="h-8 w-1.5 flex-shrink-0 rounded-full" style={{background: s.color}} />
                   </div>
                   
                   <div className="space-y-3">
-                    <div className="flex items-center gap-2.5 text-zinc-400">
-                      <Clock size={15} className="opacity-50" />
-                      <span className="text-[10px] font-bold uppercase tracking-widest">{fmtTime(s.start_time)} – {fmtTime(s.end_time)}</span>
+                    <div className="flex items-center gap-2.5 text-zinc-500">
+                      <Clock size={14} className="text-zinc-400" />
+                      <span className="text-[10px] font-bold uppercase tracking-[0.14em]">{fmtTime(s.start_time)} - {fmtTime(s.end_time)}</span>
                     </div>
                     {s.location && (
-                      <div className="flex items-center gap-2.5 text-zinc-400">
-                        <MapPin size={15} className="opacity-50" />
-                        <span className="text-[10px] font-bold uppercase truncate">{s.location}</span>
+                      <div className="flex items-center gap-2.5 text-zinc-500">
+                        <MapPin size={14} className="text-zinc-400" />
+                        <span className="truncate text-[10px] font-bold uppercase tracking-[0.14em]">{s.location}</span>
                       </div>
                     )}
-                    <div className="flex items-center gap-2.5 pt-3 border-t border-zinc-200">
-                      <div className="w-6 h-6 bg-zinc-200 flex items-center justify-center flex-shrink-0">
+                    <div className="flex items-center gap-2.5 border-t border-zinc-200 pt-3">
+                      <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-zinc-200">
                         <User size={12} className="text-zinc-500" />
                       </div>
-                      <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest truncate">{s.assignee_name || 'Unassigned'}</span>
+                      <span className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-zinc-500">{s.assignee_name || 'Unassigned'}</span>
                     </div>
                   </div>
                 </button>
               ))}
             </div>
-          </div>
+          </section>
         ))}
       </div>
       </>
@@ -292,17 +457,20 @@ export default function SchedulePage() {
 
       {/* Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={e => e.target === e.currentTarget && closeModal()}>
-          <div className="bg-white border border-zinc-200 w-full max-w-md animate-slide-up relative shadow-2xl flex flex-col">
-            <div className="flex items-center justify-between p-5 border-b border-zinc-100">
-              <h2 className="text-[10px] font-bold text-black uppercase tracking-[0.2em]">{selected ? 'Shift Details' : 'New Shift'}</h2>
-              <button onClick={closeModal} className="text-zinc-400 hover:text-black transition-colors"><X size={18} /></button>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 p-4 backdrop-blur-sm" onClick={e => e.target === e.currentTarget && closeModal()}>
+          <div className="relative flex max-h-[92vh] w-full max-w-xl animate-slide-up flex-col overflow-hidden rounded-lg border border-zinc-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-zinc-100 p-5">
+              <div>
+                <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-zinc-400">{selected ? selected.status.replace('_', ' ') : 'Create roster item'}</p>
+                <h2 className="mt-1 text-base font-bold text-black">{selected ? 'Shift Details' : 'New Shift'}</h2>
+              </div>
+              <button onClick={closeModal} className="rounded-md p-2 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-black" aria-label="Close shift modal"><X size={18} /></button>
             </div>
 
             {selected && member?.role === 'EMPLOYEE' ? (
-              <div className="p-5 space-y-3 overflow-y-auto">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-3 h-3 rounded-full" style={{background: selected.color}} />
+              <div className="space-y-4 overflow-y-auto p-5">
+                <div className="mb-4 flex items-center gap-3 rounded-lg border border-zinc-200 bg-zinc-50 p-4">
+                  <div className="h-9 w-1.5 rounded-full" style={{background: selected.color}} />
                   <h3 className="font-semibold text-ink">{selected.title}</h3>
                   <span className={cn('badge ml-auto', STATUS_COLORS[selected.status])}>{selected.status}</span>
                 </div>
@@ -312,31 +480,31 @@ export default function SchedulePage() {
                   selected.location && ['Location', selected.location],
                   selected.notes && ['Notes', selected.notes],
                 ].filter((item): item is [string, string] => Boolean(item)).map(([k, v]) => (
-                  <div key={k} className="flex justify-between text-sm">
+                  <div key={k} className="flex justify-between gap-4 rounded-md border border-zinc-100 bg-white px-3 py-2 text-sm">
                     <span className="text-ink-tertiary">{k}</span>
-                    <span className="text-ink font-medium">{v}</span>
+                    <span className="text-right font-medium text-ink">{v}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
+              <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto p-5">
                 <div>
                   <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Subject *</label>
-                  <input className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="e.g. Morning Logistics" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required />
+                  <input className="w-full rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-black outline-none transition-colors focus:border-black focus:bg-white" placeholder="e.g. Morning Logistics" value={form.title} onChange={e => setForm(f => ({...f, title: e.target.value}))} required />
                 </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Start *</label>
-                    <input type="datetime-local" className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" value={form.startTime} onChange={e => setForm(f => ({...f, startTime: e.target.value}))} required />
+                    <input type="datetime-local" className="w-full rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-black outline-none transition-colors focus:border-black focus:bg-white" value={form.startTime} onChange={e => setForm(f => ({...f, startTime: e.target.value}))} required />
                   </div>
                   <div>
                     <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">End *</label>
-                    <input type="datetime-local" className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" value={form.endTime} onChange={e => setForm(f => ({...f, endTime: e.target.value}))} required />
+                    <input type="datetime-local" className="w-full rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-black outline-none transition-colors focus:border-black focus:bg-white" value={form.endTime} onChange={e => setForm(f => ({...f, endTime: e.target.value}))} required />
                   </div>
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Assign Recipient</label>
-                  <select className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors appearance-none" value={form.assigneeId} onChange={e => setForm(f => ({...f, assigneeId: e.target.value}))}>
+                  <select className="w-full appearance-none rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-black outline-none transition-colors focus:border-black focus:bg-white" value={form.assigneeId} onChange={e => setForm(f => ({...f, assigneeId: e.target.value}))}>
                     <option value="">Unassigned (Open)</option>
                     {members
                       .filter(m => member?.role === 'ADMIN' || m.role === 'EMPLOYEE')
@@ -347,27 +515,27 @@ export default function SchedulePage() {
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Location</label>
-                  <input className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors" placeholder="e.g. Warehouse A" value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} />
+                  <input className="w-full rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-black outline-none transition-colors focus:border-black focus:bg-white" placeholder="e.g. Warehouse A" value={form.location} onChange={e => setForm(f => ({...f, location: e.target.value}))} />
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Instructions</label>
-                  <textarea className="w-full bg-zinc-50 border border-zinc-200 px-4 py-2 text-sm text-black focus:border-black outline-none transition-colors min-h-[80px]" placeholder="Add details..." value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
+                  <textarea className="min-h-[90px] w-full rounded-md border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-black outline-none transition-colors focus:border-black focus:bg-white" placeholder="Add details..." value={form.notes} onChange={e => setForm(f => ({...f, notes: e.target.value}))} />
                 </div>
                 <div>
                   <label className="text-[9px] font-bold text-zinc-400 uppercase tracking-[0.2em] block mb-2">Color Tag</label>
                   <div className="flex gap-2">
                     {COLORS.map(c => (
                       <button type="button" key={c} onClick={() => setForm(f => ({...f, color: c}))}
-                        className={cn('w-7 h-7 border border-zinc-200 transition-transform', form.color === c ? 'scale-125 ring-2 ring-offset-2 ring-black' : 'hover:scale-110')}
+                        className={cn('h-7 w-7 rounded-full border border-zinc-200 transition-transform', form.color === c ? 'scale-110 ring-2 ring-black ring-offset-2' : 'hover:scale-105')}
                         style={{background: c}} />
                     ))}
                   </div>
                 </div>
                 <div className="flex gap-3 pt-4">
                   {selected && (
-                    <button type="button" onClick={handleDelete} className="px-4 py-3 border border-zinc-200 text-red-500 text-[10px] font-bold uppercase tracking-widest hover:bg-red-50 transition-colors">Delete</button>
+                    <button type="button" onClick={handleDelete} className="rounded-md border border-red-200 px-4 py-3 text-[10px] font-bold uppercase tracking-widest text-red-600 transition-colors hover:bg-red-50">Delete</button>
                   )}
-                  <button type="submit" className="flex-1 py-4 bg-black text-white font-black uppercase tracking-[0.3em] text-[10px] hover:bg-zinc-800 transition-colors" disabled={loading}>
+                  <button type="submit" className="flex-1 rounded-md bg-black py-4 text-[10px] font-black uppercase tracking-[0.2em] text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-60" disabled={loading}>
                     {loading ? 'Saving...' : selected ? 'Update Shift' : 'Create Shift'}
                   </button>
                 </div>
@@ -376,6 +544,7 @@ export default function SchedulePage() {
           </div>
         </div>
       )}
+      </div>
     </div>
   )
 }
